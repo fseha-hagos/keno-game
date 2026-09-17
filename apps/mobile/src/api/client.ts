@@ -26,7 +26,7 @@ export async function setSecureItem(key: string, value: string): Promise<void> {
       return;
     }
     await SecureStore.setItemAsync(key, value);
-  } catch {}
+  } catch { }
 }
 
 export async function deleteSecureItem(key: string): Promise<void> {
@@ -36,7 +36,7 @@ export async function deleteSecureItem(key: string): Promise<void> {
       return;
     }
     await SecureStore.deleteItemAsync(key);
-  } catch {}
+  } catch { }
 }
 
 export const apiClient = axios.create({
