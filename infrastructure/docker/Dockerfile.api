@@ -6,7 +6,7 @@ RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/api ./apps/api
+COPY apps ./apps
 
 RUN pnpm install --frozen-lockfile || pnpm install
 RUN pnpm --filter @keno/shared-types build
