@@ -1,10 +1,12 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm
+ENV COREPACK_ENABLE_STRICT=0
+RUN npm install -g pnpm@9
+RUN pnpm config set pmOnFail ignore
 
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/admin ./apps/admin
+COPY apps ./apps
 
 RUN pnpm install --frozen-lockfile || pnpm install
 RUN pnpm --filter @keno/shared-types build
