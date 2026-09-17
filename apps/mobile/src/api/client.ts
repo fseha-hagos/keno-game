@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-export const API_BASE_URL = 'http://192.168.100.228:3000';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.228:3000';
 
 export async function getSecureItem(key: string): Promise<string | null> {
   try {
