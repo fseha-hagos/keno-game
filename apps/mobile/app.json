@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Keno Real-Money",
+    "slug": "keno-game",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0b0e14"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.keno.platform"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "updates": {
+      "enabled": false
+    }
+  }
+}

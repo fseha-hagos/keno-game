@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: Certified Real-Money Keno Betting Platform API
+  version: 1.0.0
+  description: >
+    Production-grade, server-authoritative API for an 80-ball Keno platform with certified 96% RTP paytables,
+    CSPRNG Fisher-Yates draws, double-entry financial ledger, and server-side responsible gambling limits.
+paths:
+  /api/v1/auth/register:
+    post:
+      summary: Register player account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username, password, dateOfBirth, acceptTerms]
+              properties:
+                email: { type: string, format: email }
+                username: { type: string }
+                password: { type: string }
+                dateOfBirth: { type: string, format: date }
+                phone: { type: string }
+                acceptTerms: { type: boolean }
+      responses:
+        '201':
+          description: User registered successfully
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate player and obtain JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                deviceId: { type: string }
+      responses:
+        '200':
+          description: Authentication tokens issued
+
+  /api/v1/keno/rounds/current:
+    get:
+      summary: Get active open betting round
+      responses:
+        '200':
+          description: Active game round details
+
+  /api/v1/keno/bets:
+    post:
+      summary: Place authoritative bet for active round
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roundId, stakeMinor, currency, selectedNumbers, idempotencyKey]
+              properties:
+                roundId: { type: string, format: uuid }
+                stakeMinor: { type: string, example: "500" }
+                currency: { type: string, example: "USD" }
+                selectedNumbers:
+                  type: array
+                  items: { type: integer, minimum: 1, maximum: 80 }
+                  minItems: 1
+                  maxItems: 10
+                idempotencyKey: { type: string }
+      responses:
+        '201':
+          description: Bet placed and debited from ledger
+
+  /api/v1/wallet/balance:
+    get:
+      summary: Get authenticated player wallet balance
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Wallet balance in integer minor units
+
+  /api/v1/limits:
+    get:
+      summary: Get player responsible gambling limits
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Active limits list
+    put:
+      summary: Set or update responsible gambling limit
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [limitType, duration]
+              properties:
+                limitType: { type: string, enum: [DEPOSIT, WAGER, LOSS, SESSION_TIME] }
+                duration: { type: string, enum: [DAILY, WEEKLY, MONTHLY] }
+                amountMinor: { type: string }
+      responses:
+        '200':
+          description: Limit updated
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

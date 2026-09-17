@@ -1,0 +1,29 @@
+# Multi-stage production build for NestJS API
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm --filter @keno/shared-types build
+RUN pnpm --filter @keno/game-math build
+RUN pnpm --filter @keno/validation build
+RUN pnpm --filter @keno/config build
+RUN pnpm --filter @keno/api build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./
+
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
