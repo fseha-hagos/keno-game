@@ -14,10 +14,15 @@ import { BetHistoryScreen } from '../screens/BetHistoryScreen';
 import { ResponsibleGamblingScreen } from '../screens/ResponsibleGamblingScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const MainTabs = () => {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 10);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -25,9 +30,13 @@ const MainTabs = () => {
         tabBarStyle: {
           backgroundColor: '#0F172A',
           borderTopColor: '#1E293B',
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 56 + bottomPadding,
+          paddingBottom: bottomPadding,
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
         },
         tabBarActiveTintColor: '#F59E0B',
         tabBarInactiveTintColor: '#64748B',
