@@ -125,11 +125,15 @@ export const KenoGameScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <Header />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Active Round Info Bar with 40s Countdown */}
         <View style={styles.roundBar}>
           <View>
@@ -162,8 +166,8 @@ export const KenoGameScreen = () => {
               {round?.status === 'OPEN' && timeLeft > 0
                 ? 'BETTING OPEN'
                 : isDrawing
-                ? 'DRAWING...'
-                : 'CLOSED'}
+                  ? 'DRAWING...'
+                  : 'CLOSED'}
             </Text>
           </View>
         </View>
@@ -206,9 +210,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0F1D',
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
-    padding: 12,
+    padding: 8,
     gap: 8,
+    paddingBottom: 24,
   },
   roundBar: {
     flexDirection: 'row',

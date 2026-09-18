@@ -17,7 +17,7 @@ const STAKE_OPTIONS = [
   { label: '$50', value: '5000' },
 ];
 
-export const BetBar: React.FC<BetBarProps> = ({ onPlaceBet, isLoading, disabled }) => {
+export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
   const { selectedNumbers, stakeMinor, setStakeMinor, quickPick, clearSelection } =
     useGameStore();
 
