@@ -11,7 +11,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 
-export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const LoginScreen = ({ navigation }: { navigation?: any }) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);

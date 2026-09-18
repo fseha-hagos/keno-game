@@ -19,7 +19,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 import { socketService } from '../services/socket';
 
-export const KenoGameScreen: React.FC = () => {
+export const KenoGameScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();

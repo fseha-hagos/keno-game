@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
 import { Header } from '../components/Header';
 
-export const ProfileScreen: React.FC = () => {
+export const ProfileScreen = () => {
   const { user, logout, isAuthenticated } = useAuthStore();
   const navigation = useNavigation<any>();
 

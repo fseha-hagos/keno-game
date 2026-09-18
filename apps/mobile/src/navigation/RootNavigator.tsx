@@ -77,7 +77,7 @@ const MainTabs = () => {
   );
 };
 
-export const RootNavigator: React.FC = () => {
+export const RootNavigator = () => {
   const { isLoading } = useAuthStore();
 
   if (isLoading) {

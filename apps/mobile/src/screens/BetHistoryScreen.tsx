@@ -6,7 +6,7 @@ import { Header } from '../components/Header';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
 
-export const BetHistoryScreen: React.FC = () => {
+export const BetHistoryScreen = () => {
   const { isAuthenticated } = useAuthStore();
   const navigation = useNavigation<any>();
 

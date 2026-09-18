@@ -16,7 +16,7 @@ import { LimitType, LimitDuration } from '@keno/shared-types';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
 
-export const ResponsibleGamblingScreen: React.FC = () => {
+export const ResponsibleGamblingScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();

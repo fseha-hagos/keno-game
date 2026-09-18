@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
 
-export const SplashScreen: React.FC = () => {
+export const SplashScreen = () => {
   const { checkAuth } = useAuthStore();
 
   useEffect(() => {

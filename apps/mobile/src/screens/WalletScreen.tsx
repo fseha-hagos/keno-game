@@ -16,7 +16,7 @@ import { Header } from '../components/Header';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
 
-export const WalletScreen: React.FC = () => {
+export const WalletScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();

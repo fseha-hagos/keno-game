@@ -12,7 +12,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 
-export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
   const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
