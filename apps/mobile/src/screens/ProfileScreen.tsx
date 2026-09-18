@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
 import { Header } from '../components/Header';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const ProfileScreen = () => {
   const { user, logout, isAuthenticated } = useAuthStore();
@@ -10,7 +11,7 @@ export const ProfileScreen = () => {
 
   if (!isAuthenticated) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Header />
         <View style={styles.guestCenter}>
           <Text style={{ fontSize: 44, marginBottom: 12 }}>👤</Text>
@@ -25,7 +26,7 @@ export const ProfileScreen = () => {
             <Text style={styles.guestButtonText}>LOG IN WITH PHONE</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 

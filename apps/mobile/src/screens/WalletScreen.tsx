@@ -15,6 +15,7 @@ import { Header } from '../components/Header';
 
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const WalletScreen = () => {
   const queryClient = useQueryClient();
@@ -91,7 +92,7 @@ export const WalletScreen = () => {
 
   if (!isAuthenticated) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <Header />
         <View style={styles.guestCenter}>
           <Text style={{ fontSize: 44, marginBottom: 12 }}>💳</Text>
@@ -106,7 +107,7 @@ export const WalletScreen = () => {
             <Text style={styles.guestButtonText}>LOG IN WITH PHONE</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 

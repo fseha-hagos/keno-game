@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "9344d98a-e83a-4391-8a91-aef1323d548f"
+      }
+    },
+    "android": {
+      "package": "com.fseha.kenoplatform"
+    }
+  }
+}

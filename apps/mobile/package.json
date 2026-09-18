@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "test": "jest",
     "type-check": "tsc --noEmit",
-    "clean": "rimraf .expo dist node_modules"
+    "clean": "rimraf .expo dist node_modules",
+    "eas-build-post-install": "pnpm --filter @keno/shared-types build && pnpm --filter @keno/game-math build && pnpm --filter @keno/validation build && pnpm --filter @keno/config build"
   },
   "dependencies": {
     "@babel/runtime": "^7.29.7",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@types/node": "^20.14.0",
     "@types/react": "~19.2.4",
     "jest": "^29.7.0",
     "rimraf": "^6.0.0",

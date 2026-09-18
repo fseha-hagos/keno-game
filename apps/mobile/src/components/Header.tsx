@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 
-export const Header: React.FC = () => {
+export const Header = () => {
   const { user, logout } = useAuthStore();
   const navigation = useNavigation<any>();
 

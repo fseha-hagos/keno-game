@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
-export const PaytablePreview: React.FC = () => {
+export const PaytablePreview = () => {
   const { selectedNumbers, stakeMinor } = useGameStore();
   const spots = selectedNumbers.length;
   const stake = Number(stakeMinor) / 100;
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     borderColor: '#1E293B',
   },
   emptyContainer: {
-    padding: 12,
+    padding: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
+import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
 interface BetBarProps {
   onPlaceBet: () => void;
@@ -22,6 +23,12 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
     useGameStore();
 
   const spots = selectedNumbers.length;
+  const stake = Number(stakeMinor) / 100;
+  const maxMultiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
+  const maxWin = (stake * maxMultiplier).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   const canBet = spots >= 1 && spots <= 10 && !disabled && !isLoading;
 
   return (
@@ -72,6 +79,21 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
         ))}
       </View>
 
+      {/* Max Multiplier & Potential Win Stat Banner */}
+      {spots > 0 && (
+        <View style={styles.potentialWinBar}>
+          <View style={styles.winStatGroup}>
+            <Text style={styles.winStatLabel}>MAX MULTIPLIER</Text>
+            <Text style={styles.winStatMultiplier}>{maxMultiplier.toLocaleString()}x</Text>
+          </View>
+          <View style={styles.winStatDivider} />
+          <View style={styles.winStatGroup}>
+            <Text style={styles.winStatLabel}>MAX POTENTIAL WIN</Text>
+            <Text style={styles.winStatAmount}>${maxWin}</Text>
+          </View>
+        </View>
+      )}
+
       {/* Main Action Button */}
       <TouchableOpacity
         onPress={onPlaceBet}
@@ -86,7 +108,9 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
               PLACE BET (${(Number(stakeMinor) / 100).toFixed(2)})
             </Text>
             <Text style={styles.spotsCountText}>
-              {spots}/10 SPOTS SELECTED
+              {spots > 0
+                ? `${spots}/10 SPOTS  •  WIN UP TO $${maxWin}`
+                : 'SELECT 1 TO 10 NUMBERS'}
             </Text>
           </View>
         )}
@@ -168,6 +192,43 @@ const styles = StyleSheet.create({
   stakeChipTextActive: {
     color: '#FFFFFF',
     fontWeight: '900',
+  },
+  potentialWinBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  winStatGroup: {
+    alignItems: 'center',
+  },
+  winStatLabel: {
+    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  winStatMultiplier: {
+    color: '#FBBF24',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 1,
+  },
+  winStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#334155',
+  },
+  winStatAmount: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 1,
   },
   betButton: {
     backgroundColor: '#F59E0B',

@@ -11,7 +11,8 @@
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "type-check": "turbo type-check",
-    "clean": "rimraf node_modules packages/*/dist packages/*/node_modules apps/*/dist apps/*/node_modules"
+    "clean": "rimraf node_modules packages/*/dist packages/*/node_modules apps/*/dist apps/*/node_modules",
+    "eas-build-post-install": "pnpm --filter @keno/shared-types build && pnpm --filter @keno/game-math build && pnpm --filter @keno/validation build && pnpm --filter @keno/config build"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
