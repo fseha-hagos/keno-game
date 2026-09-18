@@ -24,7 +24,7 @@ export default function App() {
     setMathAnalysis(analysis);
 
     // Fetch recent rounds
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://keno-game-q8l3.onrender.com';
+    const apiUrl = (import.meta as any).env?.VITE_API_URL || 'https://keno-game-q8l3.onrender.com';
     axios.get(`${apiUrl}/api/v1/keno/rounds/recent`)
       .then((res) => setRounds(res.data))
       .catch(() => {});
