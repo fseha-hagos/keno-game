@@ -3,17 +3,20 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Alert,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { Header } from '../components/Header';
-import { KenoGrid } from '../components/KenoGrid';
-import { PaytablePreview } from '../components/PaytablePreview';
+import { KenoPlayStage } from '../components/KenoPlayStage';
+import { PaytableSidebar } from '../components/PaytableSidebar';
 import { BetBar } from '../components/BetBar';
+import { BetSlipsPanel } from '../components/BetSlipsPanel';
+import { KenoGradient } from '../components/KenoGradient';
+import { KENO_GRADIENTS, KENO_GRADIENT_VERTICAL } from '../theme/kenoTheme';
 import { useGameStore } from '../store/useGameStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
@@ -23,8 +26,7 @@ export const KenoGameScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();
-  const { selectedNumbers, stakeMinor, currency, drawnNumbers, isDrawing } =
-    useGameStore();
+  const { betSlips, currency, isDrawing } = useGameStore();
 
   const [timeLeft, setTimeLeft] = useState<number>(40);
 
@@ -63,24 +65,35 @@ export const KenoGameScreen = () => {
     return () => clearInterval(timer);
   }, [round?.closedAt, round?.status]);
 
-  // Place bet mutation
+  // Place bet mutation — submits all ready slips in parallel
   const betMutation = useMutation({
     mutationFn: async () => {
       if (!round) throw new Error('No active round');
-      const idempotencyKey = `bet_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const res = await apiClient.post('/api/v1/keno/bets', {
-        roundId: round.id,
-        stakeMinor,
-        currency,
-        selectedNumbers,
-        idempotencyKey,
+      const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
+      if (readySlips.length === 0) throw new Error('No slips with numbers selected');
+
+      const requests = readySlips.map((slip) => {
+        const idempotencyKey = `bet_${slip.id}_${Date.now()}`;
+        return apiClient.post('/api/v1/keno/bets', {
+          roundId: round.id,
+          stakeMinor: slip.stakeMinor,
+          currency,
+          selectedNumbers: slip.selectedNumbers,
+          idempotencyKey,
+        });
       });
-      return res.data;
+
+      const results = await Promise.all(requests);
+      return results.map((r) => r.data);
     },
-    onSuccess: (data) => {
+    onSuccess: (results) => {
+      const count = results.length;
+      const totalStake = betSlips
+        .filter((s) => s.selectedNumbers.length > 0)
+        .reduce((sum, s) => sum + Number(s.stakeMinor) / 100, 0);
       Alert.alert(
-        'Bet Accepted',
-        `Your bet of $${(Number(stakeMinor) / 100).toFixed(2)} on ${selectedNumbers.length} spots for Round #${round?.roundNumber} is confirmed!`,
+        count > 1 ? `${count} Bets Accepted` : 'Bet Accepted',
+        `$${totalStake.toFixed(2)} placed on ${count} slip${count > 1 ? 's' : ''} for Round #${round?.roundNumber}.`,
       );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
@@ -94,30 +107,26 @@ export const KenoGameScreen = () => {
   });
 
   const handlePlaceBet = () => {
-    // Guest check: must be logged in to wager real money
     if (!isAuthenticated) {
       Alert.alert(
         'Player Login Required',
-        'You are currently in Guest Spectator mode. Please sign in or register with your mobile phone number to place real bets and win!',
+        'Please sign in or register to place real bets and win!',
         [
           { text: 'Keep Watching', style: 'cancel' },
-          {
-            text: 'Sign In / Register',
-            style: 'default',
-            onPress: () => navigation.navigate('Login'),
-          },
+          { text: 'Sign In / Register', onPress: () => navigation.navigate('Login') },
         ],
       );
       return;
     }
 
-    if (selectedNumbers.length === 0) {
-      Alert.alert('Selection Required', 'Please pick 1 to 10 numbers on the grid.');
+    const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
+    if (readySlips.length === 0) {
+      Alert.alert('No Numbers Selected', 'Pick at least 1 number on any slip.');
       return;
     }
 
     if (round?.status !== 'OPEN' || timeLeft <= 0) {
-      Alert.alert('Betting Closed', 'Betting for this round is closed. Next round will open in seconds.');
+      Alert.alert('Betting Closed', 'This round is closed. Next round will open shortly.');
       return;
     }
 
@@ -130,77 +139,44 @@ export const KenoGameScreen = () => {
       <Header />
 
       <ScrollView
-        style={styles.scrollView}
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Active Round Info Bar with 40s Countdown */}
-        <View style={styles.roundBar}>
-          <View>
-            <Text style={styles.roundLabel}>ROUND</Text>
-            <Text style={styles.roundNumber}>#{round?.roundNumber || '...'}</Text>
-          </View>
+        <KenoPlayStage
+          roundNumber={round?.roundNumber}
+          timeLeft={timeLeft}
+          bettingOpen={round?.status === 'OPEN' && timeLeft > 0}
+        />
 
-          {/* 40s Betting Delay Countdown */}
-          <View style={styles.countdownBox}>
-            <Text style={styles.countdownLabel}>NEXT DRAW IN</Text>
-            <Text
-              style={[
-                styles.countdownValue,
-                timeLeft <= 10 && styles.countdownUrgent,
-              ]}
-            >
-              {round?.status === 'OPEN' && timeLeft > 0 ? `${timeLeft}s` : 'DRAWING'}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statusBadge,
-              round?.status !== 'OPEN' || timeLeft === 0
-                ? styles.statusBadgeClosed
-                : styles.statusBadgeOpen,
-            ]}
-          >
-            <Text style={styles.statusText}>
-              {round?.status === 'OPEN' && timeLeft > 0
-                ? 'BETTING OPEN'
-                : isDrawing
-                  ? 'DRAWING...'
-                  : 'CLOSED'}
-            </Text>
-          </View>
+        <View style={styles.statusRow}>
+          <Text style={styles.statusHint}>
+            {round?.status === 'OPEN' && timeLeft > 0
+              ? 'BETTING OPEN'
+              : isDrawing
+                ? 'DRAW IN PROGRESS'
+                : 'BETTING CLOSED'}
+          </Text>
         </View>
 
-        {/* Live Draw Bar if Drawing or Result */}
-        {drawnNumbers.length > 0 && (
-          <View style={styles.liveDrawContainer}>
-            <Text style={styles.liveDrawTitle}>
-              {isDrawing ? '🔴 DRAWING 20 BALLS LIVE...' : 'DRAW RESULT (20 BALLS)'}
-            </Text>
-            <View style={styles.ballsRow}>
-              {drawnNumbers.map((ball, idx) => (
-                <View key={idx} style={styles.drawnBallCircle}>
-                  <Text style={styles.drawnBallText}>{ball}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        <KenoGradient
+          colors={KENO_GRADIENTS.paytable}
+          start={KENO_GRADIENT_VERTICAL.start}
+          end={KENO_GRADIENT_VERTICAL.end}
+          style={styles.paytableRow}
+        >
+          <PaytableSidebar />
+        </KenoGradient>
 
-        {/* 80-Ball Interactive Keno Grid */}
-        <KenoGrid />
+        <BetSlipsPanel />
 
-        {/* Dynamic Paytable for current spot count */}
-        <PaytablePreview />
+        <BetBar
+          onPlaceBet={handlePlaceBet}
+          isLoading={betMutation.isPending}
+          disabled={round?.status !== 'OPEN' || timeLeft <= 0}
+        />
       </ScrollView>
-
-      {/* Stake picker and Place Bet Bar */}
-      <BetBar
-        onPlaceBet={handlePlaceBet}
-        isLoading={betMutation.isPending}
-        disabled={round?.status !== 'OPEN' || timeLeft <= 0}
-      />
     </SafeAreaView>
   );
 };
@@ -210,108 +186,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0F1D',
   },
-  scrollView: {
+  scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 8,
-    gap: 8,
-    paddingBottom: 24,
+    paddingBottom: 16,
+    flexGrow: 1,
   },
-  roundBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  paytableRow: {
+    marginHorizontal: 8,
+    marginTop: 6,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#1E293B',
+    padding: 12,
   },
-  roundLabel: {
-    color: '#64748B',
+  statusRow: {
+    marginHorizontal: 6,
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  statusHint: {
+    color: '#94A3B8',
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  roundNumber: {
-    color: '#F8FAFC',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  countdownBox: {
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  countdownLabel: {
-    color: '#94A3B8',
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  countdownValue: {
-    color: '#F59E0B',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  countdownUrgent: {
-    color: '#EF4444',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  statusBadgeOpen: {
-    backgroundColor: '#065F46',
-  },
-  statusBadgeClosed: {
-    backgroundColor: '#991B1B',
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  liveDrawContainer: {
-    backgroundColor: '#1E293B',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#3B82F6',
-  },
-  liveDrawTitle: {
-    color: '#60A5FA',
-    fontSize: 11,
-    fontWeight: '800',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  ballsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  drawnBallCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#93C5FD',
-  },
-  drawnBallText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '900',
+    letterSpacing: 1,
   },
 });

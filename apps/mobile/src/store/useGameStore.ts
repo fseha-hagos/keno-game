@@ -1,58 +1,213 @@
 import { create } from 'zustand';
 
-interface GameState {
+export interface BetSlip {
+  id: string;
   selectedNumbers: number[];
-  stakeMinor: string;
-  currency: string;
+  stakeMinor: string; // in cents, e.g. "500" = $5.00
+}
+
+const STAKE_STEPS = [100, 200, 500, 1000, 2000, 5000]; // cents
+const MAX_SLIPS = 5;
+
+function makeSlip(id: string): BetSlip {
+  return { id, selectedNumbers: [], stakeMinor: '500' };
+}
+
+function nextStake(current: string, direction: 1 | -1): string {
+  const minor = Number(current);
+  const idx = STAKE_STEPS.indexOf(minor);
+  if (idx === -1) {
+    // Not on a step — snap to nearest
+    const nearest = STAKE_STEPS.reduce((prev, s) =>
+      Math.abs(s - minor) < Math.abs(prev - minor) ? s : prev,
+    );
+    return String(nearest);
+  }
+  const next = idx + direction;
+  if (next < 0) return String(STAKE_STEPS[0]);
+  if (next >= STAKE_STEPS.length) return String(STAKE_STEPS[STAKE_STEPS.length - 1]);
+  return String(STAKE_STEPS[next]);
+}
+
+/** Drop empty slips except the active one; always keep one editable slip. */
+function pruneEmptySlips(
+  slips: BetSlip[],
+  activeSlipId: string,
+): { betSlips: BetSlip[]; activeSlipId: string } {
+  const kept = slips.filter(
+    (s) => s.selectedNumbers.length > 0 || s.id === activeSlipId,
+  );
+
+  if (kept.length === 0) {
+    const id = `slip-${Date.now()}`;
+    return { betSlips: [makeSlip(id)], activeSlipId: id };
+  }
+
+  let nextActive = activeSlipId;
+  if (!kept.some((s) => s.id === activeSlipId)) {
+    nextActive = kept[kept.length - 1]!.id;
+  }
+
+  return { betSlips: kept, activeSlipId: nextActive };
+}
+
+interface GameState {
+  // Bet slips
+  betSlips: BetSlip[];
+  activeSlipId: string;
+
+  // Draw state (shared across all slips — one draw per round)
   drawnNumbers: number[];
   isDrawing: boolean;
+  currency: string;
+
+  // Slip actions
+  addSlip: () => void;
+  removeSlip: (id: string) => void;
+  setActiveSlip: (id: string) => void;
+
+  // Active slip number selection
   toggleNumber: (num: number) => void;
   quickPick: (count: number) => void;
   clearSelection: () => void;
+
+  // Stake: per-slip or all slips (bottom bar)
+  incrementStakeForSlip: (slipId: string) => void;
+  decrementStakeForSlip: (slipId: string) => void;
+  incrementAllStakes: () => void;
+  decrementAllStakes: () => void;
   setStakeMinor: (stake: string) => void;
+
+  // Draw state
   setDrawnNumbers: (nums: number[]) => void;
   addDrawnNumber: (num: number) => void;
   setIsDrawing: (drawing: boolean) => void;
   resetRoundDraw: () => void;
+
+  // Derived helpers (not stored — computed on access)
+  getActiveSlip: () => BetSlip;
 }
 
+const INITIAL_SLIP_ID = 'slip-1';
+
 export const useGameStore = create<GameState>((set, get) => ({
-  selectedNumbers: [],
-  stakeMinor: '500', // $5.00 default
-  currency: 'USD',
+  betSlips: [makeSlip(INITIAL_SLIP_ID)],
+  activeSlipId: INITIAL_SLIP_ID,
   drawnNumbers: [],
   isDrawing: false,
+  currency: 'USD',
 
-  toggleNumber: (num: number) => {
-    const { selectedNumbers } = get();
-    if (selectedNumbers.includes(num)) {
-      set({ selectedNumbers: selectedNumbers.filter((n) => n !== num) });
-    } else {
-      if (selectedNumbers.length < 10) {
-        set({ selectedNumbers: [...selectedNumbers, num].sort((a, b) => a - b) });
+  getActiveSlip: () => {
+    const { betSlips, activeSlipId } = get();
+    return betSlips.find((s) => s.id === activeSlipId) ?? betSlips[0]!;
+  },
+
+  addSlip: () =>
+    set((state) => {
+      const filledCount = state.betSlips.filter((s) => s.selectedNumbers.length > 0).length;
+      if (filledCount >= MAX_SLIPS) return state;
+      const active = state.betSlips.find((s) => s.id === state.activeSlipId);
+      const id = `slip-${Date.now()}`;
+      const newSlip = makeSlip(id);
+      if (active) {
+        newSlip.stakeMinor = active.stakeMinor;
       }
-    }
-  },
+      return pruneEmptySlips([...state.betSlips, newSlip], id);
+    }),
 
-  quickPick: (count: number) => {
-    const targetCount = Math.min(10, Math.max(1, count));
-    const pool = Array.from({ length: 80 }, (_, i) => i + 1);
-    const picks: number[] = [];
+  removeSlip: (id: string) =>
+    set((state) => {
+      const slips = state.betSlips.filter((s) => s.id !== id);
+      const activeSlipId =
+        state.activeSlipId === id ? (slips[slips.length - 1]?.id ?? id) : state.activeSlipId;
+      return pruneEmptySlips(slips.length ? slips : state.betSlips, activeSlipId);
+    }),
 
-    for (let i = 0; i < targetCount; i++) {
-      const idx = Math.floor(Math.random() * pool.length);
-      picks.push(pool[idx]!);
-      pool.splice(idx, 1);
-    }
+  setActiveSlip: (id: string) =>
+    set((state) => pruneEmptySlips(state.betSlips, id)),
 
-    set({ selectedNumbers: picks.sort((a, b) => a - b) });
-  },
+  toggleNumber: (num: number) =>
+    set((state) => {
+      const slips = state.betSlips.map((slip) => {
+        if (slip.id !== state.activeSlipId) return slip;
+        const has = slip.selectedNumbers.includes(num);
+        const next = has
+          ? slip.selectedNumbers.filter((n) => n !== num)
+          : slip.selectedNumbers.length < 10
+            ? [...slip.selectedNumbers, num].sort((a, b) => a - b)
+            : slip.selectedNumbers;
+        return { ...slip, selectedNumbers: next };
+      });
+      return pruneEmptySlips(slips, state.activeSlipId);
+    }),
 
-  clearSelection: () => set({ selectedNumbers: [] }),
+  quickPick: (count: number) =>
+    set((state) => {
+      const target = Math.min(10, Math.max(1, count));
+      const pool = Array.from({ length: 80 }, (_, i) => i + 1);
+      const picks: number[] = [];
+      for (let i = 0; i < target; i++) {
+        const idx = Math.floor(Math.random() * pool.length);
+        picks.push(pool[idx]!);
+        pool.splice(idx, 1);
+      }
+      picks.sort((a, b) => a - b);
+      const slips = state.betSlips.map((slip) =>
+        slip.id === state.activeSlipId ? { ...slip, selectedNumbers: picks } : slip,
+      );
+      return pruneEmptySlips(slips, state.activeSlipId);
+    }),
 
-  setStakeMinor: (stakeMinor: string) => set({ stakeMinor }),
+  clearSelection: () =>
+    set((state) => {
+      const slips = state.betSlips.map((slip) =>
+        slip.id === state.activeSlipId ? { ...slip, selectedNumbers: [] } : slip,
+      );
+      return pruneEmptySlips(slips, state.activeSlipId);
+    }),
 
-  setDrawnNumbers: (drawnNumbers: number[]) => set({ drawnNumbers }),
+  incrementStakeForSlip: (slipId: string) =>
+    set((state) => ({
+      betSlips: state.betSlips.map((slip) =>
+        slip.id === slipId
+          ? { ...slip, stakeMinor: nextStake(slip.stakeMinor, 1) }
+          : slip,
+      ),
+    })),
+
+  decrementStakeForSlip: (slipId: string) =>
+    set((state) => ({
+      betSlips: state.betSlips.map((slip) =>
+        slip.id === slipId
+          ? { ...slip, stakeMinor: nextStake(slip.stakeMinor, -1) }
+          : slip,
+      ),
+    })),
+
+  incrementAllStakes: () =>
+    set((state) => {
+      const reference = state.betSlips[0]?.stakeMinor ?? '500';
+      const next = nextStake(reference, 1);
+      return {
+        betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: next })),
+      };
+    }),
+
+  decrementAllStakes: () =>
+    set((state) => {
+      const reference = state.betSlips[0]?.stakeMinor ?? '500';
+      const next = nextStake(reference, -1);
+      return {
+        betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: next })),
+      };
+    }),
+
+  setStakeMinor: (stake: string) =>
+    set((state) => ({
+      betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: stake })),
+    })),
+
+  setDrawnNumbers: (drawnNumbers) => set({ drawnNumbers }),
 
   addDrawnNumber: (num: number) => {
     const { drawnNumbers } = get();
@@ -61,7 +216,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  setIsDrawing: (isDrawing: boolean) => set({ isDrawing }),
+  setIsDrawing: (isDrawing) => set({ isDrawing }),
 
   resetRoundDraw: () => set({ drawnNumbers: [], isDrawing: false }),
 }));

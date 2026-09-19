@@ -54,6 +54,43 @@ export const ProfileScreen = () => {
           </View>
         </View>
 
+        {/* Player Activity & Controls */}
+        <View style={styles.card}>
+          <Text style={styles.title}>PLAYER CONTROLS & ACTIVITY</Text>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('History')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuLeft}>
+              <Text style={styles.menuIcon}>📜</Text>
+              <View>
+                <Text style={styles.menuTitle}>Bet History</Text>
+                <Text style={styles.menuSubtitle}>View recent placed bets, hits & payout records</Text>
+              </View>
+            </View>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Limits')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuLeft}>
+              <Text style={styles.menuIcon}>🛡️</Text>
+              <View>
+                <Text style={styles.menuTitle}>Safe Play & Limits</Text>
+                <Text style={styles.menuSubtitle}>Set daily deposit, wager limits & self-exclusion</Text>
+              </View>
+            </View>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.card}>
           <Text style={styles.title}>PROVABLY FAIR & REGULATORY</Text>
           <Text style={styles.infoText}>
@@ -94,6 +131,44 @@ const styles = StyleSheet.create({
     borderColor: '#EF4444',
   },
   logoutBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '800' },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  menuLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  menuIcon: {
+    fontSize: 22,
+    width: 32,
+    textAlign: 'center',
+  },
+  menuTitle: {
+    color: '#F1F5F9',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  menuSubtitle: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  menuArrow: {
+    color: '#64748B',
+    fontSize: 22,
+    fontWeight: '300',
+    marginLeft: 8,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#1E293B',
+    marginVertical: 4,
+  },
   guestCenter: {
     flex: 1,
     justifyContent: 'center',
