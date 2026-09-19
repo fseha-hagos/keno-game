@@ -4,9 +4,10 @@ import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
 export const PaytablePreview = () => {
-  const { selectedNumbers, stakeMinor } = useGameStore();
-  const spots = selectedNumbers.length;
-  const stake = Number(stakeMinor) / 100;
+  const { getActiveSlip } = useGameStore();
+  const activeSlip = getActiveSlip();
+  const spots = activeSlip.selectedNumbers.length;
+  const stake = Number(activeSlip.stakeMinor) / 100;
 
   if (spots === 0) {
     return (

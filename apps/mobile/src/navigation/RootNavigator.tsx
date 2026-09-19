@@ -16,6 +16,20 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DarkTheme } from '@react-navigation/native';
+
+const customTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#0A0F1D',
+    card: '#0F172A',
+    text: '#F8FAFC',
+    border: '#1E293B',
+    primary: '#F59E0B',
+  },
+};
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -25,6 +39,7 @@ const MainTabs = () => {
 
   return (
     <Tab.Navigator
+      sceneContainerStyle={{ backgroundColor: '#0A0F1D' }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -35,8 +50,8 @@ const MainTabs = () => {
           paddingTop: 6,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 12,
+          fontWeight: '700',
         },
         tabBarActiveTintColor: '#F59E0B',
         tabBarInactiveTintColor: '#64748B',
@@ -59,22 +74,6 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="History"
-        component={BetHistoryScreen}
-        options={{
-          tabBarLabel: 'History',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>📜</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="Limits"
-        component={ResponsibleGamblingScreen}
-        options={{
-          tabBarLabel: 'Safe Play',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>🛡️</Text>,
-        }}
-      />
-      <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
@@ -94,9 +93,36 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <NavigationContainer theme={customTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#0A0F1D' },
+        }}
+      >
         <Stack.Screen name="Main" component={MainTabs} />
+        <Stack.Screen
+          name="History"
+          component={BetHistoryScreen}
+          options={{
+            headerShown: true,
+            title: 'Bet History',
+            headerStyle: { backgroundColor: '#0F172A' },
+            headerTintColor: '#F8FAFC',
+            headerTitleStyle: { fontWeight: '800' },
+          }}
+        />
+        <Stack.Screen
+          name="Limits"
+          component={ResponsibleGamblingScreen}
+          options={{
+            headerShown: true,
+            title: 'Responsible Gaming Limits',
+            headerStyle: { backgroundColor: '#0F172A' },
+            headerTintColor: '#F8FAFC',
+            headerTitleStyle: { fontWeight: '800' },
+          }}
+        />
         <Stack.Screen
           name="Login"
           component={LoginScreen}
