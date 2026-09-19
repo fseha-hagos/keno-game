@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
@@ -9,112 +15,96 @@ interface BetBarProps {
   disabled?: boolean;
 }
 
-const STAKE_OPTIONS = [
-  { label: '$1', value: '100' },
-  { label: '$2', value: '200' },
-  { label: '$5', value: '500' },
-  { label: '$10', value: '1000' },
-  { label: '$20', value: '2000' },
-  { label: '$50', value: '5000' },
-];
-
 export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
-  const { selectedNumbers, stakeMinor, setStakeMinor, quickPick, clearSelection } =
-    useGameStore();
+  const {
+    betSlips,
+    incrementAllStakes,
+    decrementAllStakes,
+  } = useGameStore();
 
-  const spots = selectedNumbers.length;
-  const stake = Number(stakeMinor) / 100;
-  const maxMultiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
-  const maxWin = (stake * maxMultiplier).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const canBet = spots >= 1 && spots <= 10 && !disabled && !isLoading;
+  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '500';
+  const stake = Number(referenceStakeMinor) / 100;
+  const stakesMixed =
+    betSlips.length > 1 &&
+    betSlips.some((s) => s.stakeMinor !== referenceStakeMinor);
+
+  const totalStake = betSlips
+    .filter((s) => s.selectedNumbers.length > 0)
+    .reduce((sum, s) => sum + Number(s.stakeMinor) / 100, 0);
+  const totalWin = betSlips.reduce((sum, s) => {
+    const sp = s.selectedNumbers.length;
+    if (sp === 0) return sum;
+    const mult = getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, sp, sp);
+    return sum + (Number(s.stakeMinor) / 100) * mult;
+  }, 0);
+
+  const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
+  const canBet = readySlips.length > 0 && !disabled && !isLoading;
+
+  const fmt = (n: number) =>
+    n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <View style={styles.container}>
-      {/* Quick Pick and Clear Controls */}
-      <View style={styles.quickPickRow}>
-        <View style={styles.quickPickGroup}>
-          <Text style={styles.sectionLabel}>QUICK PICK:</Text>
-          <TouchableOpacity onPress={() => quickPick(3)} style={styles.qpButton}>
-            <Text style={styles.qpText}>3</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => quickPick(5)} style={styles.qpButton}>
-            <Text style={styles.qpText}>5</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => quickPick(7)} style={styles.qpButton}>
-            <Text style={styles.qpText}>7</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => quickPick(10)} style={styles.qpButton}>
-            <Text style={styles.qpText}>10</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity onPress={clearSelection} style={styles.clearButton}>
-          <Text style={styles.clearText}>Clear</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Stake Selector Chips */}
-      <View style={styles.stakeRow}>
-        {STAKE_OPTIONS.map((opt) => (
-          <TouchableOpacity
-            key={opt.value}
-            onPress={() => setStakeMinor(opt.value)}
-            style={[
-              styles.stakeChip,
-              stakeMinor === opt.value && styles.stakeChipActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.stakeChipText,
-                stakeMinor === opt.value && styles.stakeChipTextActive,
-              ]}
+      <View style={styles.actionRow}>
+        <View style={styles.slipInfo}>
+          <Text style={styles.activeHint}>Stake for all slips</Text>
+          <View style={styles.stakeStepper}>
+            <TouchableOpacity
+              onPress={decrementAllStakes}
+              style={[styles.stepBtn, styles.stepMinus]}
             >
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text style={styles.stepBtnText}>−</Text>
+            </TouchableOpacity>
 
-      {/* Max Multiplier & Potential Win Stat Banner */}
-      {spots > 0 && (
-        <View style={styles.potentialWinBar}>
-          <View style={styles.winStatGroup}>
-            <Text style={styles.winStatLabel}>MAX MULTIPLIER</Text>
-            <Text style={styles.winStatMultiplier}>{maxMultiplier.toLocaleString()}x</Text>
-          </View>
-          <View style={styles.winStatDivider} />
-          <View style={styles.winStatGroup}>
-            <Text style={styles.winStatLabel}>MAX POTENTIAL WIN</Text>
-            <Text style={styles.winStatAmount}>${maxWin}</Text>
+            <View style={styles.stakeDisplay}>
+              <Text style={styles.stakeAmount}>
+                {stakesMixed ? '≈ ' : ''}${fmt(stake)}
+              </Text>
+              {stakesMixed && (
+                <Text style={styles.stakeWin}>Per-slip stakes differ</Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              onPress={incrementAllStakes}
+              style={[styles.stepBtn, styles.stepPlus]}
+            >
+              <Text style={styles.stepBtnText}>+</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      )}
 
-      {/* Main Action Button */}
-      <TouchableOpacity
-        onPress={onPlaceBet}
-        disabled={!canBet}
-        style={[styles.betButton, !canBet && styles.betButtonDisabled]}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#000000" />
-        ) : (
-          <View style={styles.betButtonContent}>
-            <Text style={styles.betButtonText}>
-              PLACE BET (${(Number(stakeMinor) / 100).toFixed(2)})
-            </Text>
-            <Text style={styles.spotsCountText}>
-              {spots > 0
-                ? `${spots}/10 SPOTS  •  WIN UP TO $${maxWin}`
-                : 'SELECT 1 TO 10 NUMBERS'}
-            </Text>
+        <View style={styles.vertDivider} />
+
+        <View style={styles.betSection}>
+          <View style={styles.totalsRow}>
+            <View>
+              <Text style={styles.totalLabel}>TOTAL STAKE</Text>
+              <Text style={styles.totalValue}>${fmt(totalStake)}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.totalLabel}>TO WIN</Text>
+              <Text style={[styles.totalValue, styles.totalWinValue]}>${fmt(totalWin)}</Text>
+            </View>
           </View>
-        )}
-      </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onPlaceBet}
+            disabled={!canBet}
+            style={[styles.betBtn, !canBet && styles.betBtnDisabled]}
+            activeOpacity={0.8}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#0A0F1D" size="small" />
+            ) : (
+              <Text style={styles.betBtnText}>
+                PLACE {readySlips.length > 1 ? `${readySlips.length} BETS` : 'BET'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };
@@ -122,143 +112,132 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#0F172A',
-    padding: 12,
     borderTopWidth: 1,
     borderTopColor: '#1E293B',
-    gap: 10,
+    paddingHorizontal: 8,
+    paddingTop: 7,
+    paddingBottom: 8,
+    marginTop: 6,
+    borderRadius: 10,
+    marginHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#1E293B',
   },
-  quickPickRow: {
+  actionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 8,
+    alignItems: 'stretch',
   },
-  quickPickGroup: {
+  slipInfo: {
+    flex: 1,
+    gap: 4,
+    justifyContent: 'center',
+  },
+  activeHint: {
+    color: '#64748B',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  stakeStepper: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  sectionLabel: {
-    color: '#64748B',
-    fontSize: 10,
-    fontWeight: '800',
+  stepBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  qpButton: {
+  stepMinus: {
     backgroundColor: '#1E293B',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#334155',
   },
-  qpText: {
-    color: '#38BDF8',
-    fontSize: 12,
+  stepPlus: {
+    backgroundColor: '#D97706',
+  },
+  stepBtnText: {
+    color: '#F1F5F9',
+    fontSize: 20,
     fontWeight: '700',
+    lineHeight: 22,
+    textAlign: 'center',
   },
-  clearButton: {
-    backgroundColor: '#334155',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  clearText: {
-    color: '#E2E8F0',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  stakeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  stakeChip: {
+  stakeDisplay: {
     flex: 1,
     backgroundColor: '#1E293B',
-    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
     borderRadius: 8,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
+    paddingVertical: 4,
   },
-  stakeChipActive: {
-    backgroundColor: '#D97706',
-    borderColor: '#FCD34D',
+  stakeAmount: {
+    color: '#F1F5F9',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 20,
   },
-  stakeChipText: {
-    color: '#94A3B8',
-    fontSize: 13,
+  stakeWin: {
+    color: '#34D399',
+    fontSize: 9,
     fontWeight: '700',
   },
-  stakeChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-  potentialWinBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+  vertDivider: {
+    width: 1,
     backgroundColor: '#1E293B',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
+    marginVertical: 2,
   },
-  winStatGroup: {
-    alignItems: 'center',
+  betSection: {
+    width: 130,
+    gap: 6,
+    justifyContent: 'center',
   },
-  winStatLabel: {
-    color: '#94A3B8',
-    fontSize: 9,
+  totalsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  totalLabel: {
+    color: '#475569',
+    fontSize: 8,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  winStatMultiplier: {
-    color: '#FBBF24',
-    fontSize: 14,
+  totalValue: {
+    color: '#F1F5F9',
+    fontSize: 12,
     fontWeight: '900',
-    marginTop: 1,
   },
-  winStatDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#334155',
+  totalWinValue: {
+    color: '#34D399',
   },
-  winStatAmount: {
-    color: '#10B981',
-    fontSize: 14,
-    fontWeight: '900',
-    marginTop: 1,
-  },
-  betButton: {
+  betBtn: {
     backgroundColor: '#F59E0B',
-    paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 9,
+    paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  betButtonDisabled: {
-    backgroundColor: '#334155',
+  betBtnDisabled: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
     shadowOpacity: 0,
     elevation: 0,
   },
-  betButtonContent: {
-    alignItems: 'center',
-  },
-  betButtonText: {
-    color: '#0F172A',
-    fontSize: 16,
+  betBtnText: {
+    color: '#0A0F1D',
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.5,
-  },
-  spotsCountText: {
-    color: '#451A03',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
   },
 });
