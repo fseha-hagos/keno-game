@@ -5,14 +5,26 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0F1D",
+    "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#0b0e14"
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0A0F1D"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.keno.platform"
+      "package": "com.keno.platform",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A0F1D"
+      }
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#0A0F1D",
+      "barStyle": "light-content"
     },
     "web": {
       "bundler": "metro"
