@@ -7,13 +7,16 @@ import { KENO_COLORS } from '../theme/kenoTheme';
 export const PaytableSidebar = () => {
   const { getActiveSlip } = useGameStore();
   const activeSlip = getActiveSlip();
-  const spots = activeSlip.selectedNumbers.length;
-  const stake = Number(activeSlip.stakeMinor) / 100;
+  const spots = activeSlip?.selectedNumbers?.length ?? 0;
+  const stake = activeSlip ? Number(activeSlip.stakeMinor) / 100 : 0;
 
   if (spots === 0) {
     return (
       <View style={styles.emptyWrap}>
-        <Text style={styles.emptyText}>Pick numbers to view paytable</Text>
+        <View style={styles.emptyBadge}>
+          <Text style={styles.emptyBadgeText}>PAYTABLE</Text>
+        </View>
+        <Text style={styles.emptyText}>Pick 1–10 numbers to view potential multipliers & payouts</Text>
       </View>
     );
   }
@@ -26,14 +29,21 @@ export const PaytableSidebar = () => {
     }
   }
 
+  const maxMult = rows[0]?.mult ?? 0;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>PAYTABLE</Text>
-        <View style={styles.spotBadge}>
-          <Text style={styles.spotNumber}>{spots}</Text>
-          <Text style={styles.spotLabel}>SPOT</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>PAYTABLE</Text>
+          <View style={styles.spotBadge}>
+            <Text style={styles.spotNumber}>{spots}</Text>
+            <Text style={styles.spotLabel}>SPOT{spots > 1 ? 'S' : ''}</Text>
+          </View>
         </View>
+        {maxMult > 0 && (
+          <Text style={styles.maxMultText}>MAX WIN: <Text style={styles.maxMultVal}>{maxMult}×</Text></Text>
+        )}
       </View>
 
       <ScrollView
@@ -45,8 +55,7 @@ export const PaytableSidebar = () => {
           const isMax = r.hits === spots;
           return (
             <View key={r.hits} style={[styles.card, isMax && styles.cardMax]}>
-              <Text style={[styles.hits, isMax && styles.hitsMax]}>{r.hits}</Text>
-              <Text style={styles.hitsLabel}>hit{r.hits !== 1 ? 's' : ''}</Text>
+              <Text style={[styles.hits, isMax && styles.hitsMax]}>{r.hits} {r.hits === 1 ? 'hit' : 'hits'}</Text>
               <Text style={[styles.mult, isMax && styles.multMax]}>{r.mult}×</Text>
               <Text style={[styles.pay, isMax && styles.payMax]}>${r.payout}</Text>
             </View>
@@ -59,94 +68,124 @@ export const PaytableSidebar = () => {
 
 const styles = StyleSheet.create({
   emptyWrap: {
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 8,
+  },
+  emptyBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  emptyBadgeText: {
+    color: '#F59E0B',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   emptyText: {
-    color: KENO_COLORS.textMuted,
-    fontSize: 11,
+    color: '#94A3B8',
+    fontSize: 10,
     fontWeight: '600',
+    flex: 1,
   },
   container: {
-    gap: 8,
+    gap: 4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   headerTitle: {
-    color: KENO_COLORS.textOnOrange,
+    color: '#F8FAFC',
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   spotBadge: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-    backgroundColor: KENO_COLORS.badgeGold,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   spotNumber: {
-    color: '#1A1A1A',
-    fontSize: 14,
+    color: '#0F172A',
+    fontSize: 11,
     fontWeight: '900',
   },
   spotLabel: {
-    color: '#5C4A0A',
+    color: '#0F172A',
     fontSize: 8,
+    fontWeight: '900',
+  },
+  maxMultText: {
+    color: '#64748B',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  maxMultVal: {
+    color: '#10B981',
     fontWeight: '900',
   },
   list: {
-    gap: 6,
-    paddingRight: 4,
+    gap: 5,
+    paddingRight: 2,
   },
   card: {
-    backgroundColor: 'rgba(0,0,0,0.22)',
-    borderRadius: 8,
+    backgroundColor: '#1E293B',
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.2)',
+    borderColor: '#334155',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    minWidth: 64,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    minWidth: 54,
   },
   cardMax: {
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderColor: KENO_COLORS.drawLabel,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: '#10B981',
   },
   hits: {
-    color: KENO_COLORS.textOnOrange,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  hitsMax: {
-    color: KENO_COLORS.drawLabel,
-  },
-  hitsLabel: {
-    color: KENO_COLORS.textMuted,
-    fontSize: 8,
-    fontWeight: '700',
-  },
-  mult: {
-    color: KENO_COLORS.ballYellow,
-    fontSize: 11,
-    fontWeight: '900',
-    marginTop: 4,
-  },
-  multMax: {
-    color: KENO_COLORS.ballYellowBright,
-  },
-  pay: {
-    color: KENO_COLORS.textMuted,
+    color: '#94A3B8',
     fontSize: 9,
     fontWeight: '700',
-    marginTop: 2,
+  },
+  hitsMax: {
+    color: '#34D399',
+  },
+  mult: {
+    color: '#F59E0B',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 1,
+  },
+  multMax: {
+    color: '#FBBF24',
+  },
+  pay: {
+    color: '#CBD5E1',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 1,
   },
   payMax: {
-    color: KENO_COLORS.drawLabel,
+    color: '#34D399',
+    fontWeight: '900',
   },
 });
+
