@@ -56,8 +56,8 @@ export const KenoPlayStage = ({
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const spots = selectedNumbers.length;
 
-  const top10 = Array.from({ length: 10 }, (_, i) => (drawnNumbers[i] !== undefined ? drawnNumbers[i] : null));
-  const bottom10 = Array.from({ length: 10 }, (_, i) => (drawnNumbers[i + 10] !== undefined ? drawnNumbers[i + 10] : null));
+  const top10: (number | null)[] = Array.from({ length: 10 }, (_, i) => (drawnNumbers[i] !== undefined ? (drawnNumbers[i] as number) : null));
+  const bottom10: (number | null)[] = Array.from({ length: 10 }, (_, i) => (drawnNumbers[i + 10] !== undefined ? (drawnNumbers[i + 10] as number) : null));
 
   return (
     <View style={styles.stageOuter}>
@@ -103,7 +103,7 @@ export const KenoPlayStage = ({
               {/* Top Row: Balls 1 to 10 */}
               <View style={styles.drawnRow}>
                 {top10.map((n, idx) => {
-                  const isHit = n !== null && selectedNumbers.includes(n);
+                  const isHit = n !== null && selectedNumbers.includes(n as number);
                   const isLatest = idx === drawnNumbers.length - 1;
                   return (
                     <DrawnBallPill
@@ -120,7 +120,7 @@ export const KenoPlayStage = ({
               <View style={styles.drawnRow}>
                 {bottom10.map((n, idx) => {
                   const actualIdx = idx + 10;
-                  const isHit = n !== null && selectedNumbers.includes(n);
+                  const isHit = n !== null && selectedNumbers.includes(n as number);
                   const isLatest = actualIdx === drawnNumbers.length - 1;
                   return (
                     <DrawnBallPill
