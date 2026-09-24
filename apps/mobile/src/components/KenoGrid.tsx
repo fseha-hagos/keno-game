@@ -1,10 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   LayoutChangeEvent,
+  Animated,
 } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { KENO_COLORS } from '../theme/kenoTheme';
@@ -14,10 +15,103 @@ const ROWS = 8;
 const GAP = 1;
 const H_PAD = 2;
 
+interface GridCellProps {
+  num: number;
+  isSelected: boolean;
+  isDrawn: boolean;
+  isHit: boolean;
+  cellSize: number;
+  cellRadius: number;
+  fontSize: number;
+  onPress: () => void;
+}
+
+const GridCell: React.FC<GridCellProps> = React.memo(({
+  num,
+  isSelected,
+  isDrawn,
+  isHit,
+  cellSize,
+  cellRadius,
+  fontSize,
+  onPress,
+}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [isAnimating, setIsAnimating] = useState(false);
+  const prevDrawn = useRef(isDrawn);
+
+  useEffect(() => {
+    if (!prevDrawn.current && isDrawn) {
+      // Number was just drawn — start BIG (2.4x) and shrink down to 1.0x
+      setIsAnimating(true);
+      scaleAnim.setValue(2.4);
+
+      Animated.spring(scaleAnim, {
+        toValue: 1.0,
+        friction: 5,
+        tension: 120,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsAnimating(false);
+      });
+    } else if (!isDrawn) {
+      scaleAnim.setValue(1.0);
+      setIsAnimating(false);
+    }
+    prevDrawn.current = isDrawn;
+  }, [isDrawn, scaleAnim]);
+
+  let stateBallStyle = styles.ballDefault;
+  let stateTextStyle = styles.textDefault;
+
+  if (isHit) {
+    stateBallStyle = styles.ballHit;
+    stateTextStyle = styles.textHit;
+  } else if (isSelected) {
+    stateBallStyle = styles.ballSelected;
+    stateTextStyle = styles.textPick;
+  } else if (isDrawn) {
+    stateBallStyle = styles.ballDrawn;
+    stateTextStyle = styles.textDrawn;
+  }
+
+  return (
+    <Animated.View
+      style={{
+        zIndex: isAnimating ? 99 : 1,
+        transform: [{ scale: scaleAnim }],
+      }}
+    >
+      <TouchableOpacity
+        activeOpacity={0.75}
+        style={[
+          styles.ball,
+          stateBallStyle,
+          {
+            width: cellSize,
+            height: cellSize,
+            borderRadius: cellRadius,
+          },
+        ]}
+        onPress={onPress}
+      >
+        <Text
+          style={[styles.ballText, stateTextStyle, { fontSize }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
+          {num < 10 ? `0${num}` : num}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
 export const KenoGrid: React.FC = () => {
   const { toggleNumber, drawnNumbers, getActiveSlip } = useGameStore();
   const activeSlip = getActiveSlip();
-  const selectedNumbers = activeSlip.selectedNumbers;
+  const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const drawnSet = new Set(drawnNumbers);
 
   const [containerWidth, setContainerWidth] = useState(0);
@@ -42,6 +136,7 @@ export const KenoGrid: React.FC = () => {
 
   const numbers = Array.from({ length: 80 }, (_, i) => i + 1);
   const fontSize = Math.max(9, Math.min(13, cellSize * 0.38));
+  const cellRadius = Math.max(5, cellSize * 0.22);
 
   return (
     <View style={styles.gridWrap} onLayout={onLayout}>
@@ -52,46 +147,18 @@ export const KenoGrid: React.FC = () => {
             const isDrawn = drawnSet.has(num);
             const isHit = isSelected && isDrawn;
 
-            let stateBallStyle = styles.ballDefault;
-            let stateTextStyle = styles.textDefault;
-
-            if (isHit) {
-              stateBallStyle = styles.ballHit;
-              stateTextStyle = styles.textHit;
-            } else if (isSelected) {
-              stateBallStyle = styles.ballSelected;
-              stateTextStyle = styles.textPick;
-            } else if (isDrawn) {
-              stateBallStyle = styles.ballDrawn;
-              stateTextStyle = styles.textDrawn;
-            }
-
-            const cellRadius = Math.max(5, cellSize * 0.22);
-
             return (
-              <TouchableOpacity
+              <GridCell
                 key={num}
-                activeOpacity={0.75}
-                style={[
-                  styles.ball,
-                  stateBallStyle,
-                  {
-                    width: cellSize,
-                    height: cellSize,
-                    borderRadius: cellRadius,
-                  },
-                ]}
+                num={num}
+                isSelected={isSelected}
+                isDrawn={isDrawn}
+                isHit={isHit}
+                cellSize={cellSize}
+                cellRadius={cellRadius}
+                fontSize={fontSize}
                 onPress={() => toggleNumber(num)}
-              >
-                <Text
-                  style={[styles.ballText, stateTextStyle, { fontSize }]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.65}
-                >
-                  {num < 10 ? `0${num}` : num}
-                </Text>
-              </TouchableOpacity>
+              />
             );
           })}
         </View>
