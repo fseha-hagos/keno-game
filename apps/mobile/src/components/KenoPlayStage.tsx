@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { KenoDrawDisplay } from './KenoDrawDisplay';
 import { KenoGrid } from './KenoGrid';
 import { KenoGradient } from './KenoGradient';
@@ -12,13 +12,48 @@ interface KenoPlayStageProps {
   bettingOpen?: boolean;
 }
 
+const DrawnBallPill: React.FC<{ num: number; isHit: boolean; isLatest: boolean }> = React.memo(({ num, isHit, isLatest }) => {
+  const scaleAnim = useRef(new Animated.Value(isLatest ? 2.2 : 1.0)).current;
+
+  useEffect(() => {
+    if (isLatest) {
+      scaleAnim.setValue(2.2);
+      Animated.spring(scaleAnim, {
+        toValue: 1.0,
+        friction: 5,
+        tension: 120,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLatest, scaleAnim]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], marginHorizontal: 2 }}>
+      <View style={[styles.pillBall, isHit ? styles.pillHit : styles.pillDrawn]}>
+        <Text style={[styles.pillText, isHit && styles.pillHitText]}>
+          {num < 10 ? `0${num}` : num}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+});
+
 export const KenoPlayStage = ({
   roundNumber,
   timeLeft = 0,
   bettingOpen = false,
 }: KenoPlayStageProps) => {
-  const { getActiveSlip, clearSelection } = useGameStore();
-  const spots = getActiveSlip().selectedNumbers.length;
+  const { getActiveSlip, clearSelection, drawnNumbers } = useGameStore();
+  const activeSlip = getActiveSlip();
+  const selectedNumbers = activeSlip?.selectedNumbers ?? [];
+  const spots = selectedNumbers.length;
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (drawnNumbers.length > 0) {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [drawnNumbers.length]);
 
   return (
     <View style={styles.stageOuter}>
@@ -57,6 +92,31 @@ export const KenoPlayStage = ({
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Drawn Numbers Bar Strip with shrinking pop animation */}
+          {drawnNumbers.length > 0 && (
+            <View style={styles.drawnStripContainer}>
+              <ScrollView
+                ref={scrollViewRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.drawnStripContent}
+              >
+                {drawnNumbers.map((n, idx) => {
+                  const isHit = selectedNumbers.includes(n);
+                  const isLatest = idx === drawnNumbers.length - 1;
+                  return (
+                    <DrawnBallPill
+                      key={`${n}-${idx}`}
+                      num={n}
+                      isHit={isHit}
+                      isLatest={isLatest}
+                    />
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Main Content Area with clear horizontal separation */}
           <View style={styles.mainRow}>
@@ -161,6 +221,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 8,  // Ensures tube has space to render fully without clipping
+  },
+  drawnStripContainer: {
+    marginVertical: 4,
+    height: 30,
+    justifyContent: 'center',
+  },
+  drawnStripContent: {
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  pillBall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  pillDrawn: {
+    backgroundColor: '#FFEC00',
+    borderColor: '#D97706',
+  },
+  pillHit: {
+    backgroundColor: '#10B981',
+    borderColor: '#059669',
+  },
+  pillText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  pillHitText: {
+    color: '#FFFFFF',
   },
   footerRow: {
     flexDirection: 'row',
