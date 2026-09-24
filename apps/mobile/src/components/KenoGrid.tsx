@@ -11,8 +11,8 @@ import { KENO_COLORS } from '../theme/kenoTheme';
 
 const COLS = 10;
 const ROWS = 8;
-const GAP = 2;
-const H_PAD = 4;
+const GAP = 1;
+const H_PAD = 2;
 
 export const KenoGrid: React.FC = () => {
   const { toggleNumber, drawnNumbers, getActiveSlip } = useGameStore();
@@ -147,15 +147,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   textPick: {
-    color: '#1A0505',
-    fontWeight: '900',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   textDrawn: {
     color: '#0C4A6E',
-    fontWeight: '900',
+    fontWeight: '800',
   },
   textHit: {
     color: '#14532D',
-    fontWeight: '900',
+    fontWeight: '800',
   },
 });

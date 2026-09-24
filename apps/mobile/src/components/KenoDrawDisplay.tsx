@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
-import { KENO_COLORS } from '../theme/kenoTheme';
 
 const TOTAL_DRAWN = 20;
 
@@ -16,23 +15,100 @@ export const KenoDrawDisplay = ({ timeLeft = 0, bettingOpen = false }: KenoDrawD
   const count = drawnNumbers.length;
   const inDraw = isDrawing || count > 0;
 
+  // Track the number specifically displayed during animation steps
+  const [animatingNum, setAnimatingNum] = useState<number | null>(current ?? null);
+
   const displayNum =
-    current != null ? (current < 10 ? `0${current}` : String(current)) : null;
+    animatingNum != null ? (animatingNum < 10 ? `0${animatingNum}` : String(animatingNum)) : null;
   const digitA = displayNum?.[0] ?? '';
   const digitB = displayNum?.[1] ?? '';
 
+  const translateY = useRef(new Animated.Value(220)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const prevNum = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (current != null && current !== prevNum.current) {
+      if (prevNum.current !== null) {
+        // Step 1: Shoot OLD number OUT to the TOP
+        Animated.timing(translateY, {
+          toValue: -220,
+          duration: 280,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }).start(() => {
+          // Step 2: Once off-screen at top, update number to NEW draw & reset to bottom
+          setAnimatingNum(current);
+          translateY.setValue(220);
+
+          // Step 3: Rise NEW ball from bottom into center glass
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: 450,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }).start();
+        });
+      } else {
+        // First ball of the round
+        setAnimatingNum(current);
+        translateY.setValue(220);
+        opacity.setValue(1);
+
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 480,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      }
+
+      prevNum.current = current;
+    } else if (current === null) {
+      // Reset when round restarts
+      translateY.setValue(220);
+      opacity.setValue(0);
+      setAnimatingNum(null);
+      prevNum.current = null;
+    }
+  }, [current, translateY, opacity]);
+
   return (
     <View style={styles.wrap}>
-      <View style={styles.machineRow}>
-        <View style={styles.rod} />
-        <View style={styles.machine}>
-          <View style={styles.ringTop}>
-            <View style={styles.ringShine} />
-          </View>
+      <Text style={styles.progressTopRight}>
+        {inDraw ? `${count}/${TOTAL_DRAWN}` : bettingOpen && timeLeft > 0 ? `${timeLeft}s` : '0/20'}
+      </Text>
 
+      <View style={styles.machineRow}>
+        {/* Central Red Pipe Backing */}
+        <View style={styles.centerRedTube}>
+          <View style={styles.tubeHighlight} />
+        </View>
+
+        <View style={styles.machine}>
+          {/* Top Metal Clamp (Narrow top, wide base for reversed tilt) */}
+          <View style={styles.clampCapNarrow} />
+          <View style={styles.silverRing}>
+            <View style={styles.rivet} />
+            <View style={styles.rivet} />
+          </View>
+          <View style={styles.clampCapWide} />
+
+          {/* Glass Chamber */}
           <View style={styles.glassOuter}>
             <View style={styles.glassInner}>
-              <View style={styles.ball}>
+              <View style={styles.glassReflection} />
+
+              {/* Animated Movable Keno Ball */}
+              <Animated.View
+                style={[
+                  styles.ball,
+                  {
+                    opacity,
+                    transform: [{ translateY }],
+                  },
+                ]}
+              >
                 {displayNum ? (
                   <>
                     <Text style={[styles.ballDigitSide, styles.digitLeft]}>{digitA}</Text>
@@ -42,173 +118,168 @@ export const KenoDrawDisplay = ({ timeLeft = 0, bettingOpen = false }: KenoDrawD
                 ) : (
                   <Text style={styles.ballWaiting}>—</Text>
                 )}
-              </View>
+              </Animated.View>
             </View>
           </View>
 
-          <View style={styles.ringBottom}>
-            <View style={styles.ringShine} />
+          {/* Bottom Metal Clamp (Wide top, narrow base facing bottom pipe) */}
+          <View style={styles.clampCapWide} />
+          <View style={styles.silverRing}>
+            <View style={styles.rivet} />
+            <View style={styles.rivet} />
           </View>
-          <View style={styles.stem} />
+          <View style={styles.clampCapNarrow} />
         </View>
-        <View style={styles.rod} />
       </View>
-
-      <Text style={styles.progress}>
-        {inDraw
-          ? `${count}/${TOTAL_DRAWN}`
-          : bettingOpen && timeLeft > 0
-            ? `${timeLeft}s`
-            : '0/20'}
-      </Text>
-
-      {!inDraw && bettingOpen && timeLeft > 0 && (
-        <Text style={styles.progressHint}>NEXT DRAW</Text>
-      )}
-      {inDraw && isDrawing && <Text style={styles.progressHint}>LIVE</Text>}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   wrap: {
-    width: 88,
-    flexShrink: 0,
+    width: 120,
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 2,
+    justifyContent: 'center',
+    position: 'relative',
+    paddingTop: 16,
+    overflow: 'hidden',
+  },
+  progressTopRight: {
+    position: 'absolute',
+    top: -6,
+    right: -4,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    zIndex: 15,
   },
   machineRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 1,
+    justifyContent: 'center',
+    position: 'relative',
   },
-  rod: {
-    width: 4,
-    height: 92,
-    borderRadius: 2,
-    backgroundColor: KENO_COLORS.chromeMid,
-    borderWidth: 1,
-    borderColor: KENO_COLORS.chromeEdge,
+  centerRedTube: {
+    position: 'absolute',
+    width: 38,
+    height: '160%',
+    backgroundColor: '#b30000',
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderColor: '#000000',
+    zIndex: 1,
+  },
+  tubeHighlight: {
+    position: 'absolute',
+    left: 3,
+    width: 5,
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   machine: {
     alignItems: 'center',
-  },
-  ringTop: {
-    width: 78,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: KENO_COLORS.chrome,
-    borderWidth: 1,
-    borderColor: KENO_COLORS.chromeEdge,
-    marginBottom: -4,
     zIndex: 2,
-    overflow: 'hidden',
-    justifyContent: 'center',
   },
-  ringBottom: {
-    width: 78,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: KENO_COLORS.chrome,
-    borderWidth: 1,
-    borderColor: KENO_COLORS.chromeEdge,
-    marginTop: -4,
-    zIndex: 2,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  ringShine: {
-    height: 3,
-    marginHorizontal: 6,
+  clampCapWide: {
+    width: 106,
+    height: 5,
+    backgroundColor: '#111111',
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    zIndex: 4,
+  },
+  clampCapNarrow: {
+    width: 96,
+    height: 4,
+    backgroundColor: '#111111',
+    borderRadius: 2,
+    zIndex: 4,
+  },
+  silverRing: {
+    width: 96,
+    height: 16,
+    backgroundColor: '#DCDCDC',
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#888888',
+    zIndex: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  rivet: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#222222',
   },
   glassOuter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: KENO_COLORS.glassFill,
-    borderWidth: 2,
-    borderColor: KENO_COLORS.glassBorder,
+    width: 116,
+    height: 98,
+    backgroundColor: 'transparent',
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderColor: 'rgba(0, 0, 0, 0.95)',
+    borderRadius: 49,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    zIndex: 3,
+    marginTop: -2,
+    marginBottom: -2,
+    overflow: 'visible',
   },
   glassInner: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  glassReflection: {
+    position: 'absolute',
+    top: 4,
+    left: 6,
+    width: 8,
+    height: 70,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    borderRadius: 4,
+    transform: [{ rotate: '12deg' }],
+    zIndex: 10,
   },
   ball: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: KENO_COLORS.ballYellowBright,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#FFEC00',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 5,
+    elevation: 6,
+    position: 'relative',
+    zIndex: 2,
   },
   ballNumMain: {
     color: '#000000',
-    fontSize: 24,
+    fontSize: 48,
     fontWeight: '900',
     zIndex: 3,
-    letterSpacing: -1,
+    includeFontPadding: false,
   },
   ballDigitSide: {
     position: 'absolute',
-    color: 'rgba(0,0,0,0.22)',
-    fontSize: 16,
+    color: '#000000',
+    fontSize: 32,
     fontWeight: '900',
   },
   digitLeft: {
-    left: 4,
-    top: 8,
-    transform: [{ rotate: '-18deg' }],
+    left: -6,
+    transform: [{ scaleX: 0.5 }, { rotate: '-14deg' }],
   },
   digitRight: {
-    right: 4,
-    bottom: 8,
-    transform: [{ rotate: '16deg' }],
+    right: -6,
+    transform: [{ scaleX: 0.5 }, { rotate: '14deg' }],
   },
   ballWaiting: {
     color: 'rgba(0,0,0,0.35)',
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '900',
-  },
-  stem: {
-    width: 10,
-    height: 16,
-    backgroundColor: KENO_COLORS.chromeDark,
-    borderRadius: 2,
-    marginTop: 2,
-    borderWidth: 1,
-    borderColor: KENO_COLORS.chromeEdge,
-  },
-  progress: {
-    marginTop: 8,
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  progressHint: {
-    marginTop: 2,
-    color: KENO_COLORS.textMuted,
-    fontSize: 7,
-    fontWeight: '800',
-    letterSpacing: 1,
   },
 });
