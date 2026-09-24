@@ -6,11 +6,11 @@ export const KENO_COLORS = {
   cellDefault: '#6E2828',
   cellBorder: '#5A2020',
   /** User’s picks on the board */
-  pickFill: '#FFEA00',
-  pickBorder: '#FFFFFF',
+  pickFill: '#10B981',
+  pickBorder: '#34D399',
   /** House draw (not the same as user picks) */
-  drawnFill: '#7DD3FC',
-  drawnBorder: '#0EA5E9',
+  drawnFill: '#FFEC00',
+  drawnBorder: '#FFEF00',
   /** Pick + drawn match */
   hitFill: '#4ADE80',
   hitBorder: '#16A34A',
