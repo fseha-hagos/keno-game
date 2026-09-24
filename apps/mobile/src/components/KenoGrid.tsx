@@ -6,6 +6,7 @@ import {
   StyleSheet,
   LayoutChangeEvent,
   Animated,
+  Easing,
 } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { KENO_COLORS } from '../theme/kenoTheme';
@@ -42,14 +43,14 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
 
   useEffect(() => {
     if (!prevDrawn.current && isDrawn) {
-      // Number was just drawn — start BIG (2.4x) and shrink down to 1.0x
+      // Number was just drawn — start BIG (2.4x) and shrink down to 1.0x over 750ms
       setIsAnimating(true);
       scaleAnim.setValue(2.4);
 
-      Animated.spring(scaleAnim, {
+      Animated.timing(scaleAnim, {
         toValue: 1.0,
-        friction: 5,
-        tension: 120,
+        duration: 750,
+        easing: Easing.out(Easing.back(1.4)),
         useNativeDriver: true,
       }).start(() => {
         setIsAnimating(false);
