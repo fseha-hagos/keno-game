@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import { KenoDrawDisplay } from './KenoDrawDisplay';
 import { KenoGrid } from './KenoGrid';
 import { KenoGradient } from './KenoGradient';
@@ -12,23 +12,31 @@ interface KenoPlayStageProps {
   bettingOpen?: boolean;
 }
 
-const DrawnBallPill: React.FC<{ num: number; isHit: boolean; isLatest: boolean }> = React.memo(({ num, isHit, isLatest }) => {
-  const scaleAnim = useRef(new Animated.Value(isLatest ? 2.2 : 1.0)).current;
+const DrawnBallPill: React.FC<{ num: number | null; isHit: boolean; isLatest: boolean }> = React.memo(({ num, isHit, isLatest }) => {
+  const scaleAnim = useRef(new Animated.Value(1.0)).current;
 
   useEffect(() => {
-    if (isLatest) {
-      scaleAnim.setValue(2.2);
-      Animated.spring(scaleAnim, {
+    if (isLatest && num !== null) {
+      scaleAnim.setValue(2.4);
+      Animated.timing(scaleAnim, {
         toValue: 1.0,
-        friction: 5,
-        tension: 120,
+        duration: 750,
+        easing: Easing.out(Easing.back(1.4)),
         useNativeDriver: true,
       }).start();
     }
-  }, [isLatest, scaleAnim]);
+  }, [isLatest, num, scaleAnim]);
+
+  if (num === null) {
+    return (
+      <View style={[styles.pillBall, styles.pillEmpty]}>
+        <Text style={styles.pillEmptyText}>—</Text>
+      </View>
+    );
+  }
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], marginHorizontal: 2 }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], zIndex: isLatest ? 99 : 1 }}>
       <View style={[styles.pillBall, isHit ? styles.pillHit : styles.pillDrawn]}>
         <Text style={[styles.pillText, isHit && styles.pillHitText]}>
           {num < 10 ? `0${num}` : num}
@@ -47,13 +55,9 @@ export const KenoPlayStage = ({
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const spots = selectedNumbers.length;
-  const scrollViewRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    if (drawnNumbers.length > 0) {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }
-  }, [drawnNumbers.length]);
+  const top10 = Array.from({ length: 10 }, (_, i) => (drawnNumbers[i] !== undefined ? drawnNumbers[i] : null));
+  const bottom10 = Array.from({ length: 10 }, (_, i) => (drawnNumbers[i + 10] !== undefined ? drawnNumbers[i + 10] : null));
 
   return (
     <View style={styles.stageOuter}>
@@ -93,28 +97,41 @@ export const KenoPlayStage = ({
             )}
           </View>
 
-          {/* Drawn Numbers Bar Strip with shrinking pop animation */}
+          {/* 2-Row Drawn Numbers Display: Top = First 10 balls, Bottom = Next 10 balls */}
           {drawnNumbers.length > 0 && (
-            <View style={styles.drawnStripContainer}>
-              <ScrollView
-                ref={scrollViewRef}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.drawnStripContent}
-              >
-                {drawnNumbers.map((n, idx) => {
-                  const isHit = selectedNumbers.includes(n);
+            <View style={styles.drawnContainer2Rows}>
+              {/* Top Row: Balls 1 to 10 */}
+              <View style={styles.drawnRow}>
+                {top10.map((n, idx) => {
+                  const isHit = n !== null && selectedNumbers.includes(n);
                   const isLatest = idx === drawnNumbers.length - 1;
                   return (
                     <DrawnBallPill
-                      key={`${n}-${idx}`}
+                      key={`top-${idx}-${n ?? 'empty'}`}
                       num={n}
                       isHit={isHit}
                       isLatest={isLatest}
                     />
                   );
                 })}
-              </ScrollView>
+              </View>
+
+              {/* Bottom Row: Balls 11 to 20 */}
+              <View style={styles.drawnRow}>
+                {bottom10.map((n, idx) => {
+                  const actualIdx = idx + 10;
+                  const isHit = n !== null && selectedNumbers.includes(n);
+                  const isLatest = actualIdx === drawnNumbers.length - 1;
+                  return (
+                    <DrawnBallPill
+                      key={`bot-${idx}-${n ?? 'empty'}`}
+                      num={n}
+                      isHit={isHit}
+                      isLatest={isLatest}
+                    />
+                  );
+                })}
+              </View>
             </View>
           )}
 
@@ -154,8 +171,8 @@ const styles = StyleSheet.create({
   },
   stageInner: {
     flex: 1,
-    paddingHorizontal: 16, // Extra horizontal padding to prevent machine clipping
-    paddingTop: 14,        // Gives room for vertical tube & header text
+    paddingHorizontal: 16,
+    paddingTop: 14,
     paddingBottom: 10,
     justifyContent: 'space-between',
   },
@@ -163,8 +180,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingRight: 40,      // Reserves space so "Clear picks" doesn't overlap the "0/20" counter
+    marginBottom: 6,
+    paddingRight: 40,
     zIndex: 10,
   },
   drawTitleRow: {
@@ -206,30 +223,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  mainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flex: 1,
-  },
-  gridColumn: {
-    flex: 1,
-    paddingRight: 16, // Prevents grid numbers from touching machine clamps
-  },
-  machineColumn: {
-    width: 130,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,  // Ensures tube has space to render fully without clipping
-  },
-  drawnStripContainer: {
+  drawnContainer2Rows: {
     marginVertical: 4,
-    height: 30,
-    justifyContent: 'center',
+    gap: 4,
   },
-  drawnStripContent: {
+  drawnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 4,
   },
   pillBall: {
     width: 24,
@@ -237,7 +238,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
+  },
+  pillEmpty: {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  pillEmptyText: {
+    color: 'rgba(255, 255, 255, 0.25)',
+    fontSize: 9,
+    fontWeight: '700',
   },
   pillDrawn: {
     backgroundColor: '#FFEC00',
@@ -254,6 +264,22 @@ const styles = StyleSheet.create({
   },
   pillHitText: {
     color: '#FFFFFF',
+  },
+  mainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flex: 1,
+  },
+  gridColumn: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  machineColumn: {
+    width: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
   },
   footerRow: {
     flexDirection: 'row',
