@@ -15,6 +15,7 @@ import { KenoPlayStage } from '../components/KenoPlayStage';
 import { PaytableSidebar } from '../components/PaytableSidebar';
 import { BetBar } from '../components/BetBar';
 import { BetSlipsPanel } from '../components/BetSlipsPanel';
+import { GameFeedPanel } from '../components/GameFeedPanel';
 import { KenoGradient } from '../components/KenoGradient';
 import { KENO_GRADIENTS, KENO_GRADIENT_VERTICAL } from '../theme/kenoTheme';
 import { useGameStore } from '../store/useGameStore';
@@ -176,6 +177,8 @@ export const KenoGameScreen = () => {
           isLoading={betMutation.isPending}
           disabled={round?.status !== 'OPEN' || timeLeft <= 0}
         />
+
+        <GameFeedPanel />
       </ScrollView>
     </SafeAreaView>
   );
@@ -190,14 +193,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 16,
+    paddingBottom: 24,
     flexGrow: 1,
   },
   paytableRow: {
-    marginHorizontal: 8,
-    marginTop: 6,
-    borderRadius: 10,
-    padding: 12,
+    marginHorizontal: 6,
+    marginTop: 4,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
   },
   statusRow: {
     marginHorizontal: 6,
@@ -211,3 +215,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
+
