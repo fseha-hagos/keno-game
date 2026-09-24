@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
-export const PaytablePreview = () => {
+export const PaytablePreview: React.FC = () => {
   const { getActiveSlip } = useGameStore();
   const activeSlip = getActiveSlip();
-  const spots = activeSlip.selectedNumbers.length;
-  const stake = Number(activeSlip.stakeMinor) / 100;
+  const spots = activeSlip?.selectedNumbers?.length ?? 0;
+  const stake = activeSlip ? Number(activeSlip.stakeMinor) / 100 : 0;
 
   if (spots === 0) {
     return (
