@@ -152,11 +152,11 @@ export class GameRoundsService implements OnModuleInit {
 
     this.eventsGateway.broadcastDrawStarted(round.id);
 
-    // Broadcast individual balls drawn with animation interval (800ms per ball)
+    // Broadcast individual balls drawn with animation interval (1600ms per ball)
     for (let i = 0; i < drawResult.draw.length; i++) {
       const ball = drawResult.draw[i]!;
       this.eventsGateway.broadcastNumberDrawn(round.id, ball, i + 1);
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, GAME_CONFIG.BALL_DRAW_ANIMATION_DELAY_MS));
     }
 
     // 3. Settle all bets for this round transactionally
@@ -183,10 +183,10 @@ export class GameRoundsService implements OnModuleInit {
       totalPayoutMinor: round.totalPayoutMinor,
     });
 
-    // 5. Hold completed draw result on screen for 5s so players can see their hits and payouts
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // 5. Short 2.5s display hold for win settlement announcement before opening next round
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    // 6. Open next round
+    // 6. Open next round immediately so the 60s countdown starts with announcement
     await this.ensureActiveRound();
   }
 }
