@@ -26,9 +26,21 @@ class SocketService {
       useGameStore.getState().setDrawnNumbers([]);
     });
 
-    this.socket.on(WebSocketEvents.NUMBER_DRAWN, (data: { number: number }) => {
-      useGameStore.getState().addDrawnNumber(data.number);
-    });
+    this.socket.on(
+      WebSocketEvents.NUMBER_DRAWN,
+      (data: { number: number; revealedNumbers?: number[] }) => {
+        useGameStore.getState().setIsDrawing(true);
+        if (
+          data.revealedNumbers &&
+          Array.isArray(data.revealedNumbers) &&
+          data.revealedNumbers.length > 0
+        ) {
+          useGameStore.getState().setDrawnNumbers(data.revealedNumbers);
+        } else if (typeof data.number === 'number') {
+          useGameStore.getState().addDrawnNumber(data.number);
+        }
+      },
+    );
 
     this.socket.on(WebSocketEvents.ROUND_COMPLETED, (data) => {
       useGameStore.getState().setIsDrawing(false);
