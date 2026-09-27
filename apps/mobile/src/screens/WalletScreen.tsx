@@ -12,17 +12,27 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Header } from '../components/Header';
-
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const PAYMENT_METHODS = [
+  { id: 'telebirr', name: 'Telebirr', icon: '📱' },
+  { id: 'cbe_birr', name: 'CBE Birr', icon: '🏦' },
+  { id: 'mobile_money', name: 'Mobile Money', icon: '💸' },
+  { id: 'card', name: 'Bank Card', icon: '💳' },
+];
+
+const PRESET_AMOUNTS = ['10', '50', '100', '500', '1000'];
 
 export const WalletScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();
+
   const [depositAmount, setDepositAmount] = useState('50');
   const [withdrawAmount, setWithdrawAmount] = useState('20');
+  const [selectedMethod, setSelectedMethod] = useState('telebirr');
 
   const { data: wallet, isLoading: walletLoading } = useQuery({
     queryKey: ['walletBalance'],
@@ -31,6 +41,7 @@ export const WalletScreen = () => {
       return res.data;
     },
     enabled: isAuthenticated,
+    refetchInterval: 3000,
   });
 
   const { data: transactions, isLoading: txLoading } = useQuery({
@@ -40,49 +51,74 @@ export const WalletScreen = () => {
       return res.data;
     },
     enabled: isAuthenticated,
+    refetchInterval: 3000,
   });
 
   const depositMutation = useMutation({
     mutationFn: async () => {
-      const amountMinor = (parseFloat(depositAmount) * 100).toString();
+      const amountNum = parseFloat(depositAmount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        throw new Error('Please enter a valid deposit amount');
+      }
+      const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
       const res = await apiClient.post('/api/v1/wallet/deposit', {
         amountMinor,
         currency: 'USD',
-        paymentMethodId: 'card_mock_123',
+        paymentMethodId: selectedMethod,
         idempotencyKey,
       });
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert('Deposit Successful', `$${depositAmount} deposited into your wallet.`);
+      const methodObj = PAYMENT_METHODS.find((m) => m.id === selectedMethod);
+      Alert.alert(
+        '✅ Deposit Successful',
+        `$${depositAmount} deposited via ${methodObj?.name || 'Selected Method'}.`,
+      );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
     },
     onError: (err: any) => {
-      Alert.alert('Deposit Failed', err.response?.data?.message || 'Error executing deposit');
+      Alert.alert(
+        'Deposit Failed',
+        err.response?.data?.message || err.message || 'Error processing deposit',
+      );
     },
   });
 
   const withdrawMutation = useMutation({
     mutationFn: async () => {
-      const amountMinor = (parseFloat(withdrawAmount) * 100).toString();
+      const amountNum = parseFloat(withdrawAmount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        throw new Error('Please enter a valid withdrawal amount');
+      }
+      const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `wdr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
       const res = await apiClient.post('/api/v1/wallet/withdraw', {
         amountMinor,
         currency: 'USD',
-        destinationAccount: 'bank_mock_456',
+        destinationAccount: selectedMethod,
         idempotencyKey,
       });
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert('Withdrawal Successful', `$${withdrawAmount} sent to your destination account.`);
+      const methodObj = PAYMENT_METHODS.find((m) => m.id === selectedMethod);
+      Alert.alert(
+        '✅ Withdrawal Successful',
+        `$${withdrawAmount} sent to your ${methodObj?.name || 'Account'}.`,
+      );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
     },
     onError: (err: any) => {
-      Alert.alert('Withdrawal Failed', err.response?.data?.message || 'Error executing withdrawal');
+      Alert.alert(
+        'Withdrawal Failed',
+        err.response?.data?.message || err.message || 'Error executing withdrawal',
+      );
     },
   });
 
@@ -98,7 +134,7 @@ export const WalletScreen = () => {
           <Text style={{ fontSize: 44, marginBottom: 12 }}>💳</Text>
           <Text style={styles.guestTitle}>Player Wallet</Text>
           <Text style={styles.guestSubtitle}>
-            Please sign in or register with your mobile phone number to access your wallet, deposit demo funds, and withdraw winnings.
+            Sign in or create a player account to deposit funds, place live bets, and withdraw winnings instantly!
           </Text>
           <TouchableOpacity
             style={styles.guestButton}
@@ -117,14 +153,50 @@ export const WalletScreen = () => {
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Balance Card */}
         <View style={styles.balanceCard}>
-          <Text style={styles.cardLabel}>TOTAL AVAILABLE BALANCE</Text>
+          <Text style={styles.cardLabel}>AVAILABLE WALLET BALANCE</Text>
           <Text style={styles.cardAmount}>{formattedBalance}</Text>
-          <Text style={styles.currencyTag}>USD • INSTANT SETTLEMENT</Text>
+          <Text style={styles.currencyTag}>⚡ INSTANT SETTLEMENT • REAL CASH</Text>
         </View>
 
-        {/* Deposit Section */}
+        {/* Payment Method Selector */}
+        <View style={styles.actionCard}>
+          <Text style={styles.actionTitle}>SELECT PAYMENT METHOD</Text>
+          <View style={styles.methodsRow}>
+            {PAYMENT_METHODS.map((method) => {
+              const active = selectedMethod === method.id;
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  onPress={() => setSelectedMethod(method.id)}
+                  style={[styles.methodChip, active && styles.methodChipActive]}
+                >
+                  <Text style={styles.methodIcon}>{method.icon}</Text>
+                  <Text style={[styles.methodText, active && styles.methodTextActive]}>
+                    {method.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Fast Deposit Section */}
         <View style={styles.actionCard}>
           <Text style={styles.actionTitle}>FAST DEPOSIT</Text>
+          <View style={styles.presetsRow}>
+            {PRESET_AMOUNTS.map((amt) => (
+              <TouchableOpacity
+                key={amt}
+                onPress={() => setDepositAmount(amt)}
+                style={[styles.presetChip, depositAmount === amt && styles.presetChipActive]}
+              >
+                <Text style={[styles.presetText, depositAmount === amt && styles.presetTextActive]}>
+                  ${amt}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <View style={styles.inputRow}>
             <Text style={styles.dollarSign}>$</Text>
             <TextInput
@@ -132,6 +204,8 @@ export const WalletScreen = () => {
               value={depositAmount}
               onChangeText={setDepositAmount}
               keyboardType="numeric"
+              placeholder="Amount"
+              placeholderTextColor="#64748B"
             />
             <TouchableOpacity
               onPress={() => depositMutation.mutate()}
@@ -141,15 +215,29 @@ export const WalletScreen = () => {
               {depositMutation.isPending ? (
                 <ActivityIndicator color="#0F172A" />
               ) : (
-                <Text style={styles.depositBtnText}>DEPOSIT</Text>
+                <Text style={styles.depositBtnText}>DEPOSIT NOW</Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Withdrawal Section */}
+        {/* Instant Withdrawal Section */}
         <View style={styles.actionCard}>
-          <Text style={styles.actionTitle}>WITHDRAWAL</Text>
+          <Text style={styles.actionTitle}>INSTANT WITHDRAWAL</Text>
+          <View style={styles.presetsRow}>
+            {['10', '25', '50', '100'].map((amt) => (
+              <TouchableOpacity
+                key={amt}
+                onPress={() => setWithdrawAmount(amt)}
+                style={[styles.presetChip, withdrawAmount === amt && styles.presetChipActive]}
+              >
+                <Text style={[styles.presetText, withdrawAmount === amt && styles.presetTextActive]}>
+                  ${amt}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <View style={styles.inputRow}>
             <Text style={styles.dollarSign}>$</Text>
             <TextInput
@@ -157,6 +245,8 @@ export const WalletScreen = () => {
               value={withdrawAmount}
               onChangeText={setWithdrawAmount}
               keyboardType="numeric"
+              placeholder="Amount"
+              placeholderTextColor="#64748B"
             />
             <TouchableOpacity
               onPress={() => withdrawMutation.mutate()}
@@ -176,7 +266,7 @@ export const WalletScreen = () => {
         <View style={styles.historySection}>
           <Text style={styles.sectionHeader}>LEDGER TRANSACTION HISTORY</Text>
           {txLoading ? (
-            <ActivityIndicator color="#F59E0B" />
+            <ActivityIndicator color="#10B981" />
           ) : Array.isArray(transactions) && transactions.length > 0 ? (
             transactions.map((tx: any) => {
               const numAmount = Number(tx?.amountMinor || 0);
@@ -198,7 +288,7 @@ export const WalletScreen = () => {
             })
           ) : (
             <Text style={{ color: '#64748B', fontSize: 12, fontStyle: 'italic', paddingVertical: 8 }}>
-              No ledger transactions yet.
+              No transactions recorded yet. Make a deposit above!
             </Text>
           )}
         </View>
@@ -215,12 +305,12 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: '#10B981',
     alignItems: 'center',
   },
   cardLabel: { color: '#94A3B8', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  cardAmount: { color: '#FBBF24', fontSize: 36, fontWeight: '900', marginVertical: 6 },
-  currencyTag: { color: '#10B981', fontSize: 10, fontWeight: '800' },
+  cardAmount: { color: '#10B981', fontSize: 36, fontWeight: '900', marginVertical: 6 },
+  currencyTag: { color: '#34D399', fontSize: 10, fontWeight: '800' },
   actionCard: {
     backgroundColor: '#0F172A',
     padding: 16,
@@ -228,7 +318,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1E293B',
   },
-  actionTitle: { color: '#F8FAFC', fontSize: 13, fontWeight: '800', marginBottom: 10 },
+  actionTitle: { color: '#F8FAFC', fontSize: 13, fontWeight: '800', marginBottom: 12 },
+  methodsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  methodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  methodChipActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: '#10B981',
+  },
+  methodIcon: { fontSize: 14 },
+  methodText: { color: '#94A3B8', fontSize: 12, fontWeight: '700' },
+  methodTextActive: { color: '#10B981' },
+  presetsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  presetChip: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  presetChipActive: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  presetText: { color: '#94A3B8', fontSize: 12, fontWeight: '800' },
+  presetTextActive: { color: '#0F172A' },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dollarSign: { color: '#F8FAFC', fontSize: 20, fontWeight: '800' },
   amountInput: {
@@ -242,18 +375,18 @@ const styles = StyleSheet.create({
   },
   depositBtn: {
     backgroundColor: '#10B981',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  depositBtnText: { color: '#0F172A', fontWeight: '900', fontSize: 13 },
+  depositBtnText: { color: '#0F172A', fontWeight: '900', fontSize: 12 },
   withdrawBtn: {
     backgroundColor: '#3B82F6',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  withdrawBtnText: { color: '#FFFFFF', fontWeight: '900', fontSize: 13 },
+  withdrawBtnText: { color: '#FFFFFF', fontWeight: '900', fontSize: 12 },
   historySection: {
     backgroundColor: '#0F172A',
     padding: 16,
@@ -295,7 +428,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   guestButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#10B981',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 10,

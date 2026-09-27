@@ -19,7 +19,7 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
 
   const handleLogin = async () => {
     if (!phone.trim() || !password) {
-      Alert.alert('Validation', 'Please enter your phone number and password');
+      Alert.alert('Validation Error', 'Please enter your phone number and password');
       return;
     }
 
@@ -32,11 +32,25 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
 
       const { user, tokens } = res.data;
       await setAuth(user, tokens.accessToken, tokens.refreshToken);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
-      }
+
+      Alert.alert(
+        '👋 Welcome Back!',
+        `Signed in as ${user.username}. Go to your wallet to manage deposits/withdrawals or jump straight into the game.`,
+        [
+          {
+            text: '💳 Deposit / Withdraw',
+            onPress: () => {
+              if (navigation) navigation.navigate('Wallet');
+            },
+          },
+          {
+            text: '🎮 Start Playing',
+            onPress: () => {
+              if (navigation) navigation.navigate('Main');
+            },
+          },
+        ],
+      );
     } catch (err: any) {
       Alert.alert(
         'Login Failed',
@@ -49,14 +63,14 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>KENO</Text>
+      <Text style={styles.logo}>⚡ KENO LIVE</Text>
       <Text style={styles.title}>Player Login</Text>
 
       <View style={styles.form}>
         <Text style={styles.label}>MOBILE PHONE NUMBER</Text>
         <TextInput
           style={styles.input}
-          placeholder="+1 555 123 4567"
+          placeholder="+251 91 234 5678"
           placeholderTextColor="#64748B"
           value={phone}
           onChangeText={setPhone}
@@ -87,7 +101,7 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate('Register')}
+          onPress={() => navigation?.navigate('Register')}
           style={styles.switchButton}
         >
           <Text style={styles.switchText}>
@@ -97,10 +111,10 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
 
         <TouchableOpacity
           onPress={() => {
-            if (navigation.canGoBack()) {
+            if (navigation?.canGoBack()) {
               navigation.goBack();
             } else {
-              navigation.navigate('Main');
+              navigation?.navigate('Main');
             }
           }}
           style={styles.guestButton}
@@ -120,10 +134,11 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   logo: {
-    color: '#F59E0B',
-    fontSize: 32,
+    color: '#10B981',
+    fontSize: 28,
     fontWeight: '900',
     textAlign: 'center',
+    letterSpacing: 1,
   },
   title: {
     color: '#F8FAFC',
@@ -148,11 +163,11 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     borderRadius: 10,
     padding: 14,
-    color: '#FFFFFF',
+    color: '#F8FAFC',
     fontSize: 15,
   },
   button: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -160,11 +175,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#0F172A',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   switchButton: {
-    marginTop: 16,
+    marginTop: 14,
     alignItems: 'center',
   },
   switchText: {
@@ -172,13 +188,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   switchHighlight: {
-    color: '#F59E0B',
-    fontWeight: '700',
+    color: '#10B981',
+    fontWeight: '800',
   },
   guestButton: {
-    marginTop: 12,
+    marginTop: 8,
     alignItems: 'center',
-    padding: 10,
+    padding: 8,
   },
   guestText: {
     color: '#64748B',

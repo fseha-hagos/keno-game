@@ -21,7 +21,7 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
 
   const handleRegister = async () => {
     if (!phone.trim() || !username.trim() || !password) {
-      Alert.alert('Validation', 'Please enter your phone number, username, and password');
+      Alert.alert('Validation Error', 'Please enter your mobile phone number, username, and password');
       return;
     }
 
@@ -37,15 +37,29 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
 
       const { user, tokens } = res.data;
       await setAuth(user, tokens.accessToken, tokens.refreshToken);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
-      }
+
+      Alert.alert(
+        '🎉 Registration Successful!',
+        `Welcome ${user.username}! Your player account is ready. Proceed to deposit funds or start playing.`,
+        [
+          {
+            text: '💳 Deposit Funds',
+            onPress: () => {
+              if (navigation) navigation.navigate('Wallet');
+            },
+          },
+          {
+            text: '🎮 Start Playing',
+            onPress: () => {
+              if (navigation) navigation.navigate('Main');
+            },
+          },
+        ],
+      );
     } catch (err: any) {
       Alert.alert(
         'Registration Failed',
-        err.response?.data?.message || 'Could not register account. Check your details.',
+        err.response?.data?.message || 'Could not register account. Check your details and try again.',
       );
     } finally {
       setIsLoading(false);
@@ -54,14 +68,14 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.logo}>KENO</Text>
+      <Text style={styles.logo}>⚡ KENO LIVE</Text>
       <Text style={styles.title}>Create Player Account</Text>
 
       <View style={styles.form}>
         <Text style={styles.label}>MOBILE PHONE NUMBER</Text>
         <TextInput
           style={styles.input}
-          placeholder="+1 555 123 4567"
+          placeholder="+251 91 234 5678"
           placeholderTextColor="#64748B"
           value={phone}
           onChangeText={setPhone}
@@ -72,7 +86,7 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
         <Text style={styles.label}>PLAYER USERNAME</Text>
         <TextInput
           style={styles.input}
-          placeholder="LuckyWinner99"
+          placeholder="LuckyPlayer"
           placeholderTextColor="#64748B"
           value={username}
           onChangeText={setUsername}
@@ -97,12 +111,12 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
           {isLoading ? (
             <ActivityIndicator color="#0F172A" />
           ) : (
-            <Text style={styles.buttonText}>REGISTER & CLAIM $500 DEMO</Text>
+            <Text style={styles.buttonText}>REGISTER & DEPOSIT</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate('Login')}
+          onPress={() => navigation?.navigate('Login')}
           style={styles.switchButton}
         >
           <Text style={styles.switchText}>
@@ -112,10 +126,10 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
 
         <TouchableOpacity
           onPress={() => {
-            if (navigation.canGoBack()) {
+            if (navigation?.canGoBack()) {
               navigation.goBack();
             } else {
-              navigation.navigate('Main');
+              navigation?.navigate('Main');
             }
           }}
           style={styles.guestButton}
@@ -135,10 +149,11 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   logo: {
-    color: '#F59E0B',
-    fontSize: 32,
+    color: '#10B981',
+    fontSize: 28,
     fontWeight: '900',
     textAlign: 'center',
+    letterSpacing: 1,
   },
   title: {
     color: '#F8FAFC',
@@ -146,7 +161,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    marginTop: 4,
+    marginTop: 6,
   },
   form: {
     gap: 12,
@@ -163,11 +178,11 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     borderRadius: 10,
     padding: 14,
-    color: '#FFFFFF',
+    color: '#F8FAFC',
     fontSize: 15,
   },
   button: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#10B981',
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -177,6 +192,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontSize: 15,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   switchButton: {
     marginTop: 14,
@@ -187,13 +203,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   switchHighlight: {
-    color: '#F59E0B',
-    fontWeight: '700',
+    color: '#10B981',
+    fontWeight: '800',
   },
   guestButton: {
-    marginTop: 12,
+    marginTop: 8,
     alignItems: 'center',
-    padding: 10,
+    padding: 8,
   },
   guestText: {
     color: '#64748B',
