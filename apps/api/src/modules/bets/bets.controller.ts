@@ -33,6 +33,12 @@ export class BetsController {
     return this.betsService.getUserBets(req.user.id);
   }
 
+  @Get('recent')
+  @ApiOperation({ summary: 'Get recent bets placed across all players for live feed' })
+  async getRecentBets() {
+    return this.betsService.getRecentBets();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details and settlement of a specific bet' })
   async getBetById(@Param('id') id: string) {

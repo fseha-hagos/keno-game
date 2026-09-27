@@ -135,6 +135,14 @@ export class BetsService {
     });
   }
 
+  async getRecentBets(limit = 30): Promise<Bet[]> {
+    return this.betRepo.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+      relations: ['round'],
+    });
+  }
+
   async getBetById(id: string): Promise<Bet | null> {
     return this.betRepo.findOne({
       where: { id },

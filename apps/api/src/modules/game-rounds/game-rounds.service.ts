@@ -13,6 +13,12 @@ export class GameRoundsService implements OnModuleInit {
   private readonly logger = new Logger(GameRoundsService.name);
   private isProcessing = false;
 
+  // In-memory map to track active drawing progress step-by-step
+  private activeDraws = new Map<
+    string,
+    { fullDraw: number[]; revealed: number[]; hash: string }
+  >();
+
   constructor(
     @InjectRepository(GameRound)
     private readonly roundRepo: Repository<GameRound>,
@@ -23,7 +29,7 @@ export class GameRoundsService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureActiveRound();
-    // Start automated round tick loop (1 second heartbeat for exact countdown precision)
+    // Start automated round tick loop (1 second heartbeat)
     setInterval(() => this.tickRoundLifecycle(), 1000);
   }
 
@@ -46,6 +52,15 @@ export class GameRoundsService implements OnModuleInit {
       round = await this.ensureActiveRound();
     }
 
+    // SECURITY & LIVE SYNC: If round is currently drawing, return ONLY revealed numbers so far
+    if (round && this.activeDraws.has(round.id)) {
+      const active = this.activeDraws.get(round.id)!;
+      return {
+        ...round,
+        drawResult: [...active.revealed],
+      } as GameRound;
+    }
+
     return round;
   }
 
@@ -57,7 +72,15 @@ export class GameRoundsService implements OnModuleInit {
   }
 
   async getRoundById(id: string): Promise<GameRound | null> {
-    return this.roundRepo.findOne({ where: { id } });
+    const round = await this.roundRepo.findOne({ where: { id } });
+    if (round && this.activeDraws.has(round.id)) {
+      const active = this.activeDraws.get(round.id)!;
+      return {
+        ...round,
+        drawResult: [...active.revealed],
+      } as GameRound;
+    }
+    return round;
   }
 
   private async ensureActiveRound(): Promise<GameRound> {
@@ -106,7 +129,7 @@ export class GameRoundsService implements OnModuleInit {
   /**
    * State Machine / Round Engine Heartbeat:
    * 1. Check if active OPEN round reached scheduled betting close time.
-   * 2. If so, CLOSE betting -> generate CSPRNG DRAW -> broadcast balls -> SETTLE all bets -> create next round.
+   * 2. If so, CLOSE betting -> generate CSPRNG DRAW -> broadcast balls one by one -> SETTLE -> create next round.
    */
   private async tickRoundLifecycle() {
     if (this.isProcessing) return;
@@ -115,7 +138,6 @@ export class GameRoundsService implements OnModuleInit {
       this.isProcessing = true;
       const now = new Date();
 
-      // Find any round that is OPEN and past its close time
       const roundToClose = await this.roundRepo.findOne({
         where: {
           status: RoundStatus.OPEN,
@@ -141,28 +163,42 @@ export class GameRoundsService implements OnModuleInit {
     await this.roundRepo.save(round);
     this.eventsGateway.broadcastRoundClosed(round.id);
 
-    // 2. Generate Authoritative CSPRNG Draw
+    // 2. Generate Authoritative CSPRNG Draw internally
     const drawResult = this.rngService.generateAuthoritativeDraw();
-    this.logger.log(`Round #${round.roundNumber} drawn: [${drawResult.draw.join(', ')}]`);
+    this.logger.log(`Round #${round.roundNumber} CSPRNG draw generated internally.`);
 
+    // Set round status to DRAWN, but DO NOT save full drawResult to DB yet
     round.status = RoundStatus.DRAWN;
-    round.drawResult = drawResult.draw;
+    round.drawResult = []; // Keep empty in DB during drawing phase
     round.resultHash = drawResult.hash;
     await this.roundRepo.save(round);
 
+    // Track active drawing in memory
+    this.activeDraws.set(round.id, {
+      fullDraw: drawResult.draw,
+      revealed: [],
+      hash: drawResult.hash,
+    });
+
     this.eventsGateway.broadcastDrawStarted(round.id);
 
-    // Broadcast individual balls drawn with animation interval (1600ms per ball)
+    // Emit numbers ONE BY ONE at server intervals (1600ms per ball)
     for (let i = 0; i < drawResult.draw.length; i++) {
       const ball = drawResult.draw[i]!;
-      this.eventsGateway.broadcastNumberDrawn(round.id, ball, i + 1);
+      const active = this.activeDraws.get(round.id);
+      if (active) {
+        active.revealed.push(ball);
+      }
+      const revealedSoFar = active ? [...active.revealed] : [ball];
+
+      this.eventsGateway.broadcastNumberDrawn(round.id, ball, i + 1, revealedSoFar);
       await new Promise((resolve) => setTimeout(resolve, GAME_CONFIG.BALL_DRAW_ANIMATION_DELAY_MS));
     }
 
-    // 3. Settle all bets for this round transactionally
+    // 3. Drawing complete — save full 20 numbers to DB and settle bets
+    round.drawResult = drawResult.draw;
     const settlementSummary = await this.settlementService.settleRoundBets(round);
 
-    // 4. Mark round as COMPLETED/SETTLED
     round.status = RoundStatus.SETTLED;
     round.completedAt = new Date();
     round.totalWageredMinor = settlementSummary.totalWageredMinor;
@@ -183,10 +219,12 @@ export class GameRoundsService implements OnModuleInit {
       totalPayoutMinor: round.totalPayoutMinor,
     });
 
-    // 5. Short 2.5s display hold for win settlement announcement before opening next round
+    this.activeDraws.delete(round.id);
+
+    // 4. Short 2.5s display hold for win settlement announcement before opening next round
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    // 6. Open next round immediately so the 60s countdown starts with announcement
+    // 5. Open next round immediately so the 60s countdown starts
     await this.ensureActiveRound();
   }
 }
