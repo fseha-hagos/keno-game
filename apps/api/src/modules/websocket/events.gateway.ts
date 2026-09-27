@@ -39,11 +39,17 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit(WebSocketEvents.DRAW_STARTED, { roundId });
   }
 
-  broadcastNumberDrawn(roundId: string, number: number, drawIndex: number) {
+  broadcastNumberDrawn(
+    roundId: string,
+    number: number,
+    drawIndex: number,
+    revealedNumbers?: number[],
+  ) {
     this.server.emit(WebSocketEvents.NUMBER_DRAWN, {
       roundId,
       number,
       drawIndex,
+      revealedNumbers: revealedNumbers || [],
     });
   }
 

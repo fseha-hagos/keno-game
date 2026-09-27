@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  FlatList,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
@@ -14,19 +12,15 @@ import { useGameStore } from '../store/useGameStore';
 
 export type FeedTab = 'GAME' | 'HISTORY' | 'RESULTS' | 'STATS';
 
-interface SimulatedBet {
+interface BetDisplayItem {
   id: string;
   username: string;
   numbers: number[];
   stake: number;
-  status: 'Waiting' | 'Won' | 'Lost';
+  status: string;
   payout?: number;
+  time?: string;
 }
-
-const MOCK_USERNAMES = [
-  'p***d', 'g***v', 'a***k', 'm***o', 'x***9', 't***7', 'k***2', 's***w',
-  'd***1', 'j***8', 'b***x', 'n***0', 'l***v', 'c***r', 'h***e', 'w***p'
-];
 
 export const GameFeedPanel = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('GAME');
@@ -34,75 +28,184 @@ export const GameFeedPanel = () => {
   const { isAuthenticated } = useAuthStore();
   const { betSlips } = useGameStore();
 
-  // Simulated live bets state
-  const [liveBets, setLiveBets] = useState<SimulatedBet[]>(() => [
-    { id: '1', username: 'p***d', numbers: [22, 60], stake: 2000, status: 'Waiting' },
-    { id: '2', username: 'g***v', numbers: [41, 21, 23], stake: 600, status: 'Waiting' },
-    { id: '3', username: 'a***k', numbers: [7, 18, 35, 72], stake: 1000, status: 'Waiting' },
-    { id: '4', username: 'm***o', numbers: [12, 49, 58], stake: 500, status: 'Waiting' },
-    { id: '5', username: 'x***9', numbers: [3, 15, 29, 64, 78], stake: 1500, status: 'Waiting' },
-  ]);
-
-  // Periodically add new simulated live bets to make the feed feel active
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const uname = MOCK_USERNAMES[Math.floor(Math.random() * MOCK_USERNAMES.length)] ?? 'p***d';
-      const count = Math.floor(Math.random() * 5) + 1;
-      const nums: number[] = [];
-      while (nums.length < count) {
-        const r = Math.floor(Math.random() * 80) + 1;
-        if (!nums.includes(r)) nums.push(r);
-      }
-      nums.sort((a, b) => a - b);
-      const stakeOpts = [200, 500, 600, 1000, 1500, 2000, 5000];
-      const stake = stakeOpts[Math.floor(Math.random() * stakeOpts.length)] ?? 500;
-
-      const newBet: SimulatedBet = {
-        id: Date.now().toString() + Math.random().toString().slice(2, 5),
-        username: uname,
-        numbers: nums,
-        stake,
-        status: 'Waiting',
-      };
-
-      setLiveBets((prev) => [newBet, ...prev.slice(0, 29)]);
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch real user bets history for HISTORY tab
+  // Fetch real user bets history
   const { data: userBetHistory } = useQuery({
     queryKey: ['betHistory'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/keno/bets/history');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/v1/keno/bets/history');
+        return res.data;
+      } catch {
+        return [];
+      }
     },
-    enabled: isAuthenticated && activeTab === 'HISTORY',
-    refetchInterval: 5000,
+    enabled: isAuthenticated,
+    refetchInterval: 3000,
   });
 
-  // Fetch recent finished rounds for RESULTS tab
+  // Fetch recent bets across players for live feed
+  const { data: recentBets } = useQuery({
+    queryKey: ['recentBets'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/keno/bets/recent');
+        return res.data;
+      } catch {
+        return [];
+      }
+    },
+    enabled: isAuthenticated,
+    refetchInterval: 3000,
+  });
+
+  // Fetch recent finished rounds for RESULTS & STATS tabs
   const { data: roundResults } = useQuery({
     queryKey: ['roundResults'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/keno/rounds/recent');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/v1/keno/rounds/recent');
+        return res.data;
+      } catch {
+        return [];
+      }
     },
-    enabled: activeTab === 'RESULTS' || activeTab === 'STATS',
-    refetchInterval: 5000,
+    refetchInterval: 3000,
   });
 
-  const totalCount = 3954 + liveBets.length;
-  const userTicketCount = betSlips.filter((s) => s.selectedNumbers.length > 0).length;
-  const userBetCount = (userBetHistory && Array.isArray(userBetHistory)) ? userBetHistory.length : 0;
+  // Helper to parse drawn numbers array safely
+  const parseDrawnNumbers = (round: any): number[] => {
+    if (!round) return [];
+    const raw = round.drawResult || round.drawnNumbers;
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.map((n) => Number(n)).filter((n) => !isNaN(n));
+    }
+    if (typeof raw === 'string') {
+      return raw.split(',').map((n) => Number(n.trim())).filter((n) => !isNaN(n));
+    }
+    return [];
+  };
 
-  // Filter live bets based on selected sub-filter
-  const displayedBets = filterType === 'all'
-    ? liveBets
-    : filterType === 'tickets'
-    ? liveBets.slice(0, Math.max(1, userTicketCount))
-    : liveBets.slice(0, 5);
+  // Helper to format time into HH:mm:ss
+  const formatDrawTime = (round: any): string => {
+    const dateVal = round.closedAt || round.completedAt || round.createdAt;
+    if (!dateVal) return '--:--:--';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '--:--:--';
+    const hrs = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    const secs = String(d.getSeconds()).padStart(2, '0');
+    return `${hrs}:${mins}:${secs}`;
+  };
+
+  // Build active ticket items from local store (betSlips)
+  const userTicketItems: BetDisplayItem[] = betSlips
+    .filter((slip) => slip.selectedNumbers.length > 0)
+    .map((slip, idx) => ({
+      id: slip.id || `slip-${idx}`,
+      username: `You (Ticket #${idx + 1})`,
+      numbers: slip.selectedNumbers,
+      stake: Math.round(Number(slip.stakeMinor || '500') / 100) || 5,
+      status: 'Waiting',
+    }));
+
+  // Build historical bet items from backend userBetHistory
+  const userHistoryItems: BetDisplayItem[] = (Array.isArray(userBetHistory) ? userBetHistory : []).map(
+    (item: any, idx: number) => {
+      const stake = Math.round(Number(item.stakeMinor || 0) / 100) || item.stake || 100;
+      const payout = Math.round(Number(item.payoutMinor || 0) / 100);
+      const isWin = payout > 0;
+      const statusLabel =
+        item.status === 'SETTLED'
+          ? isWin
+            ? `Won ${payout.toLocaleString()}`
+            : 'Lost'
+          : 'Waiting';
+
+      return {
+        id: item.id || `hist-${idx}`,
+        username: `Round #${item.round?.roundNumber || '—'}`,
+        numbers: item.selectedNumbers || [],
+        stake,
+        status: statusLabel,
+        payout,
+        time: item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+      };
+    }
+  );
+
+  // Build recent bets feed items across all players from DB
+  const dbRecentItems: BetDisplayItem[] = (Array.isArray(recentBets) ? recentBets : []).map(
+    (item: any, idx: number) => {
+      const stake = Math.round(Number(item.stakeMinor || 0) / 100) || item.stake || 100;
+      const payout = Math.round(Number(item.payoutMinor || 0) / 100);
+      const isWin = payout > 0;
+      const statusLabel =
+        item.status === 'SETTLED'
+          ? isWin
+            ? `Won ${payout.toLocaleString()}`
+            : 'Lost'
+          : 'Waiting';
+
+      const maskedUser = item.userId ? `Player ${item.userId.slice(0, 4)}...` : `Player #${idx + 1}`;
+
+      return {
+        id: item.id || `rec-${idx}`,
+        username: maskedUser,
+        numbers: item.selectedNumbers || [],
+        stake,
+        status: statusLabel,
+      };
+    }
+  );
+
+  // Determine displayed bets for GAME tab based on sub-filter
+  const getDisplayedGameBets = (): BetDisplayItem[] => {
+    if (filterType === 'tickets') {
+      return userTicketItems;
+    }
+    if (filterType === 'bets') {
+      return userHistoryItems;
+    }
+    // 'all' filter: combine user active tickets + DB recent bets + user history
+    const combined = [...userTicketItems, ...dbRecentItems];
+    if (combined.length === 0) {
+      return userHistoryItems;
+    }
+    return combined;
+  };
+
+  const displayedGameBets = getDisplayedGameBets();
+  const allCount = (userTicketItems.length + dbRecentItems.length) || userHistoryItems.length;
+  const userTicketCount = userTicketItems.length;
+  const userBetCount = userHistoryItems.length;
+
+  // Calculate dynamic Hot and Cold numbers from true round results
+  const computeStats = () => {
+    const freq: Record<number, number> = {};
+    for (let i = 1; i <= 80; i++) freq[i] = 0;
+
+    const rounds = Array.isArray(roundResults) ? roundResults : [];
+    rounds.forEach((r) => {
+      const drawn = parseDrawnNumbers(r);
+      drawn.forEach((n) => {
+        if (n >= 1 && n <= 80) {
+          freq[n] = (freq[n] || 0) + 1;
+        }
+      });
+    });
+
+    const sorted = Object.entries(freq)
+      .map(([numStr, count]) => ({ num: Number(numStr), count }))
+      .sort((a, b) => b.count - a.count);
+
+    const hot = sorted.slice(0, 6).map((x) => x.num);
+    const cold = [...sorted].reverse().slice(0, 6).map((x) => x.num);
+
+    return { hot, cold };
+  };
+
+  const { hot: hotNumbers, cold: coldNumbers } = computeStats();
 
   const renderGameTab = () => (
     <View style={styles.tabContent}>
@@ -113,7 +216,7 @@ export const GameFeedPanel = () => {
           style={[styles.filterChip, filterType === 'all' && styles.filterChipActive]}
         >
           <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
-            All <Text style={styles.filterCount}>{totalCount}</Text>
+            All <Text style={styles.filterCount}>{allCount}</Text>
           </Text>
         </TouchableOpacity>
 
@@ -136,45 +239,67 @@ export const GameFeedPanel = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Cards list matching the exact screenshot layout */}
-      <View style={styles.cardsList}>
-        {displayedBets.map((item) => {
-          // Render exactly 10 slots for numbers (filled numbers first, empty slots to make up 10)
-          const slots: (number | null)[] = [...item.numbers];
-          while (slots.length < 10) {
-            slots.push(null);
-          }
+      {/* Cards list matching the exact layout */}
+      {displayedGameBets.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyText}>
+            {filterType === 'tickets'
+              ? 'No active tickets in current slip. Pick numbers on grid to create a ticket!'
+              : filterType === 'bets'
+              ? 'No bets placed yet.'
+              : 'No live bets placed yet. Place your bet above!'}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.cardsList}>
+          {displayedGameBets.map((item) => {
+            // Render 10 slots for numbers (filled numbers first, empty slots to make up 10)
+            const slots: (number | null)[] = [...item.numbers];
+            while (slots.length < 10) {
+              slots.push(null);
+            }
 
-          return (
-            <View key={item.id} style={styles.card}>
-              <Text style={styles.cardUsername}>{item.username}</Text>
+            return (
+              <View key={item.id} style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.cardUsername}>{item.username}</Text>
+                  {item.time && <Text style={styles.timeText}>{item.time}</Text>}
+                </View>
 
-              {/* 10 number slots */}
-              <View style={styles.slotsRow}>
-                {slots.map((num, idx) => (
-                  <View
-                    key={idx}
+                {/* 10 number slots */}
+                <View style={styles.slotsRow}>
+                  {slots.map((num, idx) => (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.slotBox,
+                        num !== null ? styles.slotBoxFilled : styles.slotBoxEmpty,
+                      ]}
+                    >
+                      {num !== null && <Text style={styles.slotText}>{num}</Text>}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Bottom line: Bet Amount & Status */}
+                <View style={styles.cardFooter}>
+                  <View style={styles.betPill}>
+                    <Text style={styles.betPillText}>Bet {item.stake.toLocaleString()}</Text>
+                  </View>
+                  <Text
                     style={[
-                      styles.slotBox,
-                      num !== null ? styles.slotBoxFilled : styles.slotBoxEmpty,
+                      styles.statusText,
+                      item.status.startsWith('Won') && { color: '#10B981' },
                     ]}
                   >
-                    {num !== null && <Text style={styles.slotText}>{num}</Text>}
-                  </View>
-                ))}
-              </View>
-
-              {/* Bottom line: Bet Amount & Status */}
-              <View style={styles.cardFooter}>
-                <View style={styles.betPill}>
-                  <Text style={styles.betPillText}>Bet {item.stake}</Text>
+                    {item.status}
+                  </Text>
                 </View>
-                <Text style={styles.statusText}>{item.status}</Text>
               </View>
-            </View>
-          );
-        })}
-      </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
@@ -184,29 +309,21 @@ export const GameFeedPanel = () => {
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>Please log in to view your bet history.</Text>
         </View>
-      ) : !userBetHistory || userBetHistory.length === 0 ? (
+      ) : userHistoryItems.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>No bets placed yet.</Text>
         </View>
       ) : (
         <View style={styles.cardsList}>
-          {userBetHistory.map((item: any) => {
-            const stake = (Number(item.stakeMinor) / 100).toFixed(0);
-            const isWin = Number(item.payoutMinor || 0) > 0;
-            const payout = (Number(item.payoutMinor || 0) / 100).toFixed(0);
-            const statusLabel = item.status === 'SETTLED'
-              ? isWin ? `Won ${payout}` : 'Lost'
-              : 'Waiting';
-
-            const nums: number[] = item.selectedNumbers || [];
-            const slots: (number | null)[] = [...nums];
+          {userHistoryItems.map((item) => {
+            const slots: (number | null)[] = [...item.numbers];
             while (slots.length < 10) slots.push(null);
 
             return (
               <View key={item.id} style={styles.card}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={styles.cardUsername}>Round #{item.round?.roundNumber || '—'}</Text>
-                  <Text style={styles.timeText}>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.cardUsername}>{item.username}</Text>
+                  {item.time && <Text style={styles.timeText}>{item.time}</Text>}
                 </View>
 
                 <View style={styles.slotsRow}>
@@ -225,9 +342,16 @@ export const GameFeedPanel = () => {
 
                 <View style={styles.cardFooter}>
                   <View style={styles.betPill}>
-                    <Text style={styles.betPillText}>Bet {stake}</Text>
+                    <Text style={styles.betPillText}>Bet {item.stake.toLocaleString()}</Text>
                   </View>
-                  <Text style={[styles.statusText, isWin && { color: '#10B981' }]}>{statusLabel}</Text>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      item.status.startsWith('Won') && { color: '#10B981' },
+                    ]}
+                  >
+                    {item.status}
+                  </Text>
                 </View>
               </View>
             );
@@ -237,54 +361,92 @@ export const GameFeedPanel = () => {
     </View>
   );
 
-  const renderResultsTab = () => (
-    <View style={styles.tabContent}>
-      {!roundResults || roundResults.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Loading past round results...</Text>
+  const renderResultsTab = () => {
+    const rounds = Array.isArray(roundResults) ? roundResults : [];
+
+    return (
+      <View style={styles.tabContent}>
+        {/* Table Column Headers matching the requested functional layout */}
+        <View style={styles.resultsTableHeader}>
+          <Text style={styles.tableHeaderLeft}>Draw ID</Text>
+          <Text style={styles.tableHeaderRight}>Combination</Text>
         </View>
-      ) : (
-        <View style={styles.resultsList}>
-          {roundResults.map((r: any) => {
-            const drawn: number[] = r.drawnNumbers || [];
-            return (
-              <View key={r.id} style={styles.resultCard}>
-                <View style={styles.resultHeader}>
-                  <Text style={styles.resultRound}>Round #{r.roundNumber}</Text>
-                  <Text style={styles.resultTime}>
-                    {r.closedAt ? new Date(r.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'CLOSED'}
-                  </Text>
-                </View>
-                <View style={styles.drawnGrid}>
-                  {drawn.map((n) => (
-                    <View key={n} style={styles.drawnBall}>
-                      <Text style={styles.drawnBallText}>{n}</Text>
+
+        {rounds.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>Loading past round results...</Text>
+          </View>
+        ) : (
+          <View style={styles.resultsList}>
+            {rounds.map((r: any) => {
+              const drawn = parseDrawnNumbers(r);
+              const top10: (number | null)[] = drawn.slice(0, 10);
+              const bottom10: (number | null)[] = drawn.slice(10, 20);
+
+              // Fill up to 10 slots per row so grid stays consistent
+              while (top10.length < 10) top10.push(null);
+              while (bottom10.length < 10) bottom10.push(null);
+
+              const timeStr = formatDrawTime(r);
+              const roundNum = r.roundNumber || '—';
+
+              return (
+                <View key={r.id || roundNum} style={styles.resultRowCard}>
+                  {/* Left Column: Draw ID & Time */}
+                  <View style={styles.drawIdCol}>
+                    <View style={styles.roundIdRow}>
+                      <View style={styles.checkBadge}>
+                        <Text style={styles.checkIcon}>✓</Text>
+                      </View>
+                      <Text style={styles.roundNumberText}>{roundNum}</Text>
                     </View>
-                  ))}
+                    <Text style={styles.roundTimeText}>{timeStr}</Text>
+                  </View>
+
+                  {/* Right Column: 2x10 Grid Combination */}
+                  <View style={styles.combinationCol}>
+                    {/* Top 10 Drawn Numbers */}
+                    <View style={styles.combRow}>
+                      {top10.map((num, idx) => (
+                        <View key={`top-${idx}`} style={styles.combTile}>
+                          <Text style={styles.combTileText}>{num !== null ? num : ''}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Bottom 10 Drawn Numbers */}
+                    <View style={styles.combRow}>
+                      {bottom10.map((num, idx) => (
+                        <View key={`bot-${idx}`} style={styles.combTile}>
+                          <Text style={styles.combTileText}>{num !== null ? num : ''}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
                 </View>
-              </View>
-            );
-          })}
-        </View>
-      )}
-    </View>
-  );
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderStatsTab = () => (
     <View style={styles.tabContent}>
       <View style={styles.statsContainer}>
         <Text style={styles.statsSectionTitle}>🔥 HOT NUMBERS (Most Frequent)</Text>
         <View style={styles.statsRow}>
-          {[7, 18, 23, 41, 60, 72].map((num) => (
+          {hotNumbers.map((num) => (
             <View key={num} style={[styles.statBall, styles.hotBall]}>
               <Text style={styles.statBallText}>{num}</Text>
             </View>
           ))}
         </View>
 
-        <Text style={[styles.statsSectionTitle, { marginTop: 14 }]}>❄️ COLD NUMBERS (Least Frequent)</Text>
+        <Text style={[styles.statsSectionTitle, { marginTop: 16 }]}>❄️ COLD NUMBERS (Least Frequent)</Text>
         <View style={styles.statsRow}>
-          {[3, 14, 29, 38, 55, 79].map((num) => (
+          {coldNumbers.map((num) => (
             <View key={num} style={[styles.statBall, styles.coldBall]}>
               <Text style={styles.statBallText}>{num}</Text>
             </View>
@@ -420,11 +582,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#242F40',
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   cardUsername: {
     color: '#34D399',
     fontSize: 12,
     fontWeight: '800',
-    marginBottom: 6,
   },
   slotsRow: {
     flexDirection: 'row',
@@ -433,7 +600,7 @@ const styles = StyleSheet.create({
   },
   slotBox: {
     flex: 1,
-    height: 28,
+    height: 26,
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
@@ -482,54 +649,114 @@ const styles = StyleSheet.create({
   emptyWrap: {
     paddingVertical: 20,
     alignItems: 'center',
+    paddingHorizontal: 12,
   },
   emptyText: {
     color: '#64748B',
     fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  resultsList: {
-    gap: 8,
-  },
-  resultCard: {
-    backgroundColor: '#1A222E',
-    borderRadius: 6,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#242F40',
-  },
-  resultHeader: {
+
+  /* Results Tab Styling (Matching Screenshot Structure) */
+  resultsTableHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 6,
     marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
   },
-  resultRound: {
-    color: '#F8FAFC',
+  tableHeaderLeft: {
+    color: '#94A3B8',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
+    width: 95,
   },
-  resultTime: {
-    color: '#64748B',
-    fontSize: 10,
+  tableHeaderRight: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 4,
   },
-  drawnGrid: {
+  resultsList: {
+    gap: 6,
+  },
+  resultRowCard: {
+    backgroundColor: '#1A222E',
+    borderRadius: 6,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#242F40',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
+    alignItems: 'center',
   },
-  drawnBall: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#D97706',
+  drawIdCol: {
+    width: 95,
+    justifyContent: 'center',
+    paddingRight: 6,
+  },
+  roundIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 2,
+  },
+  checkBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderWidth: 1,
+    borderColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  drawnBallText: {
-    color: '#FFFFFF',
-    fontSize: 10,
+  checkIcon: {
+    color: '#10B981',
+    fontSize: 9,
     fontWeight: '900',
   },
+  roundNumberText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  roundTimeText: {
+    color: '#34D399',
+    fontSize: 10,
+    fontWeight: '600',
+    paddingLeft: 21,
+  },
+  combinationCol: {
+    flex: 1,
+    gap: 3,
+  },
+  combRow: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  combTile: {
+    flex: 1,
+    height: 22,
+    backgroundColor: '#243042',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#334155',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  combTileText: {
+    color: '#F8FAFC',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  /* Stats Tab Styling */
   statsContainer: {
     padding: 6,
   },
@@ -551,10 +778,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hotBall: {
-    backgroundColor: '#DC2626',
+    backgroundColor: '#EF4444',
   },
   coldBall: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#3B82F6',
   },
   statBallText: {
     color: '#FFFFFF',
