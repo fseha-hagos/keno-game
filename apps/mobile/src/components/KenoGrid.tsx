@@ -24,6 +24,7 @@ interface GridCellProps {
   cellSize: number;
   cellRadius: number;
   fontSize: number;
+  disabled?: boolean;
   onPress: () => void;
 }
 
@@ -35,6 +36,7 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
   cellSize,
   cellRadius,
   fontSize,
+  disabled,
   onPress,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -84,7 +86,8 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
       }}
     >
       <TouchableOpacity
-        activeOpacity={0.75}
+        activeOpacity={disabled ? 1 : 0.75}
+        disabled={disabled}
         style={[
           styles.ball,
           stateBallStyle,
@@ -109,7 +112,11 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
   );
 });
 
-export const KenoGrid: React.FC = () => {
+interface KenoGridProps {
+  bettingOpen?: boolean;
+}
+
+export const KenoGrid: React.FC<KenoGridProps> = ({ bettingOpen = true }) => {
   const { toggleNumber, drawnNumbers, getActiveSlip } = useGameStore();
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
@@ -158,6 +165,7 @@ export const KenoGrid: React.FC = () => {
                 cellSize={cellSize}
                 cellRadius={cellRadius}
                 fontSize={fontSize}
+                disabled={!bettingOpen}
                 onPress={() => toggleNumber(num)}
               />
             );
