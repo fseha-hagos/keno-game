@@ -11,7 +11,7 @@ interface KenoDrawDisplayProps {
 
 export const KenoDrawDisplay = ({ timeLeft = 0, bettingOpen = false }: KenoDrawDisplayProps) => {
   const { drawnNumbers, isDrawing } = useGameStore();
-  const current = drawnNumbers[drawnNumbers.length - 1];
+  const current = drawnNumbers.length > 0 ? drawnNumbers[drawnNumbers.length - 1] : null;
   const count = drawnNumbers.length;
   const inDraw = isDrawing || count > 0;
 
@@ -64,14 +64,14 @@ export const KenoDrawDisplay = ({ timeLeft = 0, bettingOpen = false }: KenoDrawD
       }
 
       prevNum.current = current;
-    } else if (current === null) {
-      // Reset when round restarts
+    } else if (current == null || drawnNumbers.length === 0) {
+      // Refresh & reset to a 100% fresh start when game ends or round restarts
       translateY.setValue(220);
       opacity.setValue(0);
       setAnimatingNum(null);
       prevNum.current = null;
     }
-  }, [current, translateY, opacity]);
+  }, [current, drawnNumbers.length, translateY, opacity]);
 
   return (
     <View style={styles.wrap}>

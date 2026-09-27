@@ -6,7 +6,7 @@ import { apiClient } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 
 export const Header = () => {
-  const { user, logout } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const navigation = useNavigation<any>();
 
   const { data: wallet } = useQuery({
@@ -15,7 +15,7 @@ export const Header = () => {
       const res = await apiClient.get('/api/v1/wallet/balance');
       return res.data;
     },
-    enabled: !!user,
+    enabled: isAuthenticated,
     refetchInterval: 5000,
   });
 
@@ -25,33 +25,44 @@ export const Header = () => {
 
   return (
     <View style={styles.container}>
-      <View>
-        <Text style={styles.greeting}>
-          {user ? `Welcome, ${user.username}` : 'Guest Spectator'}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Main')}
+        style={styles.brandRow}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.brandLogo}>🎯</Text>
+        <Text style={styles.brandTitle}>
+          KENO<Text style={styles.brandTitleAccent}>LIVE</Text>
         </Text>
-        <Text style={user ? styles.kycTag : styles.guestTag}>
-          {user ? (user.phone || 'VERIFIED') : '👀 Live Watching'}
-        </Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.rightSection}>
-        {user ? (
+        {isAuthenticated ? (
           <>
-            <View style={styles.balanceBadge}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Wallet')}
+              style={styles.balanceBadge}
+              activeOpacity={0.7}
+            >
               <Text style={styles.balanceLabel}>BALANCE</Text>
               <Text style={styles.balanceAmount}>{formattedBalance}</Text>
-            </View>
+            </TouchableOpacity>
 
-            <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>Exit</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Profile')}
+              style={styles.profileAvatarButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.profileEmoji}>👤</Text>
             </TouchableOpacity>
           </>
         ) : (
           <TouchableOpacity
             onPress={() => navigation.navigate('Login')}
             style={styles.loginButton}
+            activeOpacity={0.8}
           >
-            <Text style={styles.loginButtonText}>SIGN IN / PLAY</Text>
+            <Text style={styles.loginButtonText}>Sign In</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -65,27 +76,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: '#0F172A',
     borderBottomWidth: 1,
     borderBottomColor: '#1E293B',
   },
-  greeting: {
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  brandLogo: {
+    fontSize: 20,
+  },
+  brandTitle: {
     color: '#F8FAFC',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
-  kycTag: {
+  brandTitleAccent: {
     color: '#10B981',
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  guestTag: {
-    color: '#38BDF8',
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
   },
   rightSection: {
     flexDirection: 'row',
@@ -94,8 +105,8 @@ const styles = StyleSheet.create({
   },
   balanceBadge: {
     backgroundColor: '#1E293B',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#F59E0B',
@@ -103,33 +114,37 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     color: '#94A3B8',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   balanceAmount: {
     color: '#FBBF24',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
   },
-  logoutButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+  profileAvatarButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1E293B',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  logoutText: {
-    color: '#EF4444',
-    fontSize: 12,
-    fontWeight: '600',
+  profileEmoji: {
+    fontSize: 18,
   },
   loginButton: {
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 14,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   loginButtonText: {
     color: '#0F172A',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
   },
 });
