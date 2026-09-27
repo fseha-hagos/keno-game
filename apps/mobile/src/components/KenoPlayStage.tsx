@@ -86,7 +86,7 @@ export const KenoPlayStage = ({
               </Text>
             </View>
 
-            {spots > 0 && (
+            {spots > 0 && bettingOpen && (
               <TouchableOpacity
                 onPress={clearSelection}
                 style={styles.clearBtn}
@@ -138,7 +138,7 @@ export const KenoPlayStage = ({
           {/* Main Content Area with clear horizontal separation */}
           <View style={styles.mainRow}>
             <View style={styles.gridColumn}>
-              <KenoGrid />
+              <KenoGrid bettingOpen={bettingOpen} />
             </View>
 
             <View style={styles.machineColumn}>
