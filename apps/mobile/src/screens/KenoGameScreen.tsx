@@ -46,6 +46,25 @@ export const KenoGameScreen = () => {
     refetchInterval: 2000,
   });
 
+  // Synchronize live drawn numbers when user connects or reconnects mid-draw
+  useEffect(() => {
+    if (!round) return;
+
+    if (round.status === 'OPEN') {
+      useGameStore.getState().resetRoundDraw();
+    } else if (
+      (round.status === 'DRAWING' || round.status === 'DRAWN' || round.status === 'SETTLED') &&
+      Array.isArray(round.drawResult)
+    ) {
+      const parsed = round.drawResult.map(Number).filter((n: number) => !isNaN(n));
+      const currentDrawn = useGameStore.getState().drawnNumbers;
+      if (parsed.length > currentDrawn.length) {
+        useGameStore.getState().setDrawnNumbers(parsed);
+        useGameStore.getState().setIsDrawing(round.status !== 'SETTLED');
+      }
+    }
+  }, [round?.id, round?.status, JSON.stringify(round?.drawResult)]);
+
   // Calculate live countdown timer until round betting closes
   useEffect(() => {
     if (!round?.closedAt || round.status !== 'OPEN') {
