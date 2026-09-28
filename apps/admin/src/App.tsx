@@ -10,13 +10,13 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  LogOut,
+  Lock,
+  User,
 } from 'lucide-react';
 import { calculateOverallRtp, DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://192.168.100.228:3000';
-
-// Simple admin token from env (for now — later replace with real RBAC login)
-const ADMIN_TOKEN = (import.meta as any).env?.VITE_ADMIN_TOKEN || '';
 
 function formatAmount(minor: string | number) {
   return (Number(minor) / 100).toLocaleString('en-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ETB';
@@ -47,6 +47,162 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/* ─────────────────────── ADMIN LOGIN ─────────────────────── */
+
+function AdminLogin({ onLogin }: { onLogin: (token: string, user: any) => void }) {
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/v1/auth/login`, {
+        phone: phone.trim(),
+        password,
+      });
+      const { tokens, user } = res.data;
+
+      // Verify user has admin role
+      const adminRoles = ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'];
+      const hasAdminRole = user.roles?.some((r: string) => adminRoles.includes(r));
+      if (!hasAdminRole) {
+        setError('Access denied. This account does not have admin privileges.');
+        setLoading(false);
+        return;
+      }
+
+      // Store token and user info
+      localStorage.setItem('admin_token', tokens.accessToken);
+      localStorage.setItem('admin_refresh_token', tokens.refreshToken);
+      localStorage.setItem('admin_user', JSON.stringify(user));
+      onLogin(tokens.accessToken, user);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Login failed';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', backgroundColor: '#0A0F1D',
+    }}>
+      <form onSubmit={handleSubmit} style={{
+        backgroundColor: '#0F172A', padding: '48px 40px', borderRadius: '20px',
+        border: '1px solid #1E293B', width: '420px', maxWidth: '95vw',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+      }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, #10B981, #059669)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}>
+            <ShieldCheck size={32} color="#fff" />
+          </div>
+          <h1 style={{ color: '#10B981', fontSize: '22px', fontWeight: 900, letterSpacing: '1px' }}>
+            KENO OPERATOR
+          </h1>
+          <p style={{ color: '#64748B', fontSize: '13px', fontWeight: 600, marginTop: '4px' }}>
+            Admin Console Login
+          </p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            backgroundColor: 'rgba(239,68,68,0.12)', border: '1px solid #EF4444',
+            borderRadius: '8px', padding: '10px 14px', marginBottom: '20px',
+            color: '#FCA5A5', fontSize: '13px', fontWeight: 600,
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Phone/Username */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
+            PHONE NUMBER OR USERNAME
+          </label>
+          <div style={{ position: 'relative' }}>
+            <User size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 0900000000 or admin"
+              required
+              style={{
+                width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155',
+                borderRadius: '10px', padding: '14px 14px 14px 40px', color: '#F8FAFC',
+                fontSize: '14px', fontWeight: 600, outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#10B981'}
+              onBlur={(e) => e.target.style.borderColor = '#334155'}
+            />
+          </div>
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: '28px' }}>
+          <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
+            PASSWORD
+          </label>
+          <div style={{ position: 'relative' }}>
+            <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              required
+              style={{
+                width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155',
+                borderRadius: '10px', padding: '14px 14px 14px 40px', color: '#F8FAFC',
+                fontSize: '14px', fontWeight: 600, outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#10B981'}
+              onBlur={(e) => e.target.style.borderColor = '#334155'}
+            />
+          </div>
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: '100%', padding: '14px',
+            background: loading ? '#334155' : 'linear-gradient(135deg, #10B981, #059669)',
+            border: 'none', borderRadius: '10px',
+            color: '#fff', fontSize: '14px', fontWeight: 900,
+            letterSpacing: '0.5px', cursor: loading ? 'not-allowed' : 'pointer',
+            transition: 'opacity 0.2s',
+          }}
+        >
+          {loading ? 'SIGNING IN...' : 'SIGN IN TO ADMIN CONSOLE'}
+        </button>
+
+        <p style={{ color: '#475569', fontSize: '11px', textAlign: 'center', marginTop: '20px' }}>
+          Default: admin / admin123
+        </p>
+      </form>
+    </div>
+  );
+}
+
+/* ─────────────────────── MAIN APP ─────────────────────── */
+
 export default function App() {
   type TabType = 'overview' | 'payments' | 'rtp' | 'rounds' | 'paytable';
   const [activeTab, setActiveTab] = useState<TabType>('payments');
@@ -56,6 +212,34 @@ export default function App() {
   const [actionNote, setActionNote] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Auth state
+  const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
+  const [adminUser, setAdminUser] = useState<any>(() => {
+    try { return JSON.parse(localStorage.getItem('admin_user') || 'null'); } catch { return null; }
+  });
+
+  const handleLogin = (token: string, user: any) => {
+    setAdminToken(token);
+    setAdminUser(user);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_refresh_token');
+    localStorage.removeItem('admin_user');
+    setAdminToken(null);
+    setAdminUser(null);
+    setPaymentRequests([]);
+  };
+
+  // If not logged in, show login
+  if (!adminToken) {
+    return <AdminLogin onLogin={handleLogin} />;
+  }
+
+  const authHeaders = { Authorization: `Bearer ${adminToken}` };
 
   const fetchData = () => {
     const analysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
@@ -65,23 +249,30 @@ export default function App() {
       .then((res) => setRounds(res.data))
       .catch(() => {});
 
-    if (ADMIN_TOKEN) {
-      axios.get(`${API_URL}/api/v1/wallet/admin/payment-requests`, {
-        headers: { Authorization: `Bearer ${ADMIN_TOKEN}` },
-      }).then((res) => setPaymentRequests(res.data)).catch(() => {});
-    } else {
-      // For dev: try without token (will fail if auth required)
-      axios.get(`${API_URL}/api/v1/wallet/admin/payment-requests`)
-        .then((res) => setPaymentRequests(res.data))
-        .catch(() => {});
-    }
+    axios.get(`${API_URL}/api/v1/wallet/admin/payment-requests`, {
+      headers: authHeaders,
+    })
+      .then((res) => {
+        setPaymentRequests(res.data);
+        setFetchError(null);
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          // Token expired — force re-login
+          handleLogout();
+        } else if (err.response?.status === 403) {
+          setFetchError('Access denied. Your account does not have admin privileges.');
+        } else {
+          setFetchError(`Failed to load payment requests: ${err.message}`);
+        }
+      });
   };
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [adminToken]);
 
   const handleAction = async (
     id: string,
@@ -91,8 +282,7 @@ export default function App() {
     setProcessing((p) => ({ ...p, [id]: true }));
     try {
       const url = `${API_URL}/api/v1/wallet/admin/${type}/${id}/${action}`;
-      const headers = ADMIN_TOKEN ? { Authorization: `Bearer ${ADMIN_TOKEN}` } : undefined;
-      await axios.patch(url, { adminNote: actionNote[id] || undefined }, { headers });
+      await axios.patch(url, { adminNote: actionNote[id] || undefined }, { headers: authHeaders });
       fetchData();
     } catch (err: any) {
       alert(`Action failed: ${err.response?.data?.message || err.message}`);
@@ -146,11 +336,37 @@ export default function App() {
         {sideNavBtn('rounds', <Activity size={18} />, 'Rounds & Live CSPRNG')}
         {sideNavBtn('paytable', <Layers size={18} />, 'Certified Paytables')}
 
-        <div style={{ marginTop: 'auto', padding: '12px', backgroundColor: '#064E3B', borderRadius: '8px', border: '1px solid #059669' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34D399', fontSize: '12px', fontWeight: 800 }}>
-            <ShieldCheck size={16} /> CSPRNG AUTHORITATIVE
+        {/* Admin user info & logout */}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ padding: '12px', backgroundColor: '#1E293B', borderRadius: '8px' }}>
+            <p style={{ color: '#F8FAFC', fontSize: '12px', fontWeight: 700 }}>
+              {adminUser?.username || 'Admin'}
+            </p>
+            <p style={{ color: '#64748B', fontSize: '10px' }}>
+              {adminUser?.roles?.join(', ')}
+            </p>
           </div>
-          <p style={{ color: '#A7F3D0', fontSize: '10px', marginTop: '4px' }}>RTP fixed at paytable level.</p>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center',
+              padding: '10px', borderRadius: '8px', border: '1px solid #334155',
+              backgroundColor: 'transparent', color: '#94A3B8',
+              fontWeight: 700, cursor: 'pointer', fontSize: '12px',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#EF4444'; e.currentTarget.style.color = '#EF4444'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.color = '#94A3B8'; }}
+          >
+            <LogOut size={14} /> SIGN OUT
+          </button>
+
+          <div style={{ padding: '12px', backgroundColor: '#064E3B', borderRadius: '8px', border: '1px solid #059669' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34D399', fontSize: '12px', fontWeight: 800 }}>
+              <ShieldCheck size={16} /> CSPRNG AUTHORITATIVE
+            </div>
+            <p style={{ color: '#A7F3D0', fontSize: '10px', marginTop: '4px' }}>RTP fixed at paytable level.</p>
+          </div>
         </div>
       </div>
 
@@ -231,6 +447,17 @@ export default function App() {
             <p style={{ color: '#94A3B8', fontSize: '13px', marginBottom: '24px' }}>
               Review and approve/reject player deposit and withdrawal requests. Deposits are only credited to wallet on approval.
             </p>
+
+            {/* Error banner */}
+            {fetchError && (
+              <div style={{
+                backgroundColor: 'rgba(239,68,68,0.12)', border: '1px solid #EF4444',
+                borderRadius: '10px', padding: '14px 18px', marginBottom: '16px',
+                color: '#FCA5A5', fontSize: '13px', fontWeight: 600,
+              }}>
+                ⚠️ {fetchError}
+              </div>
+            )}
 
             {filteredRequests.length === 0 ? (
               <div style={{ backgroundColor: '#0F172A', padding: '40px', borderRadius: '12px', border: '1px solid #1E293B', textAlign: 'center', color: '#64748B' }}>
