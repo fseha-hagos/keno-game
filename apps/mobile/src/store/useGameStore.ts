@@ -95,7 +95,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeSlipId: INITIAL_SLIP_ID,
   drawnNumbers: [],
   isDrawing: false,
-  currency: 'USD',
+  currency: 'ETB',
 
   getActiveSlip: () => {
     const { betSlips, activeSlipId } = get();

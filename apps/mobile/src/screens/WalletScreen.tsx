@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -39,11 +39,38 @@ export const WalletScreen = () => {
   // 'main' | 'deposit_instruction' | 'withdraw'
   const [view, setView] = useState<'main' | 'deposit_instruction'>('main');
   const [pendingDepositData, setPendingDepositData] = useState<any>(null);
+  // Countdown timer state
+  const [countdown, setCountdown] = useState({ mins: 0, secs: 0 });
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Start/stop countdown when entering/leaving deposit_instruction view
+  useEffect(() => {
+    if (view === 'deposit_instruction' && pendingDepositData) {
+      const expiresAt = pendingDepositData?.expiresAt
+        ? new Date(pendingDepositData.expiresAt).getTime()
+        : Date.now() + 15 * 60 * 1000;
+
+      const tick = () => {
+        const remaining = Math.max(0, expiresAt - Date.now());
+        const totalSecs = Math.floor(remaining / 1000);
+        setCountdown({ mins: Math.floor(totalSecs / 60), secs: totalSecs % 60 });
+      };
+
+      tick(); // initial tick
+      countdownRef.current = setInterval(tick, 1000);
+
+      return () => {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+      };
+    } else {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    }
+  }, [view, pendingDepositData]);
 
   const { data: wallet } = useQuery({
     queryKey: ['walletBalance'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/wallet/balance');
+      const res = await apiClient.get('/api/v1/wallet/balance?currency=ETB');
       return res.data;
     },
     enabled: isAuthenticated,
@@ -53,7 +80,7 @@ export const WalletScreen = () => {
   const { data: transactions, isLoading: txLoading } = useQuery({
     queryKey: ['walletTransactions'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/wallet/transactions');
+      const res = await apiClient.get('/api/v1/wallet/transactions?currency=ETB');
       return res.data;
     },
     enabled: isAuthenticated,
@@ -103,7 +130,7 @@ export const WalletScreen = () => {
   const submitProofMutation = useMutation({
     mutationFn: async () => {
       if (!txRef.trim()) throw new Error('Please enter your transaction reference number');
-      const res = await apiClient.patch(`/api/v1/wallet/admin/deposit/${pendingDepositData?.id}/proof`, {
+      const res = await apiClient.patch(`/api/v1/wallet/deposit/${pendingDepositData?.id}/proof`, {
         transactionReference: txRef.trim(),
       });
       return res.data;
@@ -180,11 +207,6 @@ export const WalletScreen = () => {
   if (view === 'deposit_instruction') {
     const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod) || PAYMENT_METHODS[0]!;
     const displayAmount = parseFloat(depositAmount);
-    const expiresAt = pendingDepositData?.expiresAt
-      ? new Date(pendingDepositData.expiresAt)
-      : new Date(Date.now() + 15 * 60 * 1000);
-    const minsLeft = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 60000));
-    const secsLeft = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000) % 60);
 
     return (
       <View style={styles.container}>
@@ -198,7 +220,7 @@ export const WalletScreen = () => {
           <View style={styles.timerCard}>
             <Text style={styles.timerLabel}>Request expires in</Text>
             <Text style={styles.timerValue}>
-              {String(minsLeft).padStart(2, '0')}:{String(secsLeft).padStart(2, '0')}
+              {String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
             </Text>
           </View>
 
