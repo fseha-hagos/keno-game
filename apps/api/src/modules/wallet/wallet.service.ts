@@ -78,6 +78,39 @@ export class WalletService {
   }
 
   /**
+   * Direct deposit: credits wallet balance and records a ledger entry.
+   * Used for system-initiated deposits (e.g. initial seed funds).
+   * For user-initiated deposits, use createDepositRequest() instead.
+   */
+  async deposit(
+    userId: string,
+    amountMinor: string,
+    currency = GAME_CONFIG.DEFAULT_CURRENCY,
+    idempotencyKey?: string,
+  ): Promise<WalletAccount> {
+    const wallet = await this.getOrCreateWallet(userId, currency);
+    const depositAmount = BigInt(amountMinor);
+    wallet.balanceMinor = (BigInt(wallet.balanceMinor) + depositAmount).toString();
+    await this.walletRepo.save(wallet);
+
+    await this.ledgerService.recordTransaction({
+      walletId: wallet.id,
+      transactionType: TransactionType.DEPOSIT,
+      amountMinor,
+      currency,
+      referenceType: LedgerReferenceType.DEPOSIT,
+      referenceId: `system_seed_${userId}`,
+      idempotencyKey: idempotencyKey || `system_deposit_${userId}_${Date.now()}`,
+    });
+
+    this.logger.log(
+      `System deposit of ${amountMinor} ${currency} credited to User ${userId}`,
+    );
+
+    return wallet;
+  }
+
+  /**
    * Submits a Deposit Request with PENDING status.
    * Money is NOT added to wallet balance until an Admin approves it.
    */

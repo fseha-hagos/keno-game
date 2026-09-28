@@ -1,7 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { getMetadataArgsStorage } from 'typeorm';
 import * as entities from './entities';
+
+// Filter out enums and non-entity exports; only keep classes with @Entity() decorator
+const entityClasses = (Object.values(entities) as any[]).filter(
+  (val) =>
+    typeof val === 'function' &&
+    getMetadataArgsStorage().tables.some((t) => t.target === val),
+);
 
 @Module({
   imports: [
@@ -15,7 +23,7 @@ import * as entities from './entities';
           return {
             type: 'sqlite',
             database: configService.get<string>('DB_DATABASE', 'keno.sqlite'),
-            entities: Object.values(entities),
+            entities: entityClasses,
             synchronize: true,
             logging: configService.get<string>('NODE_ENV') === 'development',
           };
@@ -29,7 +37,7 @@ import * as entities from './entities';
           return {
             type: 'postgres',
             url: databaseUrl,
-            entities: Object.values(entities),
+            entities: entityClasses,
             synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
             logging: configService.get<string>('NODE_ENV') === 'development',
             ssl: useSsl ? { rejectUnauthorized: false } : false,
@@ -43,14 +51,14 @@ import * as entities from './entities';
           username: configService.get<string>('DB_USER', 'postgres'),
           password: configService.get<string>('DB_PASSWORD', 'postgres'),
           database: configService.get<string>('DB_NAME', 'keno_db'),
-          entities: Object.values(entities),
+          entities: entityClasses,
           synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
           logging: configService.get<string>('NODE_ENV') === 'development',
           ssl: dbSsl === 'true' ? { rejectUnauthorized: false } : false,
         };
       },
     }),
-    TypeOrmModule.forFeature(Object.values(entities)),
+    TypeOrmModule.forFeature(entityClasses),
   ],
   exports: [TypeOrmModule],
 })
