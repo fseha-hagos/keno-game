@@ -5,13 +5,15 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GAME_CONFIG } from '@keno/config';
 
 @ApiTags('Wallet')
 @ApiBearerAuth()
@@ -22,8 +24,10 @@ export class WalletController {
 
   @Get('balance')
   @ApiOperation({ summary: 'Get current user wallet account balance' })
-  async getBalance(@Request() req: any) {
-    const wallet = await this.walletService.getWalletByUserId(req.user.id);
+  @ApiQuery({ name: 'currency', required: false, example: 'ETB' })
+  async getBalance(@Request() req: any, @Query('currency') currency?: string) {
+    const targetCurrency = currency || GAME_CONFIG.DEFAULT_CURRENCY;
+    const wallet = await this.walletService.getWalletByUserId(req.user.id, targetCurrency);
     return {
       id: wallet.id,
       currency: wallet.currency,
@@ -35,8 +39,10 @@ export class WalletController {
 
   @Get('transactions')
   @ApiOperation({ summary: 'Get wallet transaction ledger history' })
-  async getTransactions(@Request() req: any) {
-    return this.walletService.getTransactions(req.user.id);
+  @ApiQuery({ name: 'currency', required: false, example: 'ETB' })
+  async getTransactions(@Request() req: any, @Query('currency') currency?: string) {
+    const targetCurrency = currency || GAME_CONFIG.DEFAULT_CURRENCY;
+    return this.walletService.getTransactions(req.user.id, targetCurrency);
   }
 
   /** Player: Submit deposit request (PENDING) */
@@ -75,11 +81,25 @@ export class WalletController {
     return this.walletService.getUserPaymentRequests(req.user.id);
   }
 
+  /** Player: Submit proof/transaction reference for a pending deposit */
+  @Patch('deposit/:id/proof')
+  @ApiOperation({ summary: 'Submit transaction reference/proof for a pending deposit request' })
+  async submitDepositProof(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    return this.walletService.submitDepositProof(req.user.id, id, {
+      transactionReference: body.transactionReference,
+      proofImageUrl: body.proofImageUrl,
+    });
+  }
+
   /** ADMIN: List ALL payment requests */
   @Get('admin/payment-requests')
   @ApiOperation({ summary: '[Admin Only] List all payment requests across all players' })
   async adminListRequests(@Request() req: any) {
-    if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
+    if (!req.user.roles?.some((r: string) => ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'].includes(r))) throw new ForbiddenException('Admin only');
     return this.walletService.getAllPendingRequests();
   }
 
@@ -91,7 +111,7 @@ export class WalletController {
     @Param('id') id: string,
     @Body() body: any,
   ) {
-    if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
+    if (!req.user.roles?.some((r: string) => ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'].includes(r))) throw new ForbiddenException('Admin only');
     return this.walletService.approveDeposit(id, req.user.id, body.adminNote);
   }
 
@@ -103,7 +123,7 @@ export class WalletController {
     @Param('id') id: string,
     @Body() body: any,
   ) {
-    if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
+    if (!req.user.roles?.some((r: string) => ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'].includes(r))) throw new ForbiddenException('Admin only');
     return this.walletService.rejectDeposit(id, req.user.id, body.adminNote);
   }
 
@@ -115,7 +135,7 @@ export class WalletController {
     @Param('id') id: string,
     @Body() body: any,
   ) {
-    if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
+    if (!req.user.roles?.some((r: string) => ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'].includes(r))) throw new ForbiddenException('Admin only');
     return this.walletService.approveWithdrawal(id, req.user.id, body.adminNote);
   }
 
@@ -127,7 +147,7 @@ export class WalletController {
     @Param('id') id: string,
     @Body() body: any,
   ) {
-    if (req.user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
+    if (!req.user.roles?.some((r: string) => ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'].includes(r))) throw new ForbiddenException('Admin only');
     return this.walletService.rejectWithdrawal(id, req.user.id, body.adminNote);
   }
 }

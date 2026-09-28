@@ -7,6 +7,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AdminSeedService } from './admin-seed.service';
 import { GAME_CONFIG } from '@keno/config';
 
 @Module({
@@ -20,7 +21,7 @@ import { GAME_CONFIG } from '@keno/config';
     WalletModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, AdminSeedService],
   exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}
