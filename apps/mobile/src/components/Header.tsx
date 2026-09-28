@@ -12,7 +12,7 @@ export const Header = () => {
   const { data: wallet } = useQuery({
     queryKey: ['walletBalance'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/wallet/balance');
+      const res = await apiClient.get('/api/v1/wallet/balance?currency=ETB');
       return res.data;
     },
     enabled: isAuthenticated,
@@ -20,8 +20,8 @@ export const Header = () => {
   });
 
   const formattedBalance = wallet?.balanceMinor
-    ? `$${(Number(wallet.balanceMinor) / 100).toFixed(2)}`
-    : '$0.00';
+    ? `${(Number(wallet.balanceMinor) / 100).toFixed(2)} ETB`
+    : '0.00 ETB';
 
   return (
     <View style={styles.container}>

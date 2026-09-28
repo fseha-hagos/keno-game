@@ -57,11 +57,18 @@ export class WalletService {
     });
 
     if (!wallet) {
+      // Check if user has an existing wallet in another currency (e.g. legacy USD wallet)
+      const existingWallet = await this.walletRepo.findOne({
+        where: { userId },
+      });
+      const initialBalance = existingWallet ? existingWallet.balanceMinor : '0';
+      const initialLocked = existingWallet ? existingWallet.lockedMinor : '0';
+
       wallet = this.walletRepo.create({
         userId,
         currency,
-        balanceMinor: '0',
-        lockedMinor: '0',
+        balanceMinor: initialBalance,
+        lockedMinor: initialLocked,
         status: 'ACTIVE',
       });
       wallet = await this.walletRepo.save(wallet);
@@ -89,11 +96,8 @@ export class WalletService {
     idempotencyKey?: string,
   ): Promise<WalletAccount> {
     const wallet = await this.getOrCreateWallet(userId, currency);
-    const depositAmount = BigInt(amountMinor);
-    wallet.balanceMinor = (BigInt(wallet.balanceMinor) + depositAmount).toString();
-    await this.walletRepo.save(wallet);
 
-    await this.ledgerService.recordTransaction({
+    const { newBalanceMinor } = await this.ledgerService.recordTransaction({
       walletId: wallet.id,
       transactionType: TransactionType.DEPOSIT,
       amountMinor,
@@ -264,12 +268,7 @@ export class WalletService {
         throw new NotFoundException(`User wallet not found for currency ${request.currency}`);
       }
 
-      // 3. Atomically credit wallet & post ledger transaction
-      const depositAmount = BigInt(request.amountMinor);
-      const newBalance = BigInt(wallet.balanceMinor) + depositAmount;
-      wallet.balanceMinor = newBalance.toString();
-      await manager.save(wallet);
-
+      // 3. Atomically credit wallet & post ledger transaction via ledgerService
       await this.ledgerService.recordTransaction(
         {
           walletId: wallet.id,
@@ -457,6 +456,47 @@ export class WalletService {
       where: { userId },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  /**
+   * Player submits proof/transaction reference for their own pending deposit request.
+   */
+  async submitDepositProof(
+    userId: string,
+    requestId: string,
+    proof: { transactionReference?: string; proofImageUrl?: string },
+  ): Promise<PaymentRequest> {
+    const request = await this.paymentRepo.findOne({
+      where: { id: requestId, userId },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Deposit request #${requestId} not found`);
+    }
+
+    if (request.status !== PaymentRequestStatus.PENDING) {
+      throw new ConflictException(
+        `Deposit request is already ${request.status}. Cannot update proof.`,
+      );
+    }
+
+    if (request.requestType !== PaymentRequestType.DEPOSIT) {
+      throw new BadRequestException('Target request is not a deposit');
+    }
+
+    if (proof.transactionReference) {
+      request.transactionReference = proof.transactionReference;
+    }
+    if (proof.proofImageUrl) {
+      request.proofImageUrl = proof.proofImageUrl;
+    }
+
+    const saved = await this.paymentRepo.save(request);
+    this.logger.log(
+      `Deposit #${saved.id} proof updated by User ${userId}. Ref: ${saved.transactionReference}`,
+    );
+
+    return saved;
   }
 
   async getAllPendingRequests(): Promise<PaymentRequest[]> {
