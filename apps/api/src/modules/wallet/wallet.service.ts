@@ -14,6 +14,7 @@ import {
   PaymentRequestStatus,
 } from '../../database/entities/payment-request.entity';
 import { LedgerService } from '../ledger/ledger.service';
+import { LedgerTransaction } from '../../database/entities/ledger-transaction.entity';
 import { TransactionType, LedgerReferenceType } from '@keno/shared-types';
 import { GAME_CONFIG } from '@keno/config';
 
@@ -337,7 +338,12 @@ export class WalletService {
 
   /**
    * ADMIN APPROVAL FOR WITHDRAWAL:
-   * Atomically unlocks the funds and executes withdrawal ledger entry.
+   * Atomically releases locked funds and creates an immutable ledger record.
+   *
+   * IMPORTANT: The funds were already deducted from balanceMinor and moved to
+   * lockedMinor during createWithdrawalRequest(). This method only:
+   * 1. Releases the lock (removes from lockedMinor)
+   * 2. Creates an audit ledger entry (without modifying balanceMinor again)
    */
   async approveWithdrawal(
     requestId: string,
@@ -369,21 +375,27 @@ export class WalletService {
       const currentLocked = BigInt(wallet.lockedMinor);
       const newLocked = currentLocked > withdrawAmount ? currentLocked - withdrawAmount : 0n;
 
+      // Only release the lock — do NOT touch balanceMinor (already deducted at request time)
       wallet.lockedMinor = newLocked.toString();
       await manager.save(wallet);
 
-      await this.ledgerService.recordTransaction(
-        {
-          walletId: wallet.id,
-          transactionType: TransactionType.WITHDRAWAL,
-          amountMinor: (-withdrawAmount).toString(),
-          currency: request.currency,
-          referenceType: LedgerReferenceType.WITHDRAWAL,
-          referenceId: request.id,
-          idempotencyKey: `withdraw_approve_${request.id}`,
-        },
-        manager,
-      );
+      // Create an immutable ledger record for audit purposes.
+      // We do NOT use ledgerService.recordTransaction() here because that method
+      // would deduct from balanceMinor again, causing a double-deduction bug.
+      // The balance was already correctly adjusted in createWithdrawalRequest().
+      const currentBalance = BigInt(wallet.balanceMinor);
+      const ledgerEntry = manager.create(LedgerTransaction, {
+        walletId: wallet.id,
+        transactionType: TransactionType.WITHDRAWAL,
+        amountMinor: (-withdrawAmount).toString(),
+        currency: request.currency,
+        referenceType: LedgerReferenceType.WITHDRAWAL,
+        referenceId: request.id,
+        balanceAfterMinor: currentBalance.toString(),
+        status: 'COMPLETED',
+        idempotencyKey: `withdraw_approve_${request.id}`,
+      });
+      await manager.save(ledgerEntry);
 
       request.status = PaymentRequestStatus.APPROVED;
       request.approvedBy = adminUserId;
