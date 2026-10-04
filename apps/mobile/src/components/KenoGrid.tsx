@@ -13,8 +13,8 @@ import { KENO_COLORS } from '../theme/kenoTheme';
 
 const COLS = 10;
 const ROWS = 8;
-const GAP = 1;
-const H_PAD = 2;
+const GAP = 3;
+const H_PAD = 6;
 
 interface GridCellProps {
   num: number;
@@ -64,24 +64,41 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
     prevDrawn.current = isDrawn;
   }, [isDrawn, scaleAnim]);
 
-  let stateBallStyle = styles.ballDefault;
-  let stateTextStyle = styles.textDefault;
+  // Hot/cold number indicators (hardcoded demo like Shamo.bet)
+  const isHot = !isSelected && !isDrawn && [14, 28, 32, 48, 58, 61, 71, 75].includes(num);
+  const isCold = !isSelected && !isDrawn && [6, 8, 16, 27, 39, 42, 59, 67].includes(num);
+
+  let cellBg = KENO_COLORS.cellDefault;
+  let cellBorderColor = KENO_COLORS.cellBorder;
+  let textColor = KENO_COLORS.textDefault;
+  let borderWidth = 1;
+  let hasGlow = false;
 
   if (isHit) {
-    stateBallStyle = styles.ballHit;
-    stateTextStyle = styles.textHit;
-  } else if (isSelected) {
-    stateBallStyle = styles.ballSelected;
-    stateTextStyle = styles.textPick;
+    // Drawn + selected = bright radiant winning green with glow
+    cellBg = KENO_COLORS.hitFill;
+    cellBorderColor = KENO_COLORS.hitBorder;
+    textColor = '#FFFFFF';
+    borderWidth = 2;
+    hasGlow = true;
   } else if (isDrawn) {
-    stateBallStyle = styles.ballDrawn;
-    stateTextStyle = styles.textDrawn;
+    // Drawn only = sleek dark emerald tile
+    cellBg = KENO_COLORS.drawnFill;
+    cellBorderColor = KENO_COLORS.drawnBorder;
+    textColor = KENO_COLORS.drawnText;
+    borderWidth = 1.5;
+  } else if (isSelected) {
+    // Selected = rich casino felt emerald green (Shamo.bet cell 4)
+    cellBg = KENO_COLORS.pickFill;
+    cellBorderColor = KENO_COLORS.pickBorder;
+    textColor = '#FFFFFF';
+    borderWidth = 1.5;
   }
 
   return (
     <Animated.View
       style={{
-        zIndex: isAnimating ? 99 : 1,
+        zIndex: isAnimating || isHit ? 99 : 1,
         transform: [{ scale: scaleAnim }],
       }}
     >
@@ -90,23 +107,48 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
         disabled={disabled}
         style={[
           styles.ball,
-          stateBallStyle,
           {
             width: cellSize,
             height: cellSize,
             borderRadius: cellRadius,
+            backgroundColor: cellBg,
+            borderWidth,
+            borderColor: cellBorderColor,
+            ...(hasGlow
+              ? {
+                  shadowColor: '#22C55E',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.85,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }
+              : {}),
           },
         ]}
         onPress={onPress}
       >
         <Text
-          style={[styles.ballText, stateTextStyle, { fontSize }]}
+          style={[
+            styles.ballText,
+            {
+              fontSize,
+              color: textColor,
+              fontWeight: isSelected || isDrawn || isHit ? '900' : '700',
+            },
+          ]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.65}
         >
-          {num < 10 ? `0${num}` : num}
+          {num}
         </Text>
+        {/* Hot / Cold dot indicator on top corner */}
+        {isHot && (
+          <View style={[styles.statDot, styles.hotDotPos, { backgroundColor: KENO_COLORS.hotDot }]} />
+        )}
+        {isCold && (
+          <View style={[styles.statDot, styles.coldDotPos, { backgroundColor: KENO_COLORS.coldDot }]} />
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -143,8 +185,8 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ bettingOpen = true }) => {
   }, [containerWidth]);
 
   const numbers = Array.from({ length: 80 }, (_, i) => i + 1);
-  const fontSize = Math.max(9, Math.min(13, cellSize * 0.38));
-  const cellRadius = Math.max(5, cellSize * 0.22);
+  const fontSize = Math.max(10, Math.min(15, cellSize * 0.42));
+  const cellRadius = Math.max(4, cellSize * 0.14);
 
   return (
     <View style={styles.gridWrap} onLayout={onLayout}>
@@ -192,46 +234,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 1,
-  },
-  ballDefault: {
-    backgroundColor: KENO_COLORS.cellDefault,
-    borderWidth: 1,
-    borderColor: KENO_COLORS.cellBorder,
-  },
-  ballSelected: {
-    backgroundColor: KENO_COLORS.pickFill,
-    borderWidth: 2,
-    borderColor: KENO_COLORS.pickBorder,
-  },
-  ballDrawn: {
-    backgroundColor: KENO_COLORS.drawnFill,
-    borderWidth: 2,
-    borderColor: KENO_COLORS.drawnBorder,
-  },
-  ballHit: {
-    backgroundColor: KENO_COLORS.hitFill,
-    borderWidth: 2,
-    borderColor: KENO_COLORS.hitBorder,
+    position: 'relative',
   },
   ballText: {
     fontWeight: '800',
     textAlign: 'center',
     includeFontPadding: false,
   },
-  textDefault: {
-    color: KENO_COLORS.textOnOrange,
-    fontWeight: '800',
+  statDot: {
+    position: 'absolute',
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
-  textPick: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+  hotDotPos: {
+    top: 2,
+    right: 2,
   },
-  textDrawn: {
-    color: '#0C4A6E',
-    fontWeight: '800',
-  },
-  textHit: {
-    color: '#14532D',
-    fontWeight: '800',
+  coldDotPos: {
+    top: 2,
+    left: 2,
   },
 });
