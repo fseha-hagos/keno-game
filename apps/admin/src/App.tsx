@@ -16,7 +16,11 @@ import {
 } from 'lucide-react';
 import { calculateOverallRtp, DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://192.168.100.228:3000';
+const API_URL =
+  (import.meta as any).env?.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location?.hostname
+    ? `http://${window.location.hostname}:3000`
+    : 'http://192.168.43.149:3000');
 
 function formatAmount(minor: string | number) {
   return (Number(minor) / 100).toLocaleString('en-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ETB';

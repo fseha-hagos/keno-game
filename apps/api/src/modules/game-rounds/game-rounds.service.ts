@@ -221,8 +221,8 @@ export class GameRoundsService implements OnModuleInit {
 
     this.activeDraws.delete(round.id);
 
-    // 4. Short 2.5s display hold for win settlement announcement before opening next round
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    // 4. 3s display hold for win settlement announcement before opening next round
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // 5. Open next round immediately so the 60s countdown starts
     await this.ensureActiveRound();
