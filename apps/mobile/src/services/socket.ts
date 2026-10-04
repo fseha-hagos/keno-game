@@ -10,7 +10,9 @@ class SocketService {
     if (this.socket) return;
 
     this.socket = io(API_BASE_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
     this.socket.on('connect', () => {
@@ -18,7 +20,10 @@ class SocketService {
     });
 
     this.socket.on(WebSocketEvents.ROUND_OPENED, (data) => {
-      useGameStore.getState().resetRoundDraw();
+      // Allow previous round's 20-ball draw and settlement celebration to finish
+      setTimeout(() => {
+        useGameStore.getState().resetRoundDraw();
+      }, 3000);
     });
 
     this.socket.on(WebSocketEvents.DRAW_STARTED, () => {
