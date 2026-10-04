@@ -12,12 +12,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { Header } from '../components/Header';
 import { KenoPlayStage } from '../components/KenoPlayStage';
-import { PaytableSidebar } from '../components/PaytableSidebar';
 import { BetBar } from '../components/BetBar';
-import { BetSlipsPanel } from '../components/BetSlipsPanel';
 import { GameFeedPanel } from '../components/GameFeedPanel';
-import { KenoGradient } from '../components/KenoGradient';
-import { KENO_GRADIENTS, KENO_GRADIENT_VERTICAL } from '../theme/kenoTheme';
 import { useGameStore } from '../store/useGameStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
@@ -27,7 +23,8 @@ export const KenoGameScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();
-  const { betSlips, currency, isDrawing } = useGameStore();
+  const { betSlips, currency, isDrawing, drawnNumbers } = useGameStore();
+  const inDraw = isDrawing || drawnNumbers.length > 0;
 
   const [timeLeft, setTimeLeft] = useState<number>(40);
 
@@ -51,7 +48,16 @@ export const KenoGameScreen = () => {
     if (!round) return;
 
     if (round.status === 'OPEN') {
-      useGameStore.getState().resetRoundDraw();
+      const currentDrawn = useGameStore.getState().drawnNumbers;
+      if (currentDrawn.length > 0) {
+        // Allow draw animation to finish all 20 balls and show results
+        const timer = setTimeout(() => {
+          useGameStore.getState().resetRoundDraw();
+        }, 3000);
+        return () => clearTimeout(timer);
+      } else {
+        useGameStore.getState().resetRoundDraw();
+      }
     } else if (
       (round.status === 'DRAWING' || round.status === 'DRAWN' || round.status === 'SETTLED') &&
       Array.isArray(round.drawResult)
@@ -113,7 +119,7 @@ export const KenoGameScreen = () => {
         .reduce((sum, s) => sum + Number(s.stakeMinor) / 100, 0);
       Alert.alert(
         count > 1 ? `${count} Bets Accepted` : 'Bet Accepted',
-        `$${totalStake.toFixed(2)} placed on ${count} slip${count > 1 ? 's' : ''} for Round #${round?.roundNumber}.`,
+        `${totalStake.toFixed(2)} ETB placed on ${count} slip${count > 1 ? 's' : ''} for Round #${round?.roundNumber}.`,
       );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
@@ -153,10 +159,12 @@ export const KenoGameScreen = () => {
     betMutation.mutate();
   };
 
+  const bettingOpen = round?.status === 'OPEN' && timeLeft > 0;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-      <Header />
+      <StatusBar barStyle="light-content" backgroundColor="#0F1923" />
+      <Header roundNumber={round?.roundNumber} />
 
       <ScrollView
         style={styles.scroll}
@@ -164,39 +172,28 @@ export const KenoGameScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Game stage: timer/draw info + grid */}
         <KenoPlayStage
           roundNumber={round?.roundNumber}
           timeLeft={timeLeft}
-          bettingOpen={round?.status === 'OPEN' && timeLeft > 0}
+          bettingOpen={bettingOpen}
         />
 
-        <View style={styles.statusRow}>
-          <Text style={styles.statusHint}>
-            {round?.status === 'OPEN' && timeLeft > 0
-              ? 'BETTING OPEN'
-              : isDrawing
-                ? 'DRAW IN PROGRESS'
-                : 'BETTING CLOSED'}
-          </Text>
+        {/* Stake controls + BET button (visible during betting phase) */}
+        {!inDraw && (
+          <BetBar
+            onPlaceBet={handlePlaceBet}
+            isLoading={betMutation.isPending}
+            disabled={!bettingOpen}
+          />
+        )}
+
+        {/* Drag handle indicator */}
+        <View style={styles.handleRow}>
+          <View style={styles.handle} />
         </View>
 
-        <KenoGradient
-          colors={KENO_GRADIENTS.paytable}
-          start={KENO_GRADIENT_VERTICAL.start}
-          end={KENO_GRADIENT_VERTICAL.end}
-          style={styles.paytableRow}
-        >
-          <PaytableSidebar />
-        </KenoGradient>
-
-        <BetSlipsPanel />
-
-        <BetBar
-          onPlaceBet={handlePlaceBet}
-          isLoading={betMutation.isPending}
-          disabled={round?.status !== 'OPEN' || timeLeft <= 0}
-        />
-
+        {/* Tabs: GAME / HISTORY / RESULTS / STATS + bet feed */}
         <GameFeedPanel />
       </ScrollView>
     </SafeAreaView>
@@ -206,7 +203,7 @@ export const KenoGameScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0A0F1D',
+    backgroundColor: '#0F1923',
   },
   scroll: {
     flex: 1,
@@ -215,23 +212,15 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     flexGrow: 1,
   },
-  paytableRow: {
-    marginHorizontal: 6,
-    marginTop: 4,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-  },
-  statusRow: {
-    marginHorizontal: 6,
-    marginTop: 4,
+  handleRow: {
     alignItems: 'center',
+    paddingVertical: 6,
+    backgroundColor: '#0F1923',
   },
-  statusHint: {
-    color: '#94A3B8',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#2A3A4A',
   },
 });
-
