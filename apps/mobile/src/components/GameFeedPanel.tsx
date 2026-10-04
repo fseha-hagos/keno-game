@@ -147,7 +147,7 @@ export const GameFeedPanel = () => {
             : 'Lost'
           : 'Waiting';
 
-      const maskedUser = item.userId ? `Player ${item.userId.slice(0, 4)}...` : `Player #${idx + 1}`;
+      const maskedUser = item.userId ? `${item.userId.slice(0, 1)}***${item.userId.slice(-1)}` : `p***${idx}`;
 
       return {
         id: item.id || `rec-${idx}`,
@@ -239,21 +239,20 @@ export const GameFeedPanel = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Cards list matching the exact layout */}
+      {/* Cards list */}
       {displayedGameBets.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>
             {filterType === 'tickets'
-              ? 'No active tickets in current slip. Pick numbers on grid to create a ticket!'
+              ? 'No active tickets. Pick numbers on grid!'
               : filterType === 'bets'
-              ? 'No bets placed yet.'
-              : 'No live bets placed yet. Place your bet above!'}
+                ? 'No bets placed yet.'
+                : 'No live bets yet. Place your bet above!'}
           </Text>
         </View>
       ) : (
         <View style={styles.cardsList}>
           {displayedGameBets.map((item) => {
-            // Render 10 slots for numbers (filled numbers first, empty slots to make up 10)
             const slots: (number | null)[] = [...item.numbers];
             while (slots.length < 10) {
               slots.push(null);
@@ -261,6 +260,7 @@ export const GameFeedPanel = () => {
 
             return (
               <View key={item.id} style={styles.card}>
+                {/* Username row */}
                 <View style={styles.cardHeaderRow}>
                   <Text style={styles.cardUsername}>{item.username}</Text>
                   {item.time && <Text style={styles.timeText}>{item.time}</Text>}
@@ -281,15 +281,14 @@ export const GameFeedPanel = () => {
                   ))}
                 </View>
 
-                {/* Bottom line: Bet Amount & Status */}
+                {/* Bet Amount & Status */}
                 <View style={styles.cardFooter}>
-                  <View style={styles.betPill}>
-                    <Text style={styles.betPillText}>Bet {item.stake.toLocaleString()}</Text>
-                  </View>
+                  <Text style={styles.betAmountText}>Bet {item.stake.toLocaleString()}</Text>
                   <Text
                     style={[
                       styles.statusText,
-                      item.status.startsWith('Won') && { color: '#10B981' },
+                      item.status.startsWith('Won') && { color: '#22C55E' },
+                      item.status === 'Lost' && { color: '#EF4444' },
                     ]}
                   >
                     {item.status}
@@ -341,13 +340,12 @@ export const GameFeedPanel = () => {
                 </View>
 
                 <View style={styles.cardFooter}>
-                  <View style={styles.betPill}>
-                    <Text style={styles.betPillText}>Bet {item.stake.toLocaleString()}</Text>
-                  </View>
+                  <Text style={styles.betAmountText}>Bet {item.stake.toLocaleString()}</Text>
                   <Text
                     style={[
                       styles.statusText,
-                      item.status.startsWith('Won') && { color: '#10B981' },
+                      item.status.startsWith('Won') && { color: '#22C55E' },
+                      item.status === 'Lost' && { color: '#EF4444' },
                     ]}
                   >
                     {item.status}
@@ -366,7 +364,7 @@ export const GameFeedPanel = () => {
 
     return (
       <View style={styles.tabContent}>
-        {/* Table Column Headers matching the requested functional layout */}
+        {/* Table Column Headers */}
         <View style={styles.resultsTableHeader}>
           <Text style={styles.tableHeaderLeft}>Draw ID</Text>
           <Text style={styles.tableHeaderRight}>Combination</Text>
@@ -383,7 +381,6 @@ export const GameFeedPanel = () => {
               const top10: (number | null)[] = drawn.slice(0, 10);
               const bottom10: (number | null)[] = drawn.slice(10, 20);
 
-              // Fill up to 10 slots per row so grid stays consistent
               while (top10.length < 10) top10.push(null);
               while (bottom10.length < 10) bottom10.push(null);
 
@@ -392,7 +389,6 @@ export const GameFeedPanel = () => {
 
               return (
                 <View key={r.id || roundNum} style={styles.resultRowCard}>
-                  {/* Left Column: Draw ID & Time */}
                   <View style={styles.drawIdCol}>
                     <View style={styles.roundIdRow}>
                       <View style={styles.checkBadge}>
@@ -403,9 +399,7 @@ export const GameFeedPanel = () => {
                     <Text style={styles.roundTimeText}>{timeStr}</Text>
                   </View>
 
-                  {/* Right Column: 2x10 Grid Combination */}
                   <View style={styles.combinationCol}>
-                    {/* Top 10 Drawn Numbers */}
                     <View style={styles.combRow}>
                       {top10.map((num, idx) => (
                         <View key={`top-${idx}`} style={styles.combTile}>
@@ -413,8 +407,6 @@ export const GameFeedPanel = () => {
                         </View>
                       ))}
                     </View>
-
-                    {/* Bottom 10 Drawn Numbers */}
                     <View style={styles.combRow}>
                       {bottom10.map((num, idx) => (
                         <View key={`bot-${idx}`} style={styles.combTile}>
@@ -458,7 +450,7 @@ export const GameFeedPanel = () => {
 
   return (
     <View style={styles.container}>
-      {/* Top Tabs matching exact screenshot icon & text formatting */}
+      {/* Tab Bar — Shamo.bet style */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabItem, activeTab === 'GAME' && styles.tabItemActive]}
@@ -508,19 +500,15 @@ export const GameFeedPanel = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#111822',
-    marginTop: 8,
-    marginHorizontal: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1E2836',
+    backgroundColor: '#141C28',
+    marginTop: 0,
     overflow: 'hidden',
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E2836',
-    backgroundColor: '#0B111A',
+    borderBottomColor: '#1E2A38',
+    backgroundColor: '#0F1923',
   },
   tabItem: {
     flex: 1,
@@ -531,7 +519,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabItemActive: {
-    borderBottomColor: '#10B981',
+    borderBottomColor: '#22C55E',
   },
   tabText: {
     color: '#64748B',
@@ -540,7 +528,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   tabTextActive: {
-    color: '#10B981',
+    color: '#22C55E',
   },
   tabContent: {
     padding: 8,
@@ -558,7 +546,7 @@ const styles = StyleSheet.create({
   },
   filterChipActive: {
     borderBottomWidth: 1,
-    borderBottomColor: '#10B981',
+    borderBottomColor: '#22C55E',
   },
   filterText: {
     color: '#94A3B8',
@@ -569,18 +557,18 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   filterCount: {
-    color: '#10B981',
+    color: '#22C55E',
     fontWeight: '800',
   },
   cardsList: {
-    gap: 6,
+    gap: 4,
   },
   card: {
-    backgroundColor: '#1A222E',
-    borderRadius: 6,
+    backgroundColor: '#1A2332',
+    borderRadius: 4,
     padding: 8,
-    borderWidth: 1,
-    borderColor: '#242F40',
+    borderLeftWidth: 2,
+    borderLeftColor: '#2A3A4A',
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -589,29 +577,31 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardUsername: {
-    color: '#34D399',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '800',
   },
   slotsRow: {
     flexDirection: 'row',
-    gap: 4,
-    marginBottom: 8,
+    gap: 3,
+    marginBottom: 6,
   },
   slotBox: {
     flex: 1,
     height: 26,
-    borderRadius: 4,
+    borderRadius: 3,
     justifyContent: 'center',
     alignItems: 'center',
   },
   slotBoxFilled: {
-    backgroundColor: '#2F3C50',
+    backgroundColor: '#243044',
+    borderWidth: 1,
+    borderColor: '#2E4058',
   },
   slotBoxEmpty: {
-    backgroundColor: '#141C27',
+    backgroundColor: '#0F1923',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#1E2A38',
   },
   slotText: {
     color: '#F8FAFC',
@@ -623,21 +613,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  betPill: {
-    backgroundColor: '#141C28',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#232E3E',
-  },
-  betPillText: {
-    color: '#F8FAFC',
+  betAmountText: {
+    color: '#94A3B8',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   statusText: {
-    color: '#FBBF24',
+    color: '#FACC15',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -658,7 +640,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* Results Tab Styling (Matching Screenshot Structure) */
+  /* Results Tab */
   resultsTableHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -667,7 +649,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#1E2A38',
   },
   tableHeaderLeft: {
     color: '#94A3B8',
@@ -687,11 +669,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   resultRowCard: {
-    backgroundColor: '#1A222E',
-    borderRadius: 6,
+    backgroundColor: '#1A2332',
+    borderRadius: 4,
     padding: 6,
     borderWidth: 1,
-    borderColor: '#242F40',
+    borderColor: '#1E2A38',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -710,19 +692,19 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkIcon: {
-    color: '#10B981',
+    color: '#22C55E',
     fontSize: 9,
     fontWeight: '900',
   },
   roundNumberText: {
-    color: '#10B981',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -743,10 +725,10 @@ const styles = StyleSheet.create({
   combTile: {
     flex: 1,
     height: 22,
-    backgroundColor: '#243042',
-    borderRadius: 4,
+    backgroundColor: '#243044',
+    borderRadius: 3,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2E4058',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -756,7 +738,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Stats Tab Styling */
+  /* Stats Tab */
   statsContainer: {
     padding: 6,
   },

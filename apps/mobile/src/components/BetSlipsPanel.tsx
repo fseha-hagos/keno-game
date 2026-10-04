@@ -41,10 +41,10 @@ export const BetSlipsPanel = () => {
           const maxMult =
             spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
           const maxWin = stake * maxMult;
-          const numbersText =
-            spots > 0
-              ? slip.selectedNumbers.map((n) => (n < 10 ? `0${n}` : String(n))).join('  ')
-              : 'Select numbers on the board';
+
+          // Build 10 slots
+          const slots: (number | null)[] = [...slip.selectedNumbers];
+          while (slots.length < 10) slots.push(null);
 
           return (
             <View key={slip.id} style={[styles.row, isActive && styles.rowActive]}>
@@ -55,20 +55,30 @@ export const BetSlipsPanel = () => {
               >
                 <View style={styles.rowTop}>
                   <Text style={[styles.slipLabel, isActive && styles.slipLabelActive]}>
-                    Slip {idx + 1}
-                    {isActive ? ' · editing' : ''}
+                    {isActive ? `Slip ${idx + 1} · editing` : `Slip ${idx + 1}`}
                   </Text>
                   {spots > 0 && (
                     <Text style={styles.spotsTag}>{spots} spot{spots !== 1 ? 's' : ''}</Text>
                   )}
                 </View>
 
-                <Text style={styles.numbersLine} numberOfLines={2}>
-                  {numbersText}
-                </Text>
+                {/* 10 number slots grid */}
+                <View style={styles.slotsRow}>
+                  {slots.map((num, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.slotBox,
+                        num !== null ? styles.slotBoxFilled : styles.slotBoxEmpty,
+                      ]}
+                    >
+                      {num !== null && <Text style={styles.slotText}>{num}</Text>}
+                    </View>
+                  ))}
+                </View>
 
                 {spots > 0 && (
-                  <Text style={styles.winLine}>Max win ${fmt(maxWin)}</Text>
+                  <Text style={styles.winLine}>Max win {fmt(maxWin)} ETB</Text>
                 )}
               </TouchableOpacity>
 
@@ -82,7 +92,7 @@ export const BetSlipsPanel = () => {
                   >
                     <Text style={styles.stepBtnText}>−</Text>
                   </TouchableOpacity>
-                  <Text style={styles.stakeAmount}>${fmt(stake)}</Text>
+                  <Text style={styles.stakeAmount}>{fmt(stake)}</Text>
                   <TouchableOpacity
                     onPress={() => incrementStakeForSlip(slip.id)}
                     style={[styles.stepBtn, styles.stepBtnPlus]}
@@ -123,16 +133,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#1E2A38',
   },
   rowActive: {
     borderLeftWidth: 3,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: '#22C55E',
     paddingLeft: 8,
+    backgroundColor: 'rgba(34, 197, 94, 0.05)',
   },
   rowMain: {
     flex: 1,
-    gap: 3,
+    gap: 4,
     minWidth: 0,
   },
   rowTop: {
@@ -146,21 +157,41 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   slipLabelActive: {
-    color: '#F59E0B',
+    color: '#22C55E',
   },
   spotsTag: {
     color: '#475569',
     fontSize: 9,
     fontWeight: '700',
   },
-  numbersLine: {
-    color: '#E2E8F0',
+  slotsRow: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  slotBox: {
+    flex: 1,
+    height: 24,
+    borderRadius: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  slotBoxFilled: {
+    backgroundColor: '#243044',
+    borderWidth: 1,
+    borderColor: '#2E4058',
+  },
+  slotBoxEmpty: {
+    backgroundColor: '#0F1923',
+    borderWidth: 1,
+    borderColor: '#1E2A38',
+  },
+  slotText: {
+    color: '#F8FAFC',
     fontSize: 10,
-    fontWeight: '600',
-    lineHeight: 14,
+    fontWeight: '800',
   },
   winLine: {
-    color: '#34D399',
+    color: '#22C55E',
     fontSize: 9,
     fontWeight: '700',
   },
@@ -183,15 +214,14 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 6,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E2A38',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2A3A4A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepBtnPlus: {
-    backgroundColor: '#92400E',
-    borderColor: '#D97706',
+    borderColor: '#22C55E',
   },
   stepBtnText: {
     color: '#F1F5F9',
@@ -200,7 +230,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   stakeAmount: {
-    color: '#FBBF24',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '900',
     minWidth: 52,
@@ -213,7 +243,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   addSlipText: {
-    color: '#38BDF8',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '800',
   },
