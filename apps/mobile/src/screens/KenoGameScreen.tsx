@@ -44,6 +44,21 @@ export const KenoGameScreen = () => {
     refetchInterval: 2000,
   });
 
+  const prevRoundIdRef = React.useRef<string | null>(null);
+
+  // Clear caches and start over when a new round begins
+  useEffect(() => {
+    if (!round?.id) return;
+    if (prevRoundIdRef.current && prevRoundIdRef.current !== round.id) {
+      resetSlips();
+      useGameStore.getState().clearConfirmedTickets();
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['betHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBets'] });
+    }
+    prevRoundIdRef.current = round.id;
+  }, [round?.id]);
+
   // Synchronize live drawn numbers when user connects or reconnects mid-draw
   useEffect(() => {
     if (!round) return;

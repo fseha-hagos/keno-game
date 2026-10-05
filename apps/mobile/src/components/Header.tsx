@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
+import { useGameStore } from '../store/useGameStore';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
+import { socketService } from '../services/socket';
 import { useNavigation } from '@react-navigation/native';
 
 interface HeaderProps {
@@ -11,6 +13,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ roundNumber: propRoundNumber }) => {
   const { isAuthenticated } = useAuthStore();
+  const { isOnline } = useGameStore();
   const navigation = useNavigation<any>();
 
   // Balance query when logged in
@@ -43,14 +46,32 @@ export const Header: React.FC<HeaderProps> = ({ roundNumber: propRoundNumber }) 
 
   return (
     <View style={styles.container}>
-      {/* Brand Logo: Fast Keno */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate('Main')}
-        style={styles.logoBtn}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logoText}>Fast Keno</Text>
-      </TouchableOpacity>
+      {/* Brand Logo & Online / Offline Flag */}
+      <View style={styles.brandRow}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Main')}
+          style={styles.logoBtn}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.logoText}>Fast Keno</Text>
+        </TouchableOpacity>
+
+        {/* Live status badge */}
+        <TouchableOpacity
+          style={[styles.statusBadge, isOnline ? styles.statusBadgeOnline : styles.statusBadgeOffline]}
+          onPress={() => {
+            if (!isOnline) {
+              socketService.reconnect();
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.statusDot, isOnline ? styles.statusDotOnline : styles.statusDotOffline]} />
+          <Text style={[styles.statusText, isOnline ? styles.statusTextOnline : styles.statusTextOffline]}>
+            {isOnline ? 'ONLINE' : 'OFFLINE'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Center Capsule Pill: [ 0.00 ETB | ID: 223270 ✔ ] */}
       <View style={styles.pillContainer}>
@@ -101,6 +122,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1E2A38',
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   logoBtn: {
     justifyContent: 'center',
   },
@@ -110,6 +136,45 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontStyle: 'italic',
     letterSpacing: 0.3,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+  },
+  statusBadgeOnline: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: '#22C55E',
+  },
+  statusBadgeOffline: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#EF4444',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusDotOnline: {
+    backgroundColor: '#22C55E',
+  },
+  statusDotOffline: {
+    backgroundColor: '#EF4444',
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  statusTextOnline: {
+    color: '#4ADE80',
+  },
+  statusTextOffline: {
+    color: '#F87171',
   },
   pillContainer: {
     flexDirection: 'row',

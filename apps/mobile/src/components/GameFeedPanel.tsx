@@ -98,48 +98,122 @@ export const GameFeedPanel = () => {
     return `${hrs}:${mins}:${secs}`;
   };
 
-  // Build active ticket items: ONLY backend-confirmed bets, NEVER unplaced draft picks
-  const serverPendingBets = (Array.isArray(userBetHistory) ? userBetHistory : []).filter(
-    (b: any) => b.status === 'PENDING',
+  // Fetch current live game round
+  const { data: currentRound } = useQuery({
+    queryKey: ['currentRound'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/keno/rounds/current');
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
+    refetchInterval: 2000,
+  });
+
+  // Watch for round transitions to clear tickets and start over fresh for the new game
+  const prevRoundIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!currentRound?.id) return;
+    if (prevRoundIdRef.current && prevRoundIdRef.current !== currentRound.id) {
+      useGameStore.getState().clearConfirmedTickets();
+      useGameStore.getState().resetSlips();
+    }
+    prevRoundIdRef.current = currentRound.id;
+  }, [currentRound?.id]);
+
+  // Build active ticket items: ONLY live tickets for the CURRENT active round
+  const currentRoundId = currentRound?.id;
+  const currentRoundNum = currentRound?.roundNumber;
+
+  // Filter server bets strictly for current round
+  const serverCurrentBets = (Array.isArray(userBetHistory) ? userBetHistory : []).filter(
+    (b: any) =>
+      (currentRoundId && (b.roundId === currentRoundId || b.round?.id === currentRoundId)) ||
+      (currentRoundNum && b.round?.roundNumber === currentRoundNum),
   );
 
   const ticketMap = new Map<string, BetDisplayItem>();
 
-  // 1. Add server pending bets for current round
-  serverPendingBets.forEach((item: any, idx: number) => {
+  // 1. Add server bets for current round
+  serverCurrentBets.forEach((item: any, idx: number) => {
     const stake = Math.round(Number(item.stakeMinor || 0) / 100) || 5;
+    const payout = Math.round(Number(item.payoutMinor || 0) / 100);
+    const isSettled = item.status === 'SETTLED';
+    const statusLabel = isSettled
+      ? payout > 0
+        ? `Won ${payout.toLocaleString()}`
+        : 'Lost'
+      : 'Placed';
+
     ticketMap.set(item.id, {
       id: item.id || `pending-${idx}`,
       username: `You (Ticket #${idx + 1})`,
       numbers: item.selectedNumbers || [],
       stake,
-      status: 'Placed',
+      status: statusLabel,
+      payout,
       time: item.createdAt
         ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : undefined,
     });
   });
 
-  // 2. Add confirmed tickets from current session (placed & deducted)
+  // 2. Add locally confirmed tickets for current round session
   (confirmedTickets || []).forEach((item: any) => {
-    if (!ticketMap.has(item.id)) {
-      const stake = Math.round(Number(item.stakeMinor || 0) / 100) || 5;
-      ticketMap.set(item.id, {
-        id: item.id,
-        username: `You (Ticket #${ticketMap.size + 1})`,
-        numbers: item.selectedNumbers || [],
-        stake,
-        status: 'Placed',
-        time: item.createdAt
-          ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : undefined,
-      });
+    if (!currentRoundId || item.roundId === currentRoundId) {
+      if (!ticketMap.has(item.id)) {
+        const stake = Math.round(Number(item.stakeMinor || 0) / 100) || 5;
+        ticketMap.set(item.id, {
+          id: item.id,
+          username: `You (Ticket #${ticketMap.size + 1})`,
+          numbers: item.selectedNumbers || [],
+          stake,
+          status: 'Placed',
+          time: item.createdAt
+            ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : undefined,
+        });
+      }
     }
   });
 
   const userTicketItems: BetDisplayItem[] = Array.from(ticketMap.values());
 
-  // Build historical bet items from backend userBetHistory
+  // Build live bets feed across players strictly for CURRENT active round
+  const liveRecentItems: BetDisplayItem[] = (Array.isArray(recentBets) ? recentBets : [])
+    .filter(
+      (item: any) =>
+        (currentRoundId && (item.roundId === currentRoundId || item.round?.id === currentRoundId)) ||
+        (currentRoundNum && item.round?.roundNumber === currentRoundNum),
+    )
+    .map((item: any, idx: number) => {
+      const stake = Math.round(Number(item.stakeMinor || 0) / 100) || item.stake || 100;
+      const payout = Math.round(Number(item.payoutMinor || 0) / 100);
+      const isWin = payout > 0;
+      const statusLabel =
+        item.status === 'SETTLED'
+          ? isWin
+            ? `Won ${payout.toLocaleString()}`
+            : 'Lost'
+          : 'Placed';
+
+      const maskedUser = item.userId
+        ? `${item.userId.slice(0, 1)}***${item.userId.slice(-1)}`
+        : `Player ${idx + 1}`;
+
+      return {
+        id: item.id || `live-rec-${idx}`,
+        username: maskedUser,
+        numbers: item.selectedNumbers || [],
+        stake,
+        status: statusLabel,
+        payout,
+      };
+    });
+
+  // Lifetime user bet items for the separate HISTORY tab
   const userHistoryItems: BetDisplayItem[] = (Array.isArray(userBetHistory) ? userBetHistory : []).map(
     (item: any, idx: number) => {
       const stake = Math.round(Number(item.stakeMinor || 0) / 100) || item.stake || 100;
@@ -159,56 +233,39 @@ export const GameFeedPanel = () => {
         stake,
         status: statusLabel,
         payout,
-        time: item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+        time: item.createdAt
+          ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : undefined,
       };
-    }
+    },
   );
 
-  // Build recent bets feed items across all players from DB
-  const dbRecentItems: BetDisplayItem[] = (Array.isArray(recentBets) ? recentBets : []).map(
-    (item: any, idx: number) => {
-      const stake = Math.round(Number(item.stakeMinor || 0) / 100) || item.stake || 100;
-      const payout = Math.round(Number(item.payoutMinor || 0) / 100);
-      const isWin = payout > 0;
-      const statusLabel =
-        item.status === 'SETTLED'
-          ? isWin
-            ? `Won ${payout.toLocaleString()}`
-            : 'Lost'
-          : 'Waiting';
-
-      const maskedUser = item.userId ? `${item.userId.slice(0, 1)}***${item.userId.slice(-1)}` : `p***${idx}`;
-
-      return {
-        id: item.id || `rec-${idx}`,
-        username: maskedUser,
-        numbers: item.selectedNumbers || [],
-        stake,
-        status: statusLabel,
-      };
+  // Combine user tickets with any other players' live bets for this round
+  const allCurrentRoundBetsMap = new Map<string, BetDisplayItem>();
+  userTicketItems.forEach((t) => allCurrentRoundBetsMap.set(t.id, t));
+  liveRecentItems.forEach((t) => {
+    if (!allCurrentRoundBetsMap.has(t.id)) {
+      allCurrentRoundBetsMap.set(t.id, t);
     }
-  );
+  });
+  const allCurrentRoundBets = Array.from(allCurrentRoundBetsMap.values());
 
-  // Determine displayed bets for GAME tab based on sub-filter
+  // Determine displayed bets for GAME tab based on sub-filter — strictly CURRENT round only!
   const getDisplayedGameBets = (): BetDisplayItem[] => {
     if (filterType === 'tickets') {
       return userTicketItems;
     }
     if (filterType === 'bets') {
-      return userHistoryItems;
+      return userTicketItems;
     }
-    // 'all' filter: combine user active tickets + DB recent bets + user history
-    const combined = [...userTicketItems, ...dbRecentItems];
-    if (combined.length === 0) {
-      return userHistoryItems;
-    }
-    return combined;
+    // 'all' filter: all bets placed in this live round
+    return allCurrentRoundBets;
   };
 
   const displayedGameBets = getDisplayedGameBets();
-  const allCount = (userTicketItems.length + dbRecentItems.length) || userHistoryItems.length;
+  const allCount = allCurrentRoundBets.length;
   const userTicketCount = userTicketItems.length;
-  const userBetCount = userHistoryItems.length;
+  const userBetCount = userTicketItems.length;
 
   // Calculate dynamic Hot and Cold numbers from true round results
   const computeStats = () => {
@@ -274,17 +331,17 @@ export const GameFeedPanel = () => {
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>
             {filterType === 'tickets'
-              ? 'No active tickets yet. Pick 1–5 numbers and tap BET!'
+              ? `No active tickets for Round #${currentRoundNum ?? '—'}. Pick 1–5 numbers and tap BET!`
               : filterType === 'bets'
-                ? 'No bets placed yet.'
-                : 'No live bets yet. Place your bet above!'}
+                ? `No bets placed for Round #${currentRoundNum ?? '—'} yet.`
+                : `No live bets placed for Round #${currentRoundNum ?? '—'} yet. Place your bet above!`}
           </Text>
         </View>
       ) : (
         <View style={styles.cardsList}>
           {displayedGameBets.map((item) => {
             const slots: (number | null)[] = [...item.numbers];
-            while (slots.length < 10) {
+            while (slots.length < 5) {
               slots.push(null);
             }
 
@@ -346,7 +403,7 @@ export const GameFeedPanel = () => {
         <View style={styles.cardsList}>
           {userHistoryItems.map((item) => {
             const slots: (number | null)[] = [...item.numbers];
-            while (slots.length < 10) slots.push(null);
+            while (slots.length < 5) slots.push(null);
 
             return (
               <View key={item.id} style={styles.card}>
