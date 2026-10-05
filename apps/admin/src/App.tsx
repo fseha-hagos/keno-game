@@ -74,7 +74,7 @@ function AdminLogin({ onLogin }: { onLogin: (token: string, user: any) => void }
       const adminRoles = ['SUPER_ADMIN', 'FINANCE', 'GAME_OPERATOR'];
       const hasAdminRole = user.roles?.some((r: string) => adminRoles.includes(r));
       if (!hasAdminRole) {
-        setError('Access denied. This account does not have admin privileges.');
+        setError('Access denied: This account has PLAYER role only. Use an admin account (default: 0900000000 or admin / admin123) to access the Admin Console.');
         setLoading(false);
         return;
       }
@@ -246,7 +246,7 @@ export default function App() {
   const authHeaders = { Authorization: `Bearer ${adminToken}` };
 
   const fetchData = () => {
-    const analysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
+    const analysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 5);
     setMathAnalysis(analysis);
 
     axios.get(`${API_URL}/api/v1/keno/rounds/recent`)
