@@ -15,7 +15,7 @@ export const PaytableSidebar = () => {
         <View style={styles.emptyBadge}>
           <Text style={styles.emptyBadgeText}>PAYTABLE</Text>
         </View>
-        <Text style={styles.emptyText}>Pick 1–10 numbers to view potential multipliers & payouts</Text>
+        <Text style={styles.emptyText}>Pick 1–5 numbers to view potential multipliers & payouts</Text>
       </View>
     );
   }

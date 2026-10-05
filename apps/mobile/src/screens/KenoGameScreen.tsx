@@ -23,7 +23,8 @@ export const KenoGameScreen = () => {
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
   const { isAuthenticated } = useAuthStore();
-  const { betSlips, currency, isDrawing, drawnNumbers } = useGameStore();
+  const { betSlips, currency, isDrawing, drawnNumbers, resetSlips, addConfirmedTickets } =
+    useGameStore();
   const inDraw = isDrawing || drawnNumbers.length > 0;
 
   const [timeLeft, setTimeLeft] = useState<number>(40);
@@ -114,15 +115,24 @@ export const KenoGameScreen = () => {
     },
     onSuccess: (results) => {
       const count = results.length;
-      const totalStake = betSlips
-        .filter((s) => s.selectedNumbers.length > 0)
-        .reduce((sum, s) => sum + Number(s.stakeMinor) / 100, 0);
+      const totalStake = results.reduce(
+        (sum: number, r: any) => sum + Number(r.stakeMinor || 0) / 100,
+        0,
+      );
+
+      // Add backend-confirmed bets to user's tickets
+      addConfirmedTickets(results);
+
+      // Clear temporary chosen numbers from grid & slips so user can immediately pick more
+      resetSlips();
+
       Alert.alert(
-        count > 1 ? `${count} Bets Accepted` : 'Bet Accepted',
-        `${totalStake.toFixed(2)} ETB placed on ${count} slip${count > 1 ? 's' : ''} for Round #${round?.roundNumber}.`,
+        count > 1 ? `🎉 ${count} Bets Placed!` : '🎉 Bet Placed!',
+        `${totalStake.toFixed(2)} ETB deducted from balance for Round #${round?.roundNumber}.\nTemporary numbers are cleared so you can place more bets if you wish!`,
       );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBets'] });
     },
     onError: (err: any) => {
       Alert.alert(

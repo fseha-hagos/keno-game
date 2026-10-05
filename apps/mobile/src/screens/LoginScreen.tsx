@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,47 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 
 export const LoginScreen = ({ navigation }: { navigation?: any }) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
   const { setAuth } = useAuthStore();
+
+  const scrollToOffset = (offset: number) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: offset, animated: true });
+    }, 120);
+  };
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!phone.trim() || !password) {
@@ -32,6 +64,15 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
 
       const { user, tokens } = res.data;
       await setAuth(user, tokens.accessToken, tokens.refreshToken);
+
+      if (Platform.OS === 'web') {
+        if (navigation?.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation?.navigate('Main');
+        }
+        return;
+      }
 
       Alert.alert(
         '👋 Welcome Back!',
@@ -62,67 +103,100 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>⚡ KENO LIVE</Text>
-      <Text style={styles.title}>Player Login</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            justifyContent: keyboardHeight > 0 ? 'flex-start' : 'center',
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 36,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <Text style={styles.logo}>⚡ KENO LIVE</Text>
+        <Text style={styles.title}>Player Login</Text>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>MOBILE PHONE NUMBER</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="+251 91 234 5678"
-          placeholderTextColor="#64748B"
-          value={phone}
-          onChangeText={setPhone}
-          autoCapitalize="none"
-          keyboardType="phone-pad"
-        />
+        <View style={styles.form}>
+          <Text style={styles.label}>MOBILE PHONE NUMBER</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="+251 91 234 5678"
+            placeholderTextColor="#64748B"
+            value={phone}
+            onChangeText={setPhone}
+            autoCapitalize="none"
+            keyboardType="phone-pad"
+            onFocus={() => scrollToOffset(0)}
+          />
 
-        <Text style={styles.label}>PASSWORD</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="••••••••"
-          placeholderTextColor="#64748B"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <Text style={styles.label}>PASSWORD</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="••••••••"
+              placeholderTextColor="#64748B"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              onFocus={() => scrollToOffset(100)}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword((prev) => !prev)}
+              style={styles.eyeButton}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.7}
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color="#94A3B8"
+              />
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity
-          onPress={handleLogin}
-          disabled={isLoading}
-          style={styles.button}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#0F172A" />
-          ) : (
-            <Text style={styles.buttonText}>SIGN IN & PLAY</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleLogin}
+            disabled={isLoading}
+            style={styles.button}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#0F172A" />
+            ) : (
+              <Text style={styles.buttonText}>SIGN IN & PLAY</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => navigation?.navigate('Register')}
-          style={styles.switchButton}
-        >
-          <Text style={styles.switchText}>
-            Don't have an account? <Text style={styles.switchHighlight}>Register with Phone</Text>
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation?.navigate('Register')}
+            style={styles.switchButton}
+          >
+            <Text style={styles.switchText}>
+              Don't have an account? <Text style={styles.switchHighlight}>Register with Phone</Text>
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            if (navigation?.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation?.navigate('Main');
-            }
-          }}
-          style={styles.guestButton}
-        >
-          <Text style={styles.guestText}>👀 Watch Live as Guest</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <TouchableOpacity
+            onPress={() => {
+              if (navigation?.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation?.navigate('Main');
+              }
+            }}
+            style={styles.guestButton}
+          >
+            <Text style={styles.guestText}>👀 Watch Live as Guest</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -130,8 +204,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0F1D',
-    justifyContent: 'center',
-    padding: 24,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 16,
   },
   logo: {
     color: '#10B981',
@@ -165,6 +242,26 @@ const styles = StyleSheet.create({
     padding: 14,
     color: '#F8FAFC',
     fontSize: 15,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 10,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 14,
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  eyeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   button: {
     backgroundColor: '#10B981',
