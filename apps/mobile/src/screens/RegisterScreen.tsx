@@ -409,4 +409,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+  },
+  errorIcon: {
+    marginTop: 1,
+    marginRight: 8,
+  },
+  errorTextContainer: {
+    flex: 1,
+  },
+  errorText: {
+    color: '#FCA5A5',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  errorActionBtn: {
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  errorActionText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
 });

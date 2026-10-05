@@ -11,19 +11,32 @@ class SocketService {
 
     this.socket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 3000,
+      timeout: 5000,
     });
 
     this.socket.on('connect', () => {
-      console.log('[WS] Connected to Keno Gateway');
+      console.log('[WS] Connected to Keno Gateway:', API_BASE_URL);
+      useGameStore.getState().setIsOnline(true);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('[WS] Disconnected:', reason);
+      useGameStore.getState().setIsOnline(false);
+    });
+
+    this.socket.on('connect_error', (err) => {
+      console.warn('[WS] Connection Error:', err.message);
+      useGameStore.getState().setIsOnline(false);
     });
 
     this.socket.on(WebSocketEvents.ROUND_OPENED, (data) => {
-      // Allow previous round's 20-ball draw and settlement celebration to finish
-      setTimeout(() => {
-        useGameStore.getState().resetRoundDraw();
-      }, 3000);
+      // Clear game ticket caches and slips for the newly opened round to start over fresh
+      useGameStore.getState().clearConfirmedTickets();
+      useGameStore.getState().resetRoundDraw();
     });
 
     this.socket.on(WebSocketEvents.DRAW_STARTED, () => {
@@ -55,10 +68,19 @@ class SocketService {
     });
   }
 
+  reconnect() {
+    if (this.socket) {
+      this.socket.connect();
+    } else {
+      this.connect();
+    }
+  }
+
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+      useGameStore.getState().setIsOnline(false);
     }
   }
 }

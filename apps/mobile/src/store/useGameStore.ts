@@ -90,6 +90,10 @@ interface GameState {
   setIsDrawing: (drawing: boolean) => void;
   resetRoundDraw: () => void;
 
+  // Online / Connection status
+  isOnline: boolean;
+  setIsOnline: (online: boolean) => void;
+
   // Derived helpers (not stored — computed on access)
   getActiveSlip: () => BetSlip;
 }
@@ -108,6 +112,8 @@ export interface ConfirmedTicket {
 const INITIAL_SLIP_ID = 'slip-1';
 
 export const useGameStore = create<GameState>((set, get) => ({
+  isOnline: false,
+  setIsOnline: (isOnline: boolean) => set({ isOnline }),
   betSlips: [makeSlip(INITIAL_SLIP_ID)],
   activeSlipId: INITIAL_SLIP_ID,
   drawnNumbers: [],
