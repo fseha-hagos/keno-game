@@ -50,7 +50,7 @@ export const PlaceBetSchema = z.object({
   selectedNumbers: z
     .array(z.number().int().min(1).max(80))
     .min(1, 'Must select at least 1 number')
-    .max(10, 'Cannot select more than 10 numbers')
+    .max(5, 'Cannot select more than 5 numbers')
     .refine((items) => new Set(items).size === items.length, {
       message: 'Selected numbers must be unique without duplicates',
     }),
