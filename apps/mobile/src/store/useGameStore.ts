@@ -78,6 +78,12 @@ interface GameState {
   decrementAllStakes: () => void;
   setStakeMinor: (stake: string) => void;
 
+  // Confirmed backend tickets
+  confirmedTickets: ConfirmedTicket[];
+  addConfirmedTickets: (tickets: ConfirmedTicket[]) => void;
+  clearConfirmedTickets: () => void;
+  resetSlips: () => void;
+
   // Draw state
   setDrawnNumbers: (nums: number[]) => void;
   addDrawnNumber: (num: number) => void;
@@ -86,6 +92,17 @@ interface GameState {
 
   // Derived helpers (not stored — computed on access)
   getActiveSlip: () => BetSlip;
+}
+
+export interface ConfirmedTicket {
+  id: string;
+  roundId: string;
+  selectedNumbers: number[];
+  stakeMinor: string;
+  currency: string;
+  status: string;
+  payoutMinor?: string;
+  createdAt?: string;
 }
 
 const INITIAL_SLIP_ID = 'slip-1';
@@ -133,7 +150,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const has = slip.selectedNumbers.includes(num);
         const next = has
           ? slip.selectedNumbers.filter((n) => n !== num)
-          : slip.selectedNumbers.length < 10
+          : slip.selectedNumbers.length < 5
             ? [...slip.selectedNumbers, num].sort((a, b) => a - b)
             : slip.selectedNumbers;
         return { ...slip, selectedNumbers: next };
@@ -143,7 +160,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   quickPick: (count: number) =>
     set((state) => {
-      const target = Math.min(10, Math.max(1, count));
+      const target = Math.min(5, Math.max(1, count));
       const pool = Array.from({ length: 80 }, (_, i) => i + 1);
       const picks: number[] = [];
       for (let i = 0; i < target; i++) {
@@ -206,6 +223,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: stake })),
     })),
+
+  confirmedTickets: [],
+
+  addConfirmedTickets: (tickets: ConfirmedTicket[]) =>
+    set((state) => ({
+      confirmedTickets: [...tickets, ...state.confirmedTickets],
+    })),
+
+  clearConfirmedTickets: () => set({ confirmedTickets: [] }),
+
+  resetSlips: () =>
+    set({
+      betSlips: [makeSlip(INITIAL_SLIP_ID)],
+      activeSlipId: INITIAL_SLIP_ID,
+    }),
 
   setDrawnNumbers: (drawnNumbers) => set({ drawnNumbers }),
 
