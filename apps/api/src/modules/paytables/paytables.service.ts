@@ -19,28 +19,27 @@ export class PaytablesService implements OnModuleInit {
   }
 
   private async seedDefaultPaytable() {
-    const existing = await this.paytableRepo.count({
-      where: { gameId: GAME_CONFIG.DEFAULT_GAME_ID, version: 1 },
+    this.logger.log('Syncing Certified Keno Paytable (1-5 Spots)...');
+    await this.paytableRepo.delete({
+      gameId: GAME_CONFIG.DEFAULT_GAME_ID,
+      version: 1,
     });
 
-    if (existing === 0) {
-      this.logger.log('Seeding Certified Default Keno Paytable v1.0 (96% RTP)...');
-      const rows = DEFAULT_96_PAYTABLE_ENTRIES.map((entry) =>
-        this.paytableRepo.create({
-          gameId: GAME_CONFIG.DEFAULT_GAME_ID,
-          version: 1,
-          name: DEFAULT_PAYTABLE_VERSION.name,
-          spots: entry.spots,
-          hits: entry.hits,
-          multiplier: entry.multiplier,
-          theoreticalRtp: DEFAULT_PAYTABLE_VERSION.theoreticalRtp,
-          status: 'ACTIVE',
-          isDefault: true,
-        }),
-      );
-      await this.paytableRepo.save(rows);
-      this.logger.log(`Successfully seeded ${rows.length} paytable entries.`);
-    }
+    const rows = DEFAULT_96_PAYTABLE_ENTRIES.map((entry) =>
+      this.paytableRepo.create({
+        gameId: GAME_CONFIG.DEFAULT_GAME_ID,
+        version: 1,
+        name: DEFAULT_PAYTABLE_VERSION.name,
+        spots: entry.spots,
+        hits: entry.hits,
+        multiplier: entry.multiplier,
+        theoreticalRtp: DEFAULT_PAYTABLE_VERSION.theoreticalRtp,
+        status: 'ACTIVE',
+        isDefault: true,
+      }),
+    );
+    await this.paytableRepo.save(rows);
+    this.logger.log(`Successfully synced ${rows.length} paytable entries.`);
   }
 
   async getActivePaytable(gameId: string): Promise<Paytable[]> {

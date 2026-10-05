@@ -42,9 +42,9 @@ export const BetSlipsPanel = () => {
             spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
           const maxWin = stake * maxMult;
 
-          // Build 10 slots
+          // Build 5 slots
           const slots: (number | null)[] = [...slip.selectedNumbers];
-          while (slots.length < 10) slots.push(null);
+          while (slots.length < 5) slots.push(null);
 
           return (
             <View key={slip.id} style={[styles.row, isActive && styles.rowActive]}>

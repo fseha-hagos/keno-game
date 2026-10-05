@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.29.7",
+    "@expo/vector-icons": "^15.1.1",
     "@keno/config": "workspace:*",
     "@keno/game-math": "workspace:*",
     "@keno/shared-types": "workspace:*",
