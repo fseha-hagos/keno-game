@@ -12,7 +12,7 @@ export const PaytablePreview: React.FC = () => {
   if (spots === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Select 1 to 10 numbers to view paytable & payouts</Text>
+        <Text style={styles.emptyText}>Select 1 to 5 numbers to view paytable & payouts</Text>
       </View>
     );
   }

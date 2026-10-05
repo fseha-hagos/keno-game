@@ -26,7 +26,7 @@ export const GameFeedPanel = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('GAME');
   const [filterType, setFilterType] = useState<'all' | 'tickets' | 'bets'>('all');
   const { isAuthenticated } = useAuthStore();
-  const { betSlips } = useGameStore();
+  const { confirmedTickets } = useGameStore();
 
   // Fetch real user bets history
   const { data: userBetHistory } = useQuery({
@@ -98,16 +98,46 @@ export const GameFeedPanel = () => {
     return `${hrs}:${mins}:${secs}`;
   };
 
-  // Build active ticket items from local store (betSlips)
-  const userTicketItems: BetDisplayItem[] = betSlips
-    .filter((slip) => slip.selectedNumbers.length > 0)
-    .map((slip, idx) => ({
-      id: slip.id || `slip-${idx}`,
+  // Build active ticket items: ONLY backend-confirmed bets, NEVER unplaced draft picks
+  const serverPendingBets = (Array.isArray(userBetHistory) ? userBetHistory : []).filter(
+    (b: any) => b.status === 'PENDING',
+  );
+
+  const ticketMap = new Map<string, BetDisplayItem>();
+
+  // 1. Add server pending bets for current round
+  serverPendingBets.forEach((item: any, idx: number) => {
+    const stake = Math.round(Number(item.stakeMinor || 0) / 100) || 5;
+    ticketMap.set(item.id, {
+      id: item.id || `pending-${idx}`,
       username: `You (Ticket #${idx + 1})`,
-      numbers: slip.selectedNumbers,
-      stake: Math.round(Number(slip.stakeMinor || '500') / 100) || 5,
-      status: 'Waiting',
-    }));
+      numbers: item.selectedNumbers || [],
+      stake,
+      status: 'Placed',
+      time: item.createdAt
+        ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : undefined,
+    });
+  });
+
+  // 2. Add confirmed tickets from current session (placed & deducted)
+  (confirmedTickets || []).forEach((item: any) => {
+    if (!ticketMap.has(item.id)) {
+      const stake = Math.round(Number(item.stakeMinor || 0) / 100) || 5;
+      ticketMap.set(item.id, {
+        id: item.id,
+        username: `You (Ticket #${ticketMap.size + 1})`,
+        numbers: item.selectedNumbers || [],
+        stake,
+        status: 'Placed',
+        time: item.createdAt
+          ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : undefined,
+      });
+    }
+  });
+
+  const userTicketItems: BetDisplayItem[] = Array.from(ticketMap.values());
 
   // Build historical bet items from backend userBetHistory
   const userHistoryItems: BetDisplayItem[] = (Array.isArray(userBetHistory) ? userBetHistory : []).map(
@@ -244,7 +274,7 @@ export const GameFeedPanel = () => {
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>
             {filterType === 'tickets'
-              ? 'No active tickets. Pick numbers on grid!'
+              ? 'No active tickets yet. Pick 1–5 numbers and tap BET!'
               : filterType === 'bets'
                 ? 'No bets placed yet.'
                 : 'No live bets yet. Place your bet above!'}

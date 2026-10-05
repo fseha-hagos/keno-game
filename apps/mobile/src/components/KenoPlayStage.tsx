@@ -380,7 +380,7 @@ export const KenoPlayStage = ({
 
           {/* Card Text */}
           <View style={styles.cardTextCol}>
-            <Text style={styles.cardTitle}>Choose 10</Text>
+            <Text style={styles.cardTitle}>Choose 5</Text>
             <Text style={styles.cardTitle}>numbers</Text>
             <Text style={styles.cardSubtitle}>From 1 to 80</Text>
           </View>
@@ -390,7 +390,7 @@ export const KenoPlayStage = ({
             onPress={() =>
               Alert.alert(
                 'How to Play Fast Keno',
-                'Select up to 10 numbers from the 1-80 grid.\nChoose your stake amount and press BET.\n20 numbers will be drawn. Match more to win up to 10,000x!',
+                'Select up to 5 numbers from the 1-80 grid.\nChoose your stake amount and press BET.\n20 numbers will be drawn. Match more to win up to 300x!',
                 [{ text: 'Got it!' }],
               )
             }
@@ -444,9 +444,9 @@ export const KenoPlayStage = ({
             </View>
           )}
 
-          {/* Selected Numbers Slots Row (10 slots) */}
+          {/* Selected Numbers Slots Row (5 slots) */}
           <View style={styles.slotsRow}>
-            {Array.from({ length: 10 }, (_, i) => {
+            {Array.from({ length: 5 }, (_, i) => {
               const num = selectedNumbers[i];
               if (num !== undefined) {
                 return (
