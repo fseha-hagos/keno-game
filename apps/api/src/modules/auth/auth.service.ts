@@ -19,15 +19,20 @@ export class AuthService {
     private readonly walletService: WalletService,
     private readonly auditService: AuditService,
   ) {}
-
   async register(input: RegisterInput): Promise<{ user: User; tokens: AuthTokens }> {
     const cleanPhone = input.phone.trim();
-    const existing = await this.userRepo.findOne({
-      where: [{ phone: cleanPhone }, { username: input.username }],
+    const existingPhone = await this.userRepo.findOne({
+      where: { phone: cleanPhone },
     });
+    if (existingPhone) {
+      throw new ConflictException('This phone number is already registered. Please sign in instead.');
+    }
 
-    if (existing) {
-      throw new ConflictException('Phone number or username already exists');
+    const existingUsername = await this.userRepo.findOne({
+      where: { username: input.username.trim() },
+    });
+    if (existingUsername) {
+      throw new ConflictException('This username is already taken. Please choose a different username.');
     }
 
     const salt = await bcrypt.genSalt(10);

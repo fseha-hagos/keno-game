@@ -14,6 +14,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { ResponsibleGamblingService } from '../responsible-gambling/responsible-gambling.service';
 import { AuditService } from '../audit/audit.service';
 import { PlaceBetInput } from '@keno/validation';
+import { GAME_CONFIG } from '@keno/config';
 
 @Injectable()
 export class BetsService {
@@ -58,8 +59,10 @@ export class BetsService {
 
     // 4. Validate Selection Properties
     const spots = input.selectedNumbers.length;
-    if (spots < 1 || spots > 10) {
-      throw new BadRequestException('Must select between 1 and 10 numbers');
+    if (spots < GAME_CONFIG.MIN_SPOTS || spots > GAME_CONFIG.MAX_SPOTS) {
+      throw new BadRequestException(
+        `Must select between ${GAME_CONFIG.MIN_SPOTS} and ${GAME_CONFIG.MAX_SPOTS} numbers`,
+      );
     }
 
     // 5. Atomic Transaction: Debit Wallet + Create Bet
