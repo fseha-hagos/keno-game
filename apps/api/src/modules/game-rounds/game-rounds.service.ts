@@ -8,6 +8,9 @@ import { EventsGateway } from '../websocket/events.gateway';
 import { SettlementService } from '../settlement/settlement.service';
 import { GAME_CONFIG } from '@keno/config';
 
+// Base traceable sequence offset (produces 6-digit official game IDs: 100001, 100002... or 102966)
+const BASE_TRACEABLE_ROUND_OFFSET = 100000;
+
 @Injectable()
 export class GameRoundsService implements OnModuleInit {
   private readonly logger = new Logger(GameRoundsService.name);
@@ -28,26 +31,29 @@ export class GameRoundsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.ensureActiveRound();
+    await this.recoverAndEnsureActiveRound();
     // Start automated round tick loop (1 second heartbeat)
     setInterval(() => this.tickRoundLifecycle(), 1000);
   }
 
   async getCurrentRound(): Promise<GameRound> {
+    // 1. Check for active OPEN round
     let round = await this.roundRepo.findOne({
       where: { status: RoundStatus.OPEN },
       order: { roundNumber: 'DESC' },
     });
 
-    // If no OPEN round exists right now (e.g., during drawing & settlement phase),
-    // return the currently active drawing/settled round instead of prematurely creating a new one.
-    if (!round) {
-      round = await this.roundRepo.findOne({
-        where: {},
-        order: { roundNumber: 'DESC' },
-      });
+    // 2. If no OPEN round, check if currently drawing in-memory
+    if (!round && this.activeDraws.size > 0) {
+      const activeRoundId = Array.from(this.activeDraws.keys())[0];
+      if (activeRoundId) {
+        round = await this.roundRepo.findOne({
+          where: { id: activeRoundId },
+        });
+      }
     }
 
+    // 3. If still no active round, immediately ensure a live round is open
     if (!round) {
       round = await this.ensureActiveRound();
     }
@@ -83,9 +89,63 @@ export class GameRoundsService implements OnModuleInit {
     return round;
   }
 
+  private async recoverAndEnsureActiveRound(): Promise<GameRound> {
+    const now = new Date();
+
+    // 1. Recover any stuck/orphaned rounds from previous process interrupts
+    const stuckRounds = await this.roundRepo.find({
+      where: [
+        { status: RoundStatus.CLOSED },
+        { status: RoundStatus.DRAWN },
+      ],
+      order: { roundNumber: 'DESC' },
+    });
+
+    for (const stuck of stuckRounds) {
+      this.logger.warn(`Recovering stuck round #${stuck.roundNumber} (status: ${stuck.status})...`);
+      if (!stuck.drawResult || stuck.drawResult.length < 20) {
+        const fallbackDraw = this.rngService.generateAuthoritativeDraw();
+        stuck.drawResult = fallbackDraw.draw;
+        stuck.resultHash = fallbackDraw.hash;
+      }
+      try {
+        const settlement = await this.settlementService.settleRoundBets(stuck);
+        stuck.status = RoundStatus.SETTLED;
+        stuck.completedAt = new Date();
+        stuck.totalWageredMinor = settlement.totalWageredMinor;
+        stuck.totalPayoutMinor = settlement.totalPayoutMinor;
+        await this.roundRepo.save(stuck);
+      } catch (e: any) {
+        this.logger.error(`Recovery settlement error for round #${stuck.roundNumber}: ${e.message}`);
+        stuck.status = RoundStatus.SETTLED;
+        stuck.completedAt = new Date();
+        await this.roundRepo.save(stuck);
+      }
+    }
+
+    // 2. Check if an active OPEN round exists
+    const existingOpen = await this.roundRepo.findOne({
+      where: { status: RoundStatus.OPEN },
+      order: { roundNumber: 'DESC' },
+    });
+
+    if (existingOpen) {
+      if (existingOpen.closedAt && new Date(existingOpen.closedAt) <= now) {
+        this.logger.log(`Existing OPEN round #${existingOpen.roundNumber} expired while offline. Executing draw...`);
+        await this.executeRoundDrawAndSettlement(existingOpen);
+      } else {
+        return existingOpen;
+      }
+    }
+
+    // 3. Ensure a brand new active round is running
+    return this.ensureActiveRound();
+  }
+
   private async ensureActiveRound(): Promise<GameRound> {
     const existingOpen = await this.roundRepo.findOne({
       where: { status: RoundStatus.OPEN },
+      order: { roundNumber: 'DESC' },
     });
     if (existingOpen) {
       return existingOpen;
@@ -100,7 +160,17 @@ export class GameRoundsService implements OnModuleInit {
       where: {},
       order: { roundNumber: 'DESC' },
     });
-    const nextRoundNumber = (latestRound ? Number(latestRound.roundNumber) : 0) + 1;
+
+    // Big 4+ digit traceable ID sequence (never resets to 1, forever continuing)
+    let nextRoundNumber: number;
+    if (latestRound && Number(latestRound.roundNumber) >= BASE_TRACEABLE_ROUND_OFFSET) {
+      nextRoundNumber = Number(latestRound.roundNumber) + 1;
+    } else if (latestRound && Number(latestRound.roundNumber) > 0) {
+      // Seamlessly upgrade existing legacy count (e.g. 2965) into official 6-digit ID (102966)
+      nextRoundNumber = BASE_TRACEABLE_ROUND_OFFSET + Number(latestRound.roundNumber) + 1;
+    } else {
+      nextRoundNumber = BASE_TRACEABLE_ROUND_OFFSET + 1;
+    }
 
     const newRound = this.roundRepo.create({
       roundNumber: nextRoundNumber,
@@ -128,8 +198,9 @@ export class GameRoundsService implements OnModuleInit {
 
   /**
    * State Machine / Round Engine Heartbeat:
-   * 1. Check if active OPEN round reached scheduled betting close time.
-   * 2. If so, CLOSE betting -> generate CSPRNG DRAW -> broadcast balls one by one -> SETTLE -> create next round.
+   * 1. Ensure an active OPEN round is always available (forever continuing, never dies).
+   * 2. If active OPEN round reached scheduled betting close time:
+   *    CLOSE betting -> CSPRNG DRAW -> broadcast balls one by one -> SETTLE -> open next round.
    */
   private async tickRoundLifecycle() {
     if (this.isProcessing) return;
@@ -138,15 +209,24 @@ export class GameRoundsService implements OnModuleInit {
       this.isProcessing = true;
       const now = new Date();
 
-      const roundToClose = await this.roundRepo.findOne({
-        where: {
-          status: RoundStatus.OPEN,
-          closedAt: LessThanOrEqual(now),
-        },
+      // Find active OPEN round
+      const activeOpen = await this.roundRepo.findOne({
+        where: { status: RoundStatus.OPEN },
+        order: { roundNumber: 'DESC' },
       });
 
-      if (roundToClose) {
-        await this.executeRoundDrawAndSettlement(roundToClose);
+      if (!activeOpen) {
+        // If an in-memory draw animation is currently active, allow it to complete
+        if (this.activeDraws.size > 0) {
+          return;
+        }
+        // No OPEN round and no active draw -> open the next round immediately
+        await this.ensureActiveRound();
+        return;
+      }
+
+      if (activeOpen.closedAt && new Date(activeOpen.closedAt) <= now) {
+        await this.executeRoundDrawAndSettlement(activeOpen);
       }
     } catch (err: any) {
       this.logger.error(`Error in round tick: ${err.message}`, err.stack);

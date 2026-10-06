@@ -1,5 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Easing,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { KenoGrid } from './KenoGrid';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
@@ -21,10 +33,21 @@ export const KenoPlayStage = ({
   timeLeft = 0,
   bettingOpen = false,
 }: KenoPlayStageProps) => {
-  const { getActiveSlip, toggleNumber, clearSelection, drawnNumbers, isDrawing } = useGameStore();
+  const {
+    getActiveSlip,
+    toggleNumber,
+    clearSelection,
+    quickPick,
+    setSelectedNumbers,
+    drawnNumbers,
+    isDrawing,
+  } = useGameStore();
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const spots = selectedNumbers.length;
+
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualNumbersText, setManualNumbersText] = useState('');
 
   // Settled balls map: array of 20 elements (null or number)
   const [settledBalls, setSettledBalls] = useState<(number | null)[]>(() =>
@@ -223,6 +246,29 @@ export const KenoPlayStage = ({
     return `${String(m).padStart(2, '0')} : ${String(s).padStart(2, '0')}`;
   };
 
+  const handleApplyManualNumbers = () => {
+    const rawMatches = manualNumbersText.match(/\d+/g) || [];
+    const parsedNums = Array.from(
+      new Set(
+        rawMatches
+          .map((n) => parseInt(n, 10))
+          .filter((n) => !isNaN(n) && n >= 1 && n <= 80),
+      ),
+    );
+
+    if (parsedNums.length === 0) {
+      Alert.alert('Invalid Numbers', 'Please enter at least 1 number between 1 and 80.');
+      return;
+    }
+
+    if (parsedNums.length > 5) {
+      Alert.alert('Maximum 5 Numbers', 'You can select up to 5 numbers. The first 5 numbers will be applied.');
+    }
+
+    setSelectedNumbers(parsedNums.slice(0, 5));
+    setIsManualModalOpen(false);
+  };
+
   // Paytable entries for chosen spots
   const spotEntries = DEFAULT_96_PAYTABLE_ENTRIES
     .filter((e) => e.spots === spots && e.multiplier > 0)
@@ -256,6 +302,13 @@ export const KenoPlayStage = ({
             ]}
           />
         </View>
+
+        {/* Top-Left: Traceable Server Round ID */}
+        {roundNumber ? (
+          <View style={styles.drawGameIdBadge}>
+            <Text style={styles.drawGameIdText}>ROUND #{roundNumber}</Text>
+          </View>
+        ) : null}
 
         {/* Top-Right: Draw Progress Count (e.g. 19 / 20 with green slash) */}
         <View style={styles.drawCountBadge}>
@@ -342,8 +395,13 @@ export const KenoPlayStage = ({
   // ═══════════════════════════════════════════════════
   return (
     <View style={styles.stageOuter}>
-      {/* Centered Digital Countdown Timer — Shamo.bet cyan glow */}
+      {/* Centered Digital Countdown Timer + Server Game ID */}
       <View style={styles.timerRow}>
+        {roundNumber ? (
+          <View style={styles.betRoundBadge}>
+            <Text style={styles.betRoundBadgeText}>GAME #{roundNumber}</Text>
+          </View>
+        ) : null}
         <Text style={styles.timerText}>
           {bettingOpen && timeLeft > 0 ? formatTimer(timeLeft) : '00 : 00'}
         </Text>
@@ -466,6 +524,89 @@ export const KenoPlayStage = ({
         </View>
       )}
 
+      {/* Number Controls Toolbar: Quick Pick, Manual Entry, Clear */}
+      <View style={styles.toolbarRow}>
+        <TouchableOpacity
+          style={styles.toolBtn}
+          onPress={() => quickPick(5)}
+          disabled={!bettingOpen}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.toolBtnText}>🎲 Quick Pick</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.toolBtn}
+          onPress={() => {
+            setManualNumbersText(selectedNumbers.join(', '));
+            setIsManualModalOpen(true);
+          }}
+          disabled={!bettingOpen}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.toolBtnText}>⌨ Enter Numbers</Text>
+        </TouchableOpacity>
+
+        {selectedNumbers.length > 0 && (
+          <TouchableOpacity
+            style={[styles.toolBtn, styles.clearBtn]}
+            onPress={clearSelection}
+            disabled={!bettingOpen}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.clearBtnText}>🗑 Clear</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Manual Numbers Modal */}
+      <Modal
+        visible={isManualModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsManualModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Enter Numbers Manually</Text>
+            <Text style={styles.modalSubtitle}>
+              Type 1 to 5 numbers (1–80), separated by spaces or commas:
+            </Text>
+
+            <TextInput
+              style={styles.manualInput}
+              placeholder="e.g. 7, 14, 21, 35, 77"
+              placeholderTextColor="#64748B"
+              value={manualNumbersText}
+              onChangeText={setManualNumbersText}
+              keyboardType="numbers-and-punctuation"
+              autoFocus
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setIsManualModalOpen(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalApplyBtn}
+                onPress={handleApplyManualNumbers}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalApplyText}>Apply Numbers</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* 8x10 Number Grid */}
       <View style={styles.gridArea}>
         <KenoGrid bettingOpen={bettingOpen} />
@@ -487,6 +628,21 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 4,
   },
+  betRoundBadge: {
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+    marginBottom: 4,
+  },
+  betRoundBadgeText: {
+    color: '#00E5FF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
   timerText: {
     color: '#00E5FF',
     fontSize: 28,
@@ -507,6 +663,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#152B23',
+  },
+  drawGameIdBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 14,
+    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 230, 118, 0.3)',
+    zIndex: 10,
+  },
+  drawGameIdText: {
+    color: '#00E676',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   drawRadarContainer: {
     position: 'absolute',
@@ -977,5 +1151,114 @@ const styles = StyleSheet.create({
   gridArea: {
     paddingHorizontal: 4,
     paddingVertical: 4,
+  },
+
+  // ── Number Selection Toolbar ──
+  toolbarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  toolBtn: {
+    backgroundColor: '#1E2C3B',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#31445A',
+  },
+  toolBtnText: {
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  clearBtn: {
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  clearBtnText: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // ── Manual Numbers Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#141D27',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2A3A4A',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    color: '#F8FAFC',
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  manualInput: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#00E5FF',
+    borderRadius: 8,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    padding: 12,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#1E2C3B',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalApplyBtn: {
+    flex: 1,
+    backgroundColor: '#00E676',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalApplyText: {
+    color: '#060D0B',
+    fontSize: 14,
+    fontWeight: '900',
   },
 });
