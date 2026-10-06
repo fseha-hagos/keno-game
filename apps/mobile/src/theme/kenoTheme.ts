@@ -20,9 +20,9 @@ export const KENO_COLORS = {
   drawnText: '#9FE6BD',
 
   /** Pick + drawn match (HIT) — radiant winning neon green */
-  hitFill: '#16A34A',
+  hitFill: '#22C55E',
   hitBorder: '#4ADE80',
-  hitGlow: 'rgba(34, 197, 94, 0.7)',
+  hitGlow: 'rgba(34, 197, 94, 0.85)',
 
   /** 3D Ball colors */
   ballNavy: '#162232',

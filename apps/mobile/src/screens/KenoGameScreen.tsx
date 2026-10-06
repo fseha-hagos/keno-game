@@ -59,7 +59,20 @@ export const KenoGameScreen = () => {
     prevRoundIdRef.current = round.id;
   }, [round?.id]);
 
-  // Synchronize live drawn numbers when user connects or reconnects mid-draw
+  const parseRoundDrawn = (r: any): number[] => {
+    if (!r) return [];
+    const raw = r.drawResult || r.drawnNumbers;
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.map((n) => Number(n)).filter((n) => !isNaN(n));
+    }
+    if (typeof raw === 'string') {
+      return raw.split(',').map((n) => Number(n.trim())).filter((n) => !isNaN(n));
+    }
+    return [];
+  };
+
+  // Synchronize live drawn numbers when user connects, reconnects, or refocuses mid-draw
   useEffect(() => {
     if (!round) return;
 
@@ -75,12 +88,12 @@ export const KenoGameScreen = () => {
         useGameStore.getState().resetRoundDraw();
       }
     } else if (
-      (round.status === 'DRAWING' || round.status === 'DRAWN' || round.status === 'SETTLED') &&
-      Array.isArray(round.drawResult)
+      round.status === 'DRAWING' ||
+      round.status === 'DRAWN' ||
+      round.status === 'SETTLED'
     ) {
-      const parsed = round.drawResult.map(Number).filter((n: number) => !isNaN(n));
-      const currentDrawn = useGameStore.getState().drawnNumbers;
-      if (parsed.length > currentDrawn.length) {
+      const parsed = parseRoundDrawn(round);
+      if (parsed.length > 0) {
         useGameStore.getState().setDrawnNumbers(parsed);
         useGameStore.getState().setIsDrawing(round.status !== 'SETTLED');
       }
