@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
@@ -7,6 +7,61 @@ const MAX_SLIPS = 5;
 
 const fmt = (n: number) =>
   n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const SlipStakeInput = ({ slipId, stakeMinor }: { slipId: string; stakeMinor: string }) => {
+  const { setStakeForSlip } = useGameStore();
+  const stake = Number(stakeMinor) / 100;
+  const [text, setText] = useState(stake.toFixed(2));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setText(stake.toFixed(2));
+    }
+  }, [stake, focused]);
+
+  const handleChange = (val: string) => {
+    const cleaned = val.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
+    setText(sanitized);
+
+    const parsed = parseFloat(sanitized);
+    if (!isNaN(parsed) && parsed > 0) {
+      setStakeForSlip(slipId, String(Math.round(parsed * 100)));
+    }
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    const parsed = parseFloat(text);
+    if (isNaN(parsed) || parsed <= 0) {
+      setStakeForSlip(slipId, '100');
+      setText('1.00');
+    } else {
+      const clamped = Math.min(Math.max(parsed, 1), 50000);
+      setStakeForSlip(slipId, String(Math.round(clamped * 100)));
+      setText(clamped.toFixed(2));
+    }
+  };
+
+  return (
+    <TextInput
+      style={styles.slipStakeInput}
+      value={focused ? text : stake.toFixed(2)}
+      onChangeText={handleChange}
+      onFocus={() => {
+        setFocused(true);
+        setText(stake > 0 ? String(stake) : '');
+      }}
+      onBlur={handleBlur}
+      keyboardType="numeric"
+      selectTextOnFocus
+      placeholder="5.00"
+      placeholderTextColor="#64748B"
+    />
+  );
+};
 
 export const BetSlipsPanel = () => {
   const {
@@ -92,7 +147,7 @@ export const BetSlipsPanel = () => {
                   >
                     <Text style={styles.stepBtnText}>−</Text>
                   </TouchableOpacity>
-                  <Text style={styles.stakeAmount}>{fmt(stake)}</Text>
+                  <SlipStakeInput slipId={slip.id} stakeMinor={slip.stakeMinor} />
                   <TouchableOpacity
                     onPress={() => incrementStakeForSlip(slip.id)}
                     style={[styles.stepBtn, styles.stepBtnPlus]}
@@ -235,6 +290,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     minWidth: 52,
     textAlign: 'center',
+  },
+  slipStakeInput: {
+    color: '#22C55E',
+    fontSize: 12,
+    fontWeight: '900',
+    minWidth: 52,
+    textAlign: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+    borderRadius: 4,
+    backgroundColor: '#0F1923',
   },
   addSlipBtn: {
     paddingVertical: 8,

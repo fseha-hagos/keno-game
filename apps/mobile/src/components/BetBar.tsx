@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
@@ -25,6 +26,42 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
 
   const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '500';
   const stake = Number(referenceStakeMinor) / 100;
+
+  const [inputText, setInputText] = useState(stake.toFixed(2));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setInputText(stake.toFixed(2));
+    }
+  }, [stake, isFocused]);
+
+  const handleTextChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
+    setInputText(sanitized);
+
+    const val = parseFloat(sanitized);
+    if (!isNaN(val) && val > 0) {
+      const minor = Math.round(val * 100);
+      setStakeMinor(String(minor));
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const val = parseFloat(inputText);
+    if (isNaN(val) || val <= 0) {
+      setStakeMinor('100'); // minimum 1.00 ETB
+      setInputText('1.00');
+    } else {
+      const clamped = Math.min(Math.max(val, 1), 50000);
+      const minor = Math.round(clamped * 100);
+      setStakeMinor(String(minor));
+      setInputText(clamped.toFixed(2));
+    }
+  };
 
   const totalStake = betSlips
     .filter((s) => s.selectedNumbers.length > 0)
@@ -59,9 +96,22 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
           <Text style={styles.stepBtnText}>−</Text>
         </TouchableOpacity>
 
-        {/* Stake display */}
-        <View style={styles.stakeDisplay}>
-          <Text style={styles.stakeAmount}>{fmt(stake)}</Text>
+        {/* Stake display - Editable TextInput for manual bet modification */}
+        <View style={[styles.stakeDisplay, isFocused && styles.stakeDisplayFocused]}>
+          <TextInput
+            style={styles.stakeInput}
+            value={isFocused ? inputText : fmt(stake)}
+            onChangeText={handleTextChange}
+            onFocus={() => {
+              setIsFocused(true);
+              setInputText(stake > 0 ? String(stake) : '');
+            }}
+            onBlur={handleBlur}
+            keyboardType="numeric"
+            selectTextOnFocus
+            placeholder="5.00"
+            placeholderTextColor="#64748B"
+          />
         </View>
 
         {/* Plus button */}
@@ -161,6 +211,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 40,
+    paddingHorizontal: 4,
+  },
+  stakeDisplayFocused: {
+    borderColor: '#00E5FF',
+    backgroundColor: '#162230',
+  },
+  stakeInput: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    width: '100%',
+    height: '100%',
+    padding: 0,
   },
   stakeAmount: {
     color: '#FFFFFF',

@@ -70,10 +70,12 @@ interface GameState {
   toggleNumber: (num: number) => void;
   quickPick: (count: number) => void;
   clearSelection: () => void;
+  setSelectedNumbers: (numbers: number[]) => void;
 
   // Stake: per-slip or all slips (bottom bar)
   incrementStakeForSlip: (slipId: string) => void;
   decrementStakeForSlip: (slipId: string) => void;
+  setStakeForSlip: (slipId: string, stake: string) => void;
   incrementAllStakes: () => void;
   decrementAllStakes: () => void;
   setStakeMinor: (stake: string) => void;
@@ -189,6 +191,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       return pruneEmptySlips(slips, state.activeSlipId);
     }),
 
+  setSelectedNumbers: (numbers: number[]) =>
+    set((state) => {
+      const sorted = Array.from(new Set(numbers))
+        .filter((n) => n >= 1 && n <= 80)
+        .slice(0, 5)
+        .sort((a, b) => a - b);
+      const slips = state.betSlips.map((slip) =>
+        slip.id === state.activeSlipId ? { ...slip, selectedNumbers: sorted } : slip,
+      );
+      return pruneEmptySlips(slips, state.activeSlipId);
+    }),
+
   incrementStakeForSlip: (slipId: string) =>
     set((state) => ({
       betSlips: state.betSlips.map((slip) =>
@@ -204,6 +218,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         slip.id === slipId
           ? { ...slip, stakeMinor: nextStake(slip.stakeMinor, -1) }
           : slip,
+      ),
+    })),
+
+  setStakeForSlip: (slipId: string, stake: string) =>
+    set((state) => ({
+      betSlips: state.betSlips.map((slip) =>
+        slip.id === slipId ? { ...slip, stakeMinor: stake } : slip,
       ),
     })),
 
