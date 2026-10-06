@@ -395,13 +395,8 @@ export const KenoPlayStage = ({
   // ═══════════════════════════════════════════════════
   return (
     <View style={styles.stageOuter}>
-      {/* Centered Digital Countdown Timer + Server Game ID */}
+      {/* Centered Digital Countdown Timer (compact like user screenshot) */}
       <View style={styles.timerRow}>
-        {roundNumber ? (
-          <View style={styles.betRoundBadge}>
-            <Text style={styles.betRoundBadgeText}>GAME #{roundNumber}</Text>
-          </View>
-        ) : null}
         <Text style={styles.timerText}>
           {bettingOpen && timeLeft > 0 ? formatTimer(timeLeft) : '00 : 00'}
         </Text>
@@ -621,37 +616,22 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
 
-  // ── Countdown Timer (Shamo.bet cyan glow) ──
+  // ── Countdown Timer (Small, sleek digital clock like screenshot) ──
   timerRow: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 6,
+    paddingTop: 4,
     paddingBottom: 4,
   },
-  betRoundBadge: {
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
-    marginBottom: 4,
-  },
-  betRoundBadgeText: {
-    color: '#00E5FF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
   timerText: {
-    color: '#00E5FF',
-    fontSize: 28,
+    color: '#6EE7B7',
+    fontSize: 15,
     fontWeight: '900',
     fontFamily: 'monospace',
-    letterSpacing: 4,
-    textShadowColor: 'rgba(0, 229, 255, 0.65)',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(110, 231, 183, 0.45)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 14,
+    textShadowRadius: 6,
   },
 
   // ── DRAW STAGE CARD (Top Big Ball -> Moves to Specific Space at Bottom) ──
