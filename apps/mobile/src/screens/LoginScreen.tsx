@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
+import { toastSuccess, toastError } from '../services/toast';
 
 export const LoginScreen = ({ navigation }: { navigation?: any }) => {
   const [phone, setPhone] = useState('');
@@ -51,7 +52,7 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
 
   const handleLogin = async () => {
     if (!phone.trim() || !password) {
-      Alert.alert('Validation Error', 'Please enter your phone number and password');
+      toastError('Validation Error', 'Please enter your phone number and password');
       return;
     }
 
@@ -65,35 +66,15 @@ export const LoginScreen = ({ navigation }: { navigation?: any }) => {
       const { user, tokens } = res.data;
       await setAuth(user, tokens.accessToken, tokens.refreshToken);
 
-      if (Platform.OS === 'web') {
-        if (navigation?.canGoBack()) {
-          navigation.goBack();
-        } else {
-          navigation?.navigate('Main');
-        }
-        return;
-      }
+      toastSuccess('Welcome Back!', `Signed in as ${user.username}`);
 
-      Alert.alert(
-        '👋 Welcome Back!',
-        `Signed in as ${user.username}. Go to your wallet to manage deposits/withdrawals or jump straight into the game.`,
-        [
-          {
-            text: '💳 Deposit / Withdraw',
-            onPress: () => {
-              if (navigation) navigation.navigate('Wallet');
-            },
-          },
-          {
-            text: '🎮 Start Playing',
-            onPress: () => {
-              if (navigation) navigation.navigate('Main');
-            },
-          },
-        ],
-      );
+      if (navigation?.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation?.navigate('Main');
+      }
     } catch (err: any) {
-      Alert.alert(
+      toastError(
         'Login Failed',
         err.response?.data?.message || 'Invalid phone number or password. Try again.',
       );

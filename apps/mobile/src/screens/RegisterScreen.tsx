@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
+import { toastSuccess, toastError } from '../services/toast';
 
 export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
   const [phone, setPhone] = useState('');
@@ -61,27 +62,21 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
     if (!phone.trim() || !username.trim() || !password || !confirmPassword) {
       const msg = 'Please enter your phone number, username, password, and confirm password.';
       setErrorMessage(msg);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Validation Error', msg);
-      }
+      toastError('Validation Error', msg);
       return;
     }
 
     if (password.length < 6) {
       const msg = 'Password must be at least 6 characters long.';
       setErrorMessage(msg);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Validation Error', msg);
-      }
+      toastError('Validation Error', msg);
       return;
     }
 
     if (password !== confirmPassword) {
       const msg = 'Passwords do not match. Please verify your password.';
       setErrorMessage(msg);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Validation Error', msg);
-      }
+      toastError('Validation Error', msg);
       return;
     }
 
@@ -98,33 +93,16 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
       const { user, tokens } = res.data;
       await setAuth(user, tokens.accessToken, tokens.refreshToken);
 
-      if (Platform.OS === 'web') {
-        if (navigation?.canGoBack()) {
-          navigation.goBack();
-        } else {
-          navigation?.navigate('Main');
-        }
-        return;
-      }
-
-      Alert.alert(
-        '🎉 Registration Successful!',
-        `Welcome ${user.username}! Your player account is ready. Proceed to deposit funds or start playing.`,
-        [
-          {
-            text: '💳 Deposit Funds',
-            onPress: () => {
-              if (navigation) navigation.navigate('Wallet');
-            },
-          },
-          {
-            text: '🎮 Start Playing',
-            onPress: () => {
-              if (navigation) navigation.navigate('Main');
-            },
-          },
-        ],
+      toastSuccess(
+        'Registration Successful!',
+        `Welcome ${user.username}! Your player account is ready.`,
       );
+
+      if (navigation?.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation?.navigate('Main');
+      }
     } catch (err: any) {
       const status = err.response?.status;
       const rawMsg = err.response?.data?.message;
@@ -134,10 +112,7 @@ export const RegisterScreen = ({ navigation }: { navigation?: any }) => {
       
       setErrorMessage(msg);
       setIsConflict(status === 409 || msg.toLowerCase().includes('already') || msg.toLowerCase().includes('taken'));
-
-      if (Platform.OS !== 'web') {
-        Alert.alert('Registration Failed', msg);
-      }
+      toastError('Registration Failed', msg);
     } finally {
       setIsLoading(false);
     }

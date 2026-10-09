@@ -16,6 +16,7 @@ import { KenoGrid } from './KenoGrid';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
 import { KENO_COLORS } from '../theme/kenoTheme';
+import { toastError, toastInfo, alertSuccess } from '../services/toast';
 
 interface KenoPlayStageProps {
   roundNumber?: number | string;
@@ -257,12 +258,12 @@ export const KenoPlayStage = ({
     );
 
     if (parsedNums.length === 0) {
-      Alert.alert('Invalid Numbers', 'Please enter at least 1 number between 1 and 80.');
+      toastError('Invalid Numbers', 'Please enter at least 1 number between 1 and 80.');
       return;
     }
 
     if (parsedNums.length > 5) {
-      Alert.alert('Maximum 5 Numbers', 'You can select up to 5 numbers. The first 5 numbers will be applied.');
+      toastInfo('Maximum 5 Numbers', 'You can select up to 5 numbers. The first 5 numbers will be applied.');
     }
 
     setSelectedNumbers(parsedNums.slice(0, 5));
@@ -441,10 +442,9 @@ export const KenoPlayStage = ({
           {/* Top-Right Help Button */}
           <TouchableOpacity
             onPress={() =>
-              Alert.alert(
+              alertSuccess(
                 'How to Play Fast Keno',
-                'Select up to 5 numbers from the 1-80 grid.\nChoose your stake amount and press BET.\n20 numbers will be drawn. Match more to win up to 300x!',
-                [{ text: 'Got it!' }],
+                'Select up to 5 numbers from the 1-80 grid.\nChoose your stake and tap BET.\n20 numbers are drawn live. Match more to win up to 300x!',
               )
             }
             style={styles.helpBtn}
@@ -465,10 +465,9 @@ export const KenoPlayStage = ({
 
             <TouchableOpacity
               onPress={() =>
-                Alert.alert(
+                toastInfo(
                   'Paytable Info',
                   `Playing ${spots} spot${spots > 1 ? 's' : ''}. Maximum win is ${possibleWin} ETB with ${maxMultiplier}x payout.`,
-                  [{ text: 'OK' }],
                 )
               }
               style={styles.helpBtn}
@@ -502,14 +501,17 @@ export const KenoPlayStage = ({
             {Array.from({ length: 5 }, (_, i) => {
               const num = selectedNumbers[i];
               if (num !== undefined) {
+                const numVal = Number(num);
+                const isHit = !isNaN(numVal) && drawnNumbers.map(Number).includes(numVal);
+
                 return (
                   <TouchableOpacity
                     key={`slot-${num}`}
                     onPress={() => toggleNumber(num)}
-                    style={styles.slotFilled}
+                    style={[styles.slotFilled, isHit && styles.slotFilledHit]}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.slotFilledText}>{num}</Text>
+                    <Text style={[styles.slotFilledText, isHit && styles.slotFilledHitText]}>{num}</Text>
                   </TouchableOpacity>
                 );
               }
@@ -1113,10 +1115,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  slotFilledHit: {
+    backgroundColor: '#10B981',
+    borderColor: '#34D399',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   slotFilledText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
+  },
+  slotFilledHitText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   slotEmpty: {
     flex: 1,

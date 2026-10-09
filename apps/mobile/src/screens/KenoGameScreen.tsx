@@ -18,6 +18,7 @@ import { useGameStore } from '../store/useGameStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 import { socketService } from '../services/socket';
+import { toastSuccess, toastError, toastInfo } from '../services/toast';
 
 export const KenoGameScreen = () => {
   const queryClient = useQueryClient();
@@ -46,7 +47,7 @@ export const KenoGameScreen = () => {
 
   const prevRoundIdRef = React.useRef<string | null>(null);
 
-  // Clear caches and start over when a new round begins
+  // Clear caches and refresh balance when a new round begins or round settles
   useEffect(() => {
     if (!round?.id) return;
     if (prevRoundIdRef.current && prevRoundIdRef.current !== round.id) {
@@ -58,6 +59,14 @@ export const KenoGameScreen = () => {
     }
     prevRoundIdRef.current = round.id;
   }, [round?.id]);
+
+  useEffect(() => {
+    if (round?.status === 'SETTLED') {
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['betHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBets'] });
+    }
+  }, [round?.status]);
 
   const parseRoundDrawn = (r: any): number[] => {
     if (!r) return [];
@@ -154,16 +163,16 @@ export const KenoGameScreen = () => {
       // Clear temporary chosen numbers from grid & slips so user can immediately pick more
       resetSlips();
 
-      Alert.alert(
+      toastSuccess(
         count > 1 ? `🎉 ${count} Bets Placed!` : '🎉 Bet Placed!',
-        `${totalStake.toFixed(2)} ETB deducted from balance for Round #${round?.roundNumber}.\nTemporary numbers are cleared so you can place more bets if you wish!`,
+        `${totalStake.toFixed(2)} ETB deducted for Round #${round?.roundNumber}.`,
       );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
       queryClient.invalidateQueries({ queryKey: ['recentBets'] });
     },
     onError: (err: any) => {
-      Alert.alert(
+      toastError(
         'Bet Failed',
         err.response?.data?.message || 'Could not place bet. Check your balance and limits.',
       );
@@ -185,12 +194,12 @@ export const KenoGameScreen = () => {
 
     const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
     if (readySlips.length === 0) {
-      Alert.alert('No Numbers Selected', 'Pick at least 1 number on any slip.');
+      toastInfo('No Numbers Selected', 'Pick at least 1 number on any slip.');
       return;
     }
 
     if (round?.status !== 'OPEN' || timeLeft <= 0) {
-      Alert.alert('Betting Closed', 'This round is closed. Next round will open shortly.');
+      toastInfo('Betting Closed', 'This round is closed. Next round will open shortly.');
       return;
     }
 
