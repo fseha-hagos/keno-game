@@ -266,12 +266,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       activeSlipId: INITIAL_SLIP_ID,
     }),
 
-  setDrawnNumbers: (drawnNumbers) => set({ drawnNumbers }),
+  setDrawnNumbers: (drawnNumbers: (number | string)[]) =>
+    set({
+      drawnNumbers: (drawnNumbers || [])
+        .map((n) => Number(n))
+        .filter((n) => !isNaN(n) && n >= 1 && n <= 80),
+    }),
 
-  addDrawnNumber: (num: number) => {
+  addDrawnNumber: (num: number | string) => {
+    const parsed = Number(num);
+    if (isNaN(parsed) || parsed < 1 || parsed > 80) return;
     const { drawnNumbers } = get();
-    if (!drawnNumbers.includes(num)) {
-      set({ drawnNumbers: [...drawnNumbers, num] });
+    if (!drawnNumbers.map(Number).includes(parsed)) {
+      set({ drawnNumbers: [...drawnNumbers, parsed] });
     }
   },
 
