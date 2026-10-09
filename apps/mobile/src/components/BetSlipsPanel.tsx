@@ -71,7 +71,17 @@ export const BetSlipsPanel = () => {
     setActiveSlip,
     incrementStakeForSlip,
     decrementStakeForSlip,
+    drawnNumbers,
   } = useGameStore();
+
+  const liveDrawnSet = React.useMemo(() => {
+    const set = new Set<number>();
+    (drawnNumbers || []).forEach((n) => {
+      const v = Number(n);
+      if (!isNaN(v) && v > 0) set.add(v);
+    });
+    return set;
+  }, [drawnNumbers]);
 
   const filledSlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
   const showSlips = betSlips.filter(
@@ -97,6 +107,12 @@ export const BetSlipsPanel = () => {
             spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
           const maxWin = stake * maxMult;
 
+          const cleanSlipNums = slip.selectedNumbers.map(Number).filter((n) => !isNaN(n));
+          const hitCount = cleanSlipNums.filter((n) => liveDrawnSet.has(n)).length;
+          const currentMult =
+            spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
+          const currentWin = stake * currentMult;
+
           // Build 5 slots
           const slots: (number | null)[] = [...slip.selectedNumbers];
           while (slots.length < 5) slots.push(null);
@@ -117,23 +133,40 @@ export const BetSlipsPanel = () => {
                   )}
                 </View>
 
-                {/* 10 number slots grid */}
+                {/* 10 number slots grid with hit highlight */}
                 <View style={styles.slotsRow}>
-                  {slots.map((num, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.slotBox,
-                        num !== null ? styles.slotBoxFilled : styles.slotBoxEmpty,
-                      ]}
-                    >
-                      {num !== null && <Text style={styles.slotText}>{num}</Text>}
-                    </View>
-                  ))}
+                  {slots.map((num, i) => {
+                    const numVal = Number(num);
+                    const isHit = num !== null && !isNaN(numVal) && liveDrawnSet.has(numVal);
+
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.slotBox,
+                          num === null
+                            ? styles.slotBoxEmpty
+                            : isHit
+                              ? styles.slotBoxHit
+                              : styles.slotBoxFilled,
+                        ]}
+                      >
+                        {num !== null && (
+                          <Text style={isHit ? styles.slotHitText : styles.slotText}>
+                            {num}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
 
                 {spots > 0 && (
-                  <Text style={styles.winLine}>Max win {fmt(maxWin)} ETB</Text>
+                  <Text style={[styles.winLine, currentWin > 0 && styles.winLineWon]}>
+                    {currentWin > 0
+                      ? `Win ${fmt(currentWin)} ETB (Max ${fmt(maxWin)} ETB)`
+                      : `Max win ${fmt(maxWin)} ETB`}
+                  </Text>
                 )}
               </TouchableOpacity>
 
@@ -235,6 +268,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2E4058',
   },
+  slotBoxHit: {
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#34D399',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   slotBoxEmpty: {
     backgroundColor: '#0F1923',
     borderWidth: 1,
@@ -245,10 +288,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
+  slotHitText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   winLine: {
     color: '#22C55E',
     fontSize: 9,
     fontWeight: '700',
+  },
+  winLineWon: {
+    color: '#4ADE80',
+    fontWeight: '900',
   },
   stakeCol: {
     alignItems: 'center',

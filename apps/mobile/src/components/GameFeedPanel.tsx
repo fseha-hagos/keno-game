@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../store/useAuthStore';
 import { useGameStore } from '../store/useGameStore';
+import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
 export type FeedTab = 'GAME' | 'HISTORY' | 'RESULTS' | 'STATS';
 
@@ -23,6 +24,7 @@ interface BetDisplayItem {
   time?: string;
   hitNumbers?: number[];
   isWin?: boolean;
+  currency?: string;
 }
 
 interface HistoryDrawGroup {
@@ -150,8 +152,14 @@ export const GameFeedPanel = () => {
 
   const liveDrawnSet = React.useMemo(() => {
     const set = new Set<number>();
-    (drawnNumbers || []).forEach((n) => set.add(n));
-    (currentRoundDrawn || []).forEach((n) => set.add(n));
+    (drawnNumbers || []).forEach((n) => {
+      const v = Number(n);
+      if (!isNaN(v) && v > 0) set.add(v);
+    });
+    (currentRoundDrawn || []).forEach((n) => {
+      const v = Number(n);
+      if (!isNaN(v) && v > 0) set.add(v);
+    });
     return set;
   }, [drawnNumbers, currentRoundDrawn]);
 
@@ -176,20 +184,25 @@ export const GameFeedPanel = () => {
     const isSettled = item.status === 'SETTLED';
     const statusLabel = isSettled
       ? payout > 0
-        ? `Won ${payout % 1 === 0 ? payout : payout.toFixed(2)}`
+        ? 'Won'
         : 'Lost'
       : 'Placed';
+
+    const cleanNumbers = (item.selectedNumbers || [])
+      .map((n: any) => Number(n))
+      .filter((n: number) => !isNaN(n));
 
     ticketMap.set(item.id, {
       id: item.id || `pending-${idx}`,
       username: `You (Ticket #${idx + 1})`,
-      numbers: item.selectedNumbers || [],
+      numbers: cleanNumbers,
       stake,
       status: statusLabel,
       payout,
       time: item.createdAt
         ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : undefined,
+      currency: item.currency || 'ETB',
     });
   });
 
@@ -198,15 +211,20 @@ export const GameFeedPanel = () => {
     if (!currentRoundId || item.roundId === currentRoundId) {
       if (!ticketMap.has(item.id)) {
         const stake = Math.round(Number(item.stakeMinor || 0) / 100) || 5;
+        const cleanNumbers = (item.selectedNumbers || [])
+          .map((n: any) => Number(n))
+          .filter((n: number) => !isNaN(n));
+
         ticketMap.set(item.id, {
           id: item.id,
           username: `You (Ticket #${ticketMap.size + 1})`,
-          numbers: item.selectedNumbers || [],
+          numbers: cleanNumbers,
           stake,
           status: 'Placed',
           time: item.createdAt
             ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : undefined,
+          currency: item.currency || 'ETB',
         });
       }
     }
@@ -229,7 +247,7 @@ export const GameFeedPanel = () => {
       const statusLabel =
         item.status === 'SETTLED'
           ? isWin
-            ? `Won ${payout % 1 === 0 ? payout : payout.toFixed(2)}`
+            ? 'Won'
             : 'Lost'
           : 'Waiting';
 
@@ -239,13 +257,18 @@ export const GameFeedPanel = () => {
           ? `${item.userId.slice(0, 1)}***${item.userId.slice(-1)}`
           : `m***d`;
 
+      const cleanNumbers = (item.selectedNumbers || [])
+        .map((n: any) => Number(n))
+        .filter((n: number) => !isNaN(n));
+
       return {
         id: item.id || `live-rec-${idx}`,
         username: maskedUser,
-        numbers: item.selectedNumbers || [],
+        numbers: cleanNumbers,
         stake,
         status: statusLabel,
         payout,
+        currency: item.currency || 'ETB',
       };
     });
 
@@ -301,14 +324,22 @@ export const GameFeedPanel = () => {
       const payout = payoutMinor > 0 ? payoutMinor / 100 : 0;
       const isWin = payout > 0;
 
+      const cleanNumbers = (bet.selectedNumbers || [])
+        .map((n: any) => Number(n))
+        .filter((n: number) => !isNaN(n));
+
+      const cleanHits = Array.isArray(bet.hitNumbers)
+        ? bet.hitNumbers.map(Number).filter((n: number) => !isNaN(n))
+        : undefined;
+
       groupsMap.get(groupKey)!.tickets.push({
         id: bet.id,
-        numbers: bet.selectedNumbers || [],
+        numbers: cleanNumbers,
         stake,
         payout,
         status: bet.status,
         createdAt: bet.createdAt,
-        hitNumbers: Array.isArray(bet.hitNumbers) ? bet.hitNumbers.map(Number) : undefined,
+        hitNumbers: cleanHits,
         isWin,
       });
     });
@@ -405,11 +436,32 @@ export const GameFeedPanel = () => {
               slots.push(null);
             }
 
+            const cleanNumbers = item.numbers.map(Number).filter((n) => !isNaN(n));
+            const spots = cleanNumbers.length;
+            const hitCount = cleanNumbers.filter((n) => liveDrawnSet.has(n)).length;
+            const multiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
+            const liveWin =
+              item.payout !== undefined && item.payout > 0
+                ? item.payout
+                : item.stake * multiplier;
+            const isWon = (item.payout ?? 0) > 0 || liveWin > 0;
+            const currency = item.currency || 'ETB';
+            const winAmountText = `${liveWin % 1 === 0 ? liveWin.toLocaleString() : liveWin.toFixed(2)} ${currency}`;
+
             return (
               <View key={item.id} style={styles.card}>
-                {/* Header row: Username on left, Timestamp on right */}
+                {/* Header row: Username + Hit badge on left, Timestamp on right */}
                 <View style={styles.cardHeaderRow}>
-                  <Text style={styles.cardUsername}>{item.username}</Text>
+                  <View style={styles.userBadgeRow}>
+                    <Text style={styles.cardUsername}>{item.username}</Text>
+                    {hitCount > 0 && (
+                      <View style={styles.hitCountBadge}>
+                        <Text style={styles.hitCountBadgeText}>
+                          {hitCount} {hitCount === 1 ? 'Hit' : 'Hits'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   {item.time && <Text style={styles.timeText}>{item.time}</Text>}
                 </View>
 
@@ -420,7 +472,8 @@ export const GameFeedPanel = () => {
                       return <View key={idx} style={[styles.slotBox, styles.slotBoxEmpty]} />;
                     }
 
-                    const isHit = liveDrawnSet.has(num);
+                    const numVal = Number(num);
+                    const isHit = !isNaN(numVal) && liveDrawnSet.has(numVal);
 
                     return (
                       <View
@@ -438,23 +491,26 @@ export const GameFeedPanel = () => {
                   })}
                 </View>
 
-                {/* Split footer: Bet <stake> on left, Waiting / Placed on right */}
+                {/* Split footer: Bet <stake> on left, Win amount + Status (Placed/Won) on right */}
                 <View style={styles.cardFooterSplit}>
                   <View style={styles.footerColLeft}>
                     <Text style={styles.betLabelText}>Bet {item.stake.toLocaleString()}</Text>
                   </View>
-                  <View style={styles.footerColRight}>
+                  <View style={[styles.footerColRight, isWon && styles.footerColRightWon]}>
+                    <Text
+                      style={liveWin > 0 ? styles.liveWinActiveText : styles.liveWinZeroText}
+                      numberOfLines={1}
+                    >
+                      {winAmountText}
+                    </Text>
                     <Text
                       style={[
                         styles.statusLabelText,
-                        (item.payout ?? 0) > 0 ? styles.statusWonText : undefined,
+                        isWon ? styles.statusWonText : undefined,
                       ]}
+                      numberOfLines={1}
                     >
-                      {item.payout && item.payout > 0
-                        ? item.payout % 1 === 0
-                          ? item.payout.toString()
-                          : item.payout.toFixed(2)
-                        : (item.status || 'Waiting')}
+                      {item.status || 'Placed'}
                     </Text>
                   </View>
                 </View>
@@ -526,9 +582,11 @@ export const GameFeedPanel = () => {
                             );
                           }
 
+                          const numVal = Number(num);
                           const isHit =
-                            group.drawResult.includes(num) ||
-                            (Array.isArray(ticket.hitNumbers) && ticket.hitNumbers.includes(num));
+                            !isNaN(numVal) &&
+                            (group.drawResult.map(Number).includes(numVal) ||
+                             (Array.isArray(ticket.hitNumbers) && ticket.hitNumbers.map(Number).includes(numVal)));
 
                           return (
                             <View
@@ -546,7 +604,7 @@ export const GameFeedPanel = () => {
                         })}
                       </View>
 
-                      {/* Footer split: Bet <stake> on left, Payout on right if won */}
+                      {/* Footer split: Bet <stake> on left, Payout + Won/Lost on right */}
                       <View style={styles.cardFooterSplit}>
                         <View
                           style={[
@@ -564,13 +622,23 @@ export const GameFeedPanel = () => {
                             isWon && styles.footerColRightWon,
                           ]}
                         >
-                          {isWon && (
-                            <Text style={styles.historyWonPayoutText}>
-                              {ticket.payout % 1 === 0
-                                ? ticket.payout.toString()
-                                : ticket.payout.toFixed(2)}
-                            </Text>
-                          )}
+                          <Text
+                            style={isWon ? styles.liveWinActiveText : styles.liveWinZeroText}
+                            numberOfLines={1}
+                          >
+                            {isWon
+                              ? `${ticket.payout % 1 === 0 ? ticket.payout.toLocaleString() : ticket.payout.toFixed(2)} ETB`
+                              : '0 ETB'}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.statusLabelText,
+                              isWon ? styles.statusWonText : styles.statusLostText,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {isWon ? 'Won' : 'Lost'}
+                          </Text>
                         </View>
                       </View>
                     </View>
@@ -812,6 +880,25 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingHorizontal: 2,
   },
+  userBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hitCountBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#34D399',
+  },
+  hitCountBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
   cardUsername: {
     color: '#4ADE80',
     fontSize: 13,
@@ -842,14 +929,14 @@ const styles = StyleSheet.create({
     borderColor: '#2F4052',
   },
   slotBoxHit: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#10B981',
     borderWidth: 1.5,
-    borderColor: '#4ADE80',
-    shadowColor: '#22C55E',
+    borderColor: '#34D399',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 7,
-    elevation: 4,
+    shadowOpacity: 0.95,
+    shadowRadius: 8,
+    elevation: 6,
   },
   slotBoxEmpty: {
     backgroundColor: '#15202B',
@@ -868,11 +955,11 @@ const styles = StyleSheet.create({
   },
   slotHitText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
-    textShadowColor: 'rgba(0, 0, 0, 0.45)',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
 
   /* Split Footer (Bet <stake> | Status or Payout) */
@@ -897,11 +984,28 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingVertical: 6,
     paddingHorizontal: 8,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   footerColRightWon: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderColor: 'rgba(34, 197, 94, 0.35)',
+  },
+  liveWinActiveText: {
+    color: '#22C55E',
+    fontSize: 12,
+    fontWeight: '900',
+    textShadowColor: 'rgba(34, 197, 94, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  liveWinZeroText: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
   },
   betLabelText: {
     color: '#CBD5E1',
@@ -916,6 +1020,9 @@ const styles = StyleSheet.create({
   },
   statusWonText: {
     color: '#22C55E',
+  },
+  statusLostText: {
+    color: '#94A3B8',
   },
 
   /* History Tab Specific Styles */
