@@ -291,12 +291,19 @@ export const GameFeedPanel: React.FC = () => {
         userSelect: 'none',
       }}
     >
-      {/* 1. Shamo.bet Top Tabs Row: GAME, HISTORY, RESULTS, STATISTICS */}
+      {/* 1. Shamo.bet Top Tabs Row: GAME, HISTORY, RESULTS, STATISTICS, LEADERBOARD */}
       <div
+        className="no-scrollbar"
         style={{
           display: 'flex',
+          alignItems: 'center',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
           borderBottom: '1px solid #1A283B',
           marginBottom: 10,
+          width: '100%',
         }}
       >
         {[
@@ -313,8 +320,8 @@ export const GameFeedPanel: React.FC = () => {
               type="button"
               onClick={() => setActiveTab(tab.key as FeedTab)}
               style={{
-                flex: 1,
-                padding: '8px 2px',
+                flexShrink: 0,
+                padding: '8px 12px',
                 border: 'none',
                 background: 'transparent',
                 color: isActive ? KENO_COLORS.tabActiveGreen : '#8C9DAC',
@@ -322,10 +329,11 @@ export const GameFeedPanel: React.FC = () => {
                 fontWeight: 900,
                 letterSpacing: '0.04em',
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 5,
+                whiteSpace: 'nowrap',
                 borderBottom: isActive ? '2px solid #22C55E' : '2px solid transparent',
                 transition: 'all 0.12s ease',
               }}
@@ -339,11 +347,26 @@ export const GameFeedPanel: React.FC = () => {
 
       {/* 2. Sub-filters row: All 4718, My Tickets 0, My Bets 0 */}
       {activeTab === 'GAME' && (
-        <div style={{ display: 'flex', gap: 14, marginBottom: 10, padding: '0 4px' }}>
+        <div
+          className="no-scrollbar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            marginBottom: 10,
+            padding: '0 4px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+            whiteSpace: 'nowrap',
+          }}
+        >
           <button
             type="button"
             onClick={() => setFilterType('all')}
             style={{
+              flexShrink: 0,
               background: 'transparent',
               border: 'none',
               color: filterType === 'all' ? '#FFFFFF' : '#8C9DAC',
@@ -351,6 +374,7 @@ export const GameFeedPanel: React.FC = () => {
               fontWeight: 700,
               cursor: 'pointer',
               padding: 0,
+              whiteSpace: 'nowrap',
             }}
           >
             All <span style={{ color: '#22C55E' }}>{allCurrentRoundBets.length}</span>
@@ -360,6 +384,7 @@ export const GameFeedPanel: React.FC = () => {
             type="button"
             onClick={() => setFilterType('tickets')}
             style={{
+              flexShrink: 0,
               background: 'transparent',
               border: 'none',
               color: filterType === 'tickets' ? '#FFFFFF' : '#8C9DAC',
@@ -367,6 +392,7 @@ export const GameFeedPanel: React.FC = () => {
               fontWeight: 700,
               cursor: 'pointer',
               padding: 0,
+              whiteSpace: 'nowrap',
             }}
           >
             My Tickets <span style={{ color: '#22C55E' }}>{userTicketItems.length}</span>
@@ -376,6 +402,7 @@ export const GameFeedPanel: React.FC = () => {
             type="button"
             onClick={() => setFilterType('bets')}
             style={{
+              flexShrink: 0,
               background: 'transparent',
               border: 'none',
               color: filterType === 'bets' ? '#FFFFFF' : '#8C9DAC',
@@ -383,6 +410,7 @@ export const GameFeedPanel: React.FC = () => {
               fontWeight: 700,
               cursor: 'pointer',
               padding: 0,
+              whiteSpace: 'nowrap',
             }}
           >
             My Bets <span style={{ color: '#22C55E' }}>{userTicketItems.length}</span>
