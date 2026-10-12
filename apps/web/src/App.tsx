@@ -224,7 +224,7 @@ export const App: React.FC = () => {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: '#060B12',
+        backgroundColor: '#09110D',
         color: '#F8FAFC',
         display: 'flex',
         flexDirection: 'column',
@@ -254,7 +254,7 @@ export const App: React.FC = () => {
           justifyContent: 'center',
           width: '100%',
           overflow: 'hidden',
-          background: 'radial-gradient(ellipse at 50% 30%, #0C1724 0%, #060B12 100%)',
+          background: 'radial-gradient(ellipse at 50% 25%, #132219 0%, #0A120D 100%)',
         }}
       >
         <div
