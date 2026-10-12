@@ -184,28 +184,43 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       }}
     >
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 1. GAME STARTS / DRAW PHASE VIEW (Exact Match with Image 2) */}
+      {/* 1. GAME STARTS / DRAW PHASE VIEW (Exact Match with Image 1) */}
       {/* ─────────────────────────────────────────────────────────── */}
       {inDraw ? (
         <div
           style={{
             position: 'relative',
             width: '100%',
-            height: 220,
-            padding: '4px 8px 8px',
+            height: 155,
+            background: 'radial-gradient(ellipse at 50% 50%, #17261E 0%, #111C16 55%, #0B130F 100%)',
+            borderBottom: '1px solid #142017',
+            padding: '4px 6px 6px',
             boxSizing: 'border-box',
             overflow: 'hidden',
           }}
         >
-          {/* Overlapping concentric radar circles background */}
+          {/* Overlapping concentric radar circles background with center illumination */}
           <div
             style={{
               position: 'absolute',
-              top: '40%',
+              top: '46%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 320,
-              height: 320,
+              width: 140,
+              height: 140,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(34, 197, 94, 0.22) 0%, rgba(20, 80, 45, 0.08) 50%, transparent 70%)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '46%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 290,
+              height: 290,
               borderRadius: '50%',
               border: '1px solid rgba(34, 197, 94, 0.12)',
               pointerEvents: 'none',
@@ -214,40 +229,41 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
           <div
             style={{
               position: 'absolute',
-              top: '40%',
+              top: '46%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 220,
-              height: 220,
+              width: 190,
+              height: 190,
               borderRadius: '50%',
-              border: '1px solid rgba(34, 197, 94, 0.18)',
+              border: '1px solid rgba(34, 197, 94, 0.16)',
               pointerEvents: 'none',
             }}
           />
           <div
             style={{
               position: 'absolute',
-              top: '40%',
+              top: '46%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 130,
-              height: 130,
+              width: 110,
+              height: 110,
               borderRadius: '50%',
               border: '1px solid rgba(34, 197, 94, 0.22)',
               pointerEvents: 'none',
             }}
           />
 
-          {/* Top-Right: Draw count "X / 20" */}
+          {/* Top-Right: Draw count "16 / 20" */}
           <div
             style={{
               position: 'absolute',
-              top: 6,
-              right: 14,
+              top: 5,
+              right: 12,
               zIndex: 10,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: 900,
               color: '#FFFFFF',
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
               letterSpacing: '0.04em',
               display: 'flex',
               alignItems: 'center',
@@ -265,11 +281,11 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               ref={callBallRef}
               style={{
                 position: 'absolute',
-                top: 26,
+                top: 18,
                 left: '50%',
                 transform:
                   callingBall.phase === 'flying'
-                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.6)`
+                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.75)`
                     : 'translate(-50%, 0) scale(1)',
                 transition:
                   callingBall.phase === 'flying'
@@ -283,37 +299,37 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  top: -16,
-                  left: -16,
-                  width: 86,
-                  height: 86,
+                  top: -12,
+                  left: -12,
+                  width: 68,
+                  height: 68,
                   borderRadius: '50%',
                   background: 'radial-gradient(circle, rgba(34, 197, 94, 0.45) 0%, rgba(34, 197, 94, 0) 70%)',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* 3D Glossy Ball */}
+              {/* 3D Glossy Ball (44px diameter, matching Image 1 scale) */}
               <div
                 style={{
-                  width: 54,
-                  height: 54,
+                  width: 44,
+                  height: 44,
                   borderRadius: '50%',
                   background: selectedNumbers.includes(callingBall.num)
-                    ? 'radial-gradient(circle at 35% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
-                    : 'radial-gradient(circle at 35% 28%, #5A6E86 0%, #202D3C 52%, #0C131B 100%)',
+                    ? 'radial-gradient(circle at 38% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
+                    : 'radial-gradient(circle at 38% 28%, #4B5A6B 0%, #202D3B 40%, #0F1722 80%, #080D14 100%)',
                   boxShadow: selectedNumbers.includes(callingBall.num)
-                    ? '0 0 16px rgba(34, 197, 94, 0.9), inset 0 2px 4px rgba(255,255,255,0.7)'
-                    : '0 8px 20px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.4)',
+                    ? '0 0 14px rgba(34, 197, 94, 0.9), inset 0 2px 3px rgba(255,255,255,0.7)'
+                    : '0 5px 12px rgba(0, 0, 0, 0.75), inset 0 1.5px 2px rgba(255, 255, 255, 0.35)',
                   border: selectedNumbers.includes(callingBall.num)
                     ? '1.5px solid #86EFAC'
-                    : '1.5px solid #2B3D50',
+                    : '1px solid #233140',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 25,
+                  fontSize: 20,
                   fontWeight: 900,
-                  color: '#FFFFFF',
+                  color: '#F8F6F0',
                   letterSpacing: '-0.02em',
                   position: 'relative',
                   animation:
@@ -326,14 +342,14 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    top: 6,
-                    left: 11,
-                    width: 12,
-                    height: 7,
+                    top: 4,
+                    left: 8,
+                    width: 11,
+                    height: 6,
                     borderRadius: '50%',
                     background: 'rgba(255, 255, 255, 0.65)',
                     transform: 'rotate(-25deg)',
-                    filter: 'blur(1px)',
+                    filter: 'blur(0.4px)',
                     pointerEvents: 'none',
                   }}
                 />
@@ -346,23 +362,27 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
           <div
             style={{
               position: 'absolute',
-              bottom: 8,
-              left: '50%',
-              transform: 'translateX(-50%)',
+              bottom: 6,
+              left: 0,
+              right: 0,
+              margin: '0 auto',
               width: '100%',
               maxWidth: 420,
               display: 'flex',
               flexDirection: 'column',
-              gap: 5,
+              gap: 'clamp(2px, 0.6vw, 3px)',
               zIndex: 5,
+              padding: '0 6px',
+              boxSizing: 'border-box',
             }}
           >
             {/* ROW 1 (TOP ROW): Balls 11 through 20 */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(10, 1fr)',
-                gap: 4,
+                gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+                gap: 'clamp(1.5px, 0.6vw, 3px)',
+                width: '100%',
               }}
             >
               {Array.from({ length: 10 }).map((_, col) => {
@@ -377,45 +397,53 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                       slotRefs.current[slotIdx] = el;
                     }}
                     style={{
+                      width: '100%',
+                      maxWidth: 34,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      margin: '0 auto',
                     }}
                   >
                     {ballNum !== undefined ? (
                       <div
                         className="animate-pop"
                         style={{
-                          width: 33,
-                          height: 33,
+                          width: '100%',
+                          height: '100%',
+                          maxWidth: 34,
+                          maxHeight: 34,
+                          aspectRatio: '1/1',
                           borderRadius: '50%',
                           background: isHit
-                            ? 'radial-gradient(circle at 35% 28%, #4ADE80 0%, #16A34A 55%, #14532D 100%)'
-                            : 'radial-gradient(circle at 35% 28%, #54667C 0%, #1E2A38 55%, #0B1118 100%)',
+                            ? 'radial-gradient(circle at 38% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
+                            : 'radial-gradient(circle at 38% 28%, #4B5A6B 0%, #202D3B 40%, #0F1722 80%, #080D14 100%)',
                           boxShadow: isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.8), inset 0 1.5px 2px rgba(255,255,255,0.6)'
-                            : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255,255,255,0.3)',
-                          border: isHit ? '1.5px solid #86EFAC' : '1px solid #283748',
+                            ? '0 0 10px rgba(34, 197, 94, 0.8), inset 0 1px 2px rgba(255,255,255,0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.25)',
+                          border: isHit ? '1px solid #86EFAC' : '1px solid #1C2733',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 12,
+                          fontSize: 'clamp(9px, 2.7vw, 13px)',
                           fontWeight: 900,
-                          color: '#FFFFFF',
+                          color: '#F8F6F0',
+                          letterSpacing: '-0.02em',
                           position: 'relative',
                         }}
                       >
                         <div
                           style={{
                             position: 'absolute',
-                            top: 4,
-                            left: 7,
-                            width: 7,
-                            height: 4,
+                            top: '8%',
+                            left: '18%',
+                            width: '24%',
+                            height: '14%',
                             borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.55)',
+                            background: 'rgba(255, 255, 255, 0.6)',
                             transform: 'rotate(-25deg)',
+                            filter: 'blur(0.3px)',
                             pointerEvents: 'none',
                           }}
                         />
@@ -431,8 +459,9 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(10, 1fr)',
-                gap: 4,
+                gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+                gap: 'clamp(1.5px, 0.6vw, 3px)',
+                width: '100%',
               }}
             >
               {Array.from({ length: 10 }).map((_, col) => {
@@ -447,45 +476,53 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                       slotRefs.current[slotIdx] = el;
                     }}
                     style={{
+                      width: '100%',
+                      maxWidth: 34,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      margin: '0 auto',
                     }}
                   >
                     {ballNum !== undefined ? (
                       <div
                         className="animate-pop"
                         style={{
-                          width: 33,
-                          height: 33,
+                          width: '100%',
+                          height: '100%',
+                          maxWidth: 34,
+                          maxHeight: 34,
+                          aspectRatio: '1/1',
                           borderRadius: '50%',
                           background: isHit
-                            ? 'radial-gradient(circle at 35% 28%, #4ADE80 0%, #16A34A 55%, #14532D 100%)'
-                            : 'radial-gradient(circle at 35% 28%, #54667C 0%, #1E2A38 55%, #0B1118 100%)',
+                            ? 'radial-gradient(circle at 38% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
+                            : 'radial-gradient(circle at 38% 28%, #4B5A6B 0%, #202D3B 40%, #0F1722 80%, #080D14 100%)',
                           boxShadow: isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.8), inset 0 1.5px 2px rgba(255,255,255,0.6)'
-                            : '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255,255,255,0.3)',
-                          border: isHit ? '1.5px solid #86EFAC' : '1px solid #283748',
+                            ? '0 0 10px rgba(34, 197, 94, 0.8), inset 0 1px 2px rgba(255,255,255,0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.25)',
+                          border: isHit ? '1px solid #86EFAC' : '1px solid #1C2733',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 12,
+                          fontSize: 'clamp(9px, 2.7vw, 13px)',
                           fontWeight: 900,
-                          color: '#FFFFFF',
+                          color: '#F8F6F0',
+                          letterSpacing: '-0.02em',
                           position: 'relative',
                         }}
                       >
                         <div
                           style={{
                             position: 'absolute',
-                            top: 4,
-                            left: 7,
-                            width: 7,
-                            height: 4,
+                            top: '8%',
+                            left: '18%',
+                            width: '24%',
+                            height: '14%',
                             borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.55)',
+                            background: 'rgba(255, 255, 255, 0.6)',
                             transform: 'rotate(-25deg)',
+                            filter: 'blur(0.3px)',
                             pointerEvents: 'none',
                           }}
                         />
