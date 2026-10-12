@@ -9,8 +9,8 @@ export interface BetSlip {
 const STAKE_STEPS = [100, 200, 500, 1000, 2000, 5000]; // cents
 const MAX_SLIPS = 5;
 
-function makeSlip(id: string): BetSlip {
-  return { id, selectedNumbers: [], stakeMinor: '500' };
+function makeSlip(id: string, stakeMinor = '500'): BetSlip {
+  return { id, selectedNumbers: [], stakeMinor };
 }
 
 function nextStake(current: string, direction: 1 | -1): string {
@@ -30,7 +30,8 @@ function nextStake(current: string, direction: 1 | -1): string {
 
 function pruneEmptySlips(
   slips: BetSlip[],
-  activeSlipId: string
+  activeSlipId: string,
+  preservedStake = '500'
 ): { betSlips: BetSlip[]; activeSlipId: string } {
   const kept = slips.filter(
     (s) => s.selectedNumbers.length > 0 || s.id === activeSlipId
@@ -38,7 +39,7 @@ function pruneEmptySlips(
 
   if (kept.length === 0) {
     const id = `slip-${Date.now()}`;
-    return { betSlips: [makeSlip(id)], activeSlipId: id };
+    return { betSlips: [makeSlip(id, preservedStake)], activeSlipId: id };
   }
 
   let nextActive = activeSlipId;
@@ -249,9 +250,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   clearConfirmedTickets: () => set({ confirmedTickets: [] }),
 
   resetSlips: () =>
-    set({
-      betSlips: [makeSlip(INITIAL_SLIP_ID)],
-      activeSlipId: INITIAL_SLIP_ID,
+    set((state) => {
+      const active = state.betSlips.find((s) => s.id === state.activeSlipId);
+      const currentStake = active?.stakeMinor ?? state.betSlips[0]?.stakeMinor ?? '500';
+      return {
+        betSlips: [makeSlip(INITIAL_SLIP_ID, currentStake)],
+        activeSlipId: INITIAL_SLIP_ID,
+      };
     }),
 
   setDrawnNumbers: (drawnNumbers: (number | string)[]) =>
