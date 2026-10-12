@@ -1,4 +1,4 @@
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastItem {
   id: string;
@@ -43,6 +43,10 @@ class ToastManager {
     this.show(title, message, 'error');
   }
 
+  warning(title: string, message?: string) {
+    this.show(title, message, 'warning');
+  }
+
   info(title: string, message?: string) {
     this.show(title, message, 'info');
   }
@@ -56,4 +60,5 @@ class ToastManager {
 export const toast = new ToastManager();
 export const toastSuccess = (title: string, message?: string) => toast.success(title, message);
 export const toastError = (title: string, message?: string) => toast.error(title, message);
+export const toastWarning = (title: string, message?: string) => toast.warning(title, message);
 export const toastInfo = (title: string, message?: string) => toast.info(title, message);

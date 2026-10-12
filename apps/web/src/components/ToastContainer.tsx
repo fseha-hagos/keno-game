@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { toast, ToastItem } from '../services/toast';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export const ToastContainer: React.FC = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -21,11 +21,14 @@ export const ToastContainer: React.FC = () => {
               ? 'toast-success'
               : t.type === 'error'
               ? 'toast-error'
+              : t.type === 'warning'
+              ? 'toast-warning'
               : ''
           }`}
         >
           {t.type === 'success' && <CheckCircle2 size={16} />}
           {t.type === 'error' && <AlertCircle size={16} />}
+          {t.type === 'warning' && <AlertTriangle size={16} />}
           {t.type === 'info' && <Info size={16} />}
           <div>
             <div style={{ fontWeight: 800 }}>{t.title}</div>

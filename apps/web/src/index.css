@@ -245,3 +245,9 @@ body {
   background: linear-gradient(135deg, #7F1D1D 0%, #450A0A 100%);
   color: #FECACA;
 }
+
+.toast-warning {
+  border-color: #F59E0B;
+  background: linear-gradient(135deg, #78350F 0%, #451A03 100%);
+  color: #FDE68A;
+}
