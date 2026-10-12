@@ -6,6 +6,8 @@ import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 import { Play, RotateCcw, Check, BarChart2, Crown } from 'lucide-react';
 import { KENO_COLORS } from '../theme/kenoTheme';
+import { useSimulatedPlayers } from '../hooks/useSimulatedPlayers';
+import { BetCard } from './BetCard';
 
 export type FeedTab = 'GAME' | 'HISTORY' | 'RESULTS' | 'STATISTICS' | 'LEADERBOARD';
 
@@ -18,6 +20,7 @@ interface BetDisplayItem {
   payout?: number;
   time?: string;
   currency?: string;
+  isUserTicket?: boolean;
 }
 
 interface HistoryDrawGroup {
@@ -38,7 +41,7 @@ export const GameFeedPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('GAME');
   const [filterType, setFilterType] = useState<'all' | 'tickets' | 'bets'>('all');
   const { isAuthenticated } = useAuthStore();
-  const { confirmedTickets, drawnNumbers } = useGameStore();
+  const { confirmedTickets, drawnNumbers, isDrawing } = useGameStore();
 
   // Fetch real user bet history
   const { data: userBetHistory } = useQuery({
@@ -227,11 +230,24 @@ export const GameFeedPanel: React.FC = () => {
       };
     });
 
+  const { simulatedBets, totalCount: simTotalCount } = useSimulatedPlayers({
+    roundId: currentRound?.id,
+    roundNumber: currentRound?.roundNumber,
+    roundStatus: currentRound?.status,
+    isDrawing,
+    drawnNumbers,
+  });
+
   const allCurrentRoundBetsMap = new Map<string, BetDisplayItem>();
-  userTicketItems.forEach((t) => allCurrentRoundBetsMap.set(t.id, t));
+  userTicketItems.forEach((t) => allCurrentRoundBetsMap.set(t.id, { ...t, isUserTicket: true }));
   liveRecentItems.forEach((t) => {
     if (!allCurrentRoundBetsMap.has(t.id)) {
       allCurrentRoundBetsMap.set(t.id, t);
+    }
+  });
+  simulatedBets.forEach((s) => {
+    if (!allCurrentRoundBetsMap.has(s.id)) {
+      allCurrentRoundBetsMap.set(s.id, s);
     }
   });
   const allCurrentRoundBets = Array.from(allCurrentRoundBetsMap.values());
@@ -377,7 +393,7 @@ export const GameFeedPanel: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            All <span style={{ color: '#22C55E' }}>{allCurrentRoundBets.length}</span>
+            All <span style={{ color: '#22C55E' }}>{simTotalCount}</span>
           </button>
 
           <button
@@ -438,119 +454,29 @@ export const GameFeedPanel: React.FC = () => {
               No bets placed for Round #{currentRoundNum ?? '—'} yet. Pick numbers and tap BET!
             </div>
           ) : (
-            displayedGameBets.map((item) => {
-              const cleanNumbers = item.numbers.map(Number).filter((n) => !isNaN(n));
+            displayedGameBets.map((item: any) => {
+              const cleanNumbers = (item.numbers || []).map(Number).filter((n: number) => !isNaN(n));
               const spots = cleanNumbers.length;
-              const hitCount = cleanNumbers.filter((n) => liveDrawnSet.has(n)).length;
+              const hitCount = cleanNumbers.filter((n: number) => liveDrawnSet.has(n)).length;
               const multiplier =
                 spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
               const liveWin =
                 item.payout !== undefined && item.payout > 0
                   ? item.payout
                   : item.stake * multiplier;
-              const isWon = (item.payout ?? 0) > 0 || liveWin > 0;
-
-              // Exactly 10 slots per ticket representation
-              const slots: (number | null)[] = [...item.numbers];
-              while (slots.length < 10) slots.push(null);
 
               return (
-                <div
+                <BetCard
                   key={item.id}
-                  style={{
-                    background: '#0F1823',
-                    border: '1px solid #1A283B',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                  }}
-                >
-                  {/* Top: Masked Username in green */}
-                  <div style={{ marginBottom: 6 }}>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: KENO_COLORS.usernameGreen,
-                        letterSpacing: '0.02em',
-                      }}
-                    >
-                      {item.username}
-                    </span>
-                  </div>
-
-                  {/* 10 Number Slots in a single line (White/grey tiles with green hit) */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(10, 1fr)',
-                      gap: 3,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {slots.map((num, idx) => {
-                      if (num === null) {
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              aspectRatio: '1/1',
-                              borderRadius: 4,
-                              background: '#14202E',
-                            }}
-                          />
-                        );
-                      }
-
-                      const isHit = liveDrawnSet.has(Number(num));
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            aspectRatio: '1/1',
-                            borderRadius: 4,
-                            background: isHit ? '#22C55E' : '#334155',
-                            color: '#FFFFFF',
-                            fontSize: 11,
-                            fontWeight: 900,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: isHit ? '0 0 8px rgba(34, 197, 94, 0.7)' : 'none',
-                          }}
-                        >
-                          {num}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Bottom Split: "Bet 4000" on left, "Waiting" in yellow or win amount on right */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: 12,
-                      fontWeight: 800,
-                    }}
-                  >
-                    <div style={{ color: '#CBD5E1' }}>
-                      Bet {item.stake}
-                    </div>
-
-                    <div>
-                      {isWon && liveWin > 0 ? (
-                        <span style={{ color: '#FFFFFF', fontWeight: 900 }}>
-                          {liveWin % 1 === 0 ? liveWin.toLocaleString() : liveWin.toFixed(2)}
-                        </span>
-                      ) : (
-                        <span style={{ color: KENO_COLORS.statusWaiting }}>
-                          {item.status || 'Waiting'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  id={item.id}
+                  username={item.username}
+                  numbers={cleanNumbers}
+                  stake={item.stake}
+                  status={item.status}
+                  payout={liveWin}
+                  isUserTicket={item.isUserTicket || item.username.startsWith('You')}
+                  liveDrawnSet={liveDrawnSet}
+                />
               );
             })
           )}
