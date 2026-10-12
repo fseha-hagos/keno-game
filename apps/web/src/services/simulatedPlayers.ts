@@ -75,43 +75,97 @@ export function generateInitialSimulatedBets(roundId: string | number, count = 1
   return bets;
 }
 
-const STORAGE_KEY = 'keno_total_bets_count';
+/**
+ * Generate a batch of simulated bets (1 to 3) with distinct player names
+ */
+export function createSimulatedBetsBatch(roundId: string | number, count: number): SimulatedBet[] {
+  const bets: SimulatedBet[] = [];
+  const usedNames = new Set<string>();
+  for (let i = 0; i < count; i++) {
+    let bet = createSimulatedBet(roundId);
+    let attempts = 0;
+    while (usedNames.has(bet.username) && attempts < 10) {
+      bet = createSimulatedBet(roundId);
+      attempts++;
+    }
+    usedNames.add(bet.username);
+    bets.push(bet);
+  }
+  return bets;
+}
+
+const ROUND_STORAGE_PREFIX = 'keno_round_cnt_';
 
 /**
- * Returns a monotonic, realistic total bet counter (e.g. 21,433).
- * Persists in localStorage so refreshing or round transitions never roll the number backwards.
+ * Generate a realistic, distinct base bet count for each game round.
+ * Tiers vary naturally: ~3k (quiet), ~7k (moderate), ~12k (busy), ~21k (peak).
+ * Deterministic for the same roundKey so it remains consistent within the round.
  */
-export function getPersistentTotalBets(roundNumber?: number | string): number {
-  if (typeof window === 'undefined') return 21433;
+export function getRoundBaseCount(roundKey: string | number): number {
+  const str = String(roundKey || 'round-default');
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const absHash = Math.abs(hash);
+  const tierRoll = absHash % 100;
+
+  if (tierRoll < 22) {
+    // ~22% of games: Quiet / off-peak (2,800 - 4,800, e.g. ~3.4k)
+    return 2800 + (absHash % 2000);
+  } else if (tierRoll < 52) {
+    // ~30% of games: Moderate traffic (5,500 - 9,500, e.g. ~7k)
+    return 5500 + (absHash % 4000);
+  } else if (tierRoll < 80) {
+    // ~28% of games: Busy traffic (10,000 - 16,500, e.g. ~10k - 14k)
+    return 10000 + (absHash % 6500);
+  } else {
+    // ~20% of games: Peak rush (18,000 - 24,200, e.g. ~21k)
+    return 18000 + (absHash % 6200);
+  }
+}
+
+/**
+ * Load the latest saved count for this round (guaranteed >= base count)
+ */
+export function getRoundSavedCount(roundKey: string | number): number {
+  const base = getRoundBaseCount(roundKey);
+  if (typeof window === 'undefined') return base;
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(`${ROUND_STORAGE_PREFIX}${roundKey}`);
     if (saved) {
       const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed >= 20000) {
+      if (!isNaN(parsed) && parsed >= base) {
         return parsed;
       }
     }
   } catch {}
-
-  const initial = 21433;
-  try {
-    localStorage.setItem(STORAGE_KEY, String(initial));
-  } catch {}
-  return initial;
+  return base;
 }
 
-export function savePersistentTotalBets(count: number): void {
+/**
+ * Persist the current count for a specific game round
+ */
+export function saveRoundCount(roundKey: string | number, count: number): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, String(count));
+    localStorage.setItem(`${ROUND_STORAGE_PREFIX}${roundKey}`, String(count));
   } catch {}
 }
 
 /**
- * Backward compatibility alias for total bets count
+ * Backward compatibility aliases
  */
+export function getPersistentTotalBets(roundNumber?: number | string): number {
+  return getRoundSavedCount(roundNumber || 'default');
+}
+
+export function savePersistentTotalBets(count: number): void {
+  // no-op for global fallback
+}
+
 export function getBaseRoundCount(roundNumber?: number | string): number {
-  return getPersistentTotalBets(roundNumber);
+  return getRoundBaseCount(roundNumber || 'default');
 }
 
 /**

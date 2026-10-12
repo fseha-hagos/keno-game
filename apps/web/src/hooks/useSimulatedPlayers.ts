@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   SimulatedBet,
-  createSimulatedBet,
   generateInitialSimulatedBets,
-  getPersistentTotalBets,
-  savePersistentTotalBets,
+  createSimulatedBetsBatch,
+  getRoundSavedCount,
+  saveRoundCount,
   evaluateSimulatedBet,
 } from '../services/simulatedPlayers';
 
@@ -32,48 +32,75 @@ export function useSimulatedPlayers({
     generateInitialSimulatedBets(currentKey, 16)
   );
 
-  // Monotonic, persistent total bet counter (never resets or steps backwards)
+  // Per-round count: varies realistically per game (3k, 7k, 12k, 21k, etc.)
+  // and climbs monotonically during this round
   const [totalCount, setTotalCount] = useState<number>(() =>
-    getPersistentTotalBets(roundNumber)
+    getRoundSavedCount(currentKey)
   );
 
-  const incrementCount = useCallback((amount = 1) => {
-    setTotalCount((prev) => {
-      const next = prev + Math.max(0, amount);
-      savePersistentTotalBets(next);
-      return next;
-    });
-  }, []);
+  const incrementCount = useCallback(
+    (amount = 1) => {
+      setTotalCount((prev) => {
+        const next = prev + Math.max(0, amount);
+        saveRoundCount(currentKey, next);
+        return next;
+      });
+    },
+    [currentKey]
+  );
 
-  // Re-initialize bets when round changes, smoothly advancing counter
+  // Switch to new round: load that round's distinct count and generate fresh bets
   useEffect(() => {
     if (prevKeyRef.current !== currentKey) {
       prevKeyRef.current = currentKey;
       setSimulatedBets(generateInitialSimulatedBets(currentKey, 16));
-      // Seamlessly advance counter by 1-3 bets queued for the new round
-      incrementCount(Math.floor(Math.random() * 3) + 1);
+      setTotalCount(getRoundSavedCount(currentKey));
     }
-  }, [currentKey, incrementCount]);
+  }, [currentKey]);
 
-  // Simulate new incoming player bets during betting countdown
+  // Simulate human player arrivals during betting countdown
+  // Stochastic intervals (quick bursts, normal pace, natural lulls) + multi-player joins (1, 2, or 3 at once)
   useEffect(() => {
     if (!enabled) return;
     if (roundStatus !== 'OPEN' || isDrawing) return;
 
     let timeoutId: ReturnType<typeof setTimeout>;
 
-    const scheduleNextBet = () => {
-      // Natural human interval between 1.5s and 3.2s
-      const delay = Math.floor(Math.random() * 1700) + 1500;
+    const scheduleNextArrival = () => {
+      // Stochastic human cadence (not a ticking clock):
+      // ~20% quick flurry: 450ms - 1000ms
+      // ~55% regular cadence: 1400ms - 2900ms
+      // ~25% natural pause: 3500ms - 5500ms
+      const roll = Math.random();
+      let delay: number;
+      if (roll < 0.2) {
+        delay = Math.floor(Math.random() * 550) + 450;
+      } else if (roll < 0.75) {
+        delay = Math.floor(Math.random() * 1500) + 1400;
+      } else {
+        delay = Math.floor(Math.random() * 2000) + 3500;
+      }
+
       timeoutId = setTimeout(() => {
-        const newBet = createSimulatedBet(currentKey);
-        setSimulatedBets((prev) => [newBet, ...prev.slice(0, 32)]);
-        incrementCount(1);
-        scheduleNextBet();
+        // Multi-player arrivals:
+        // ~55% single player (1)
+        // ~30% two players join together (2)
+        // ~15% three players burst in (3)
+        const batchRoll = Math.random();
+        const batchSize = batchRoll < 0.55 ? 1 : batchRoll < 0.85 ? 2 : 3;
+
+        const newBets = createSimulatedBetsBatch(currentKey, batchSize);
+        setSimulatedBets((prev) => [...newBets, ...prev.slice(0, 36 - batchSize)]);
+
+        // Increment round counter by batch size + occasional concurrent table bet
+        const countDelta = batchSize + (Math.random() < 0.35 ? 1 : 0);
+        incrementCount(countDelta);
+
+        scheduleNextArrival();
       }, delay);
     };
 
-    scheduleNextBet();
+    scheduleNextArrival();
 
     return () => {
       clearTimeout(timeoutId);
