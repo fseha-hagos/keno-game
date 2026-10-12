@@ -102,7 +102,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       deltaY: 0,
     });
 
-    // Step 2: Transition to flying towards target slot after 450ms bounce
+    // Step 2: Transition to flying towards target slot after 720ms bounce (smooth & unhurried)
     setTimeout(() => {
       let dx = 0;
       let dy = 0;
@@ -131,7 +131,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         deltaY: dy,
       });
 
-      // Step 3: Land into settledBalls slot after 380ms flight
+      // Step 3: Land into settledBalls slot after 620ms smooth flight
       setTimeout(() => {
         setSettledBalls((prev) => (prev.includes(num) ? prev : [...prev, num]));
         setCallingBall(null);
@@ -143,10 +143,10 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         }
 
         if (queueRef.current.length > 0) {
-          setTimeout(processNextBall, 80);
+          setTimeout(processNextBall, 200);
         }
-      }, 380);
-    }, 450);
+      }, 620);
+    }, 720);
   };
 
   const countDrawn = settledBalls.length + (callingBall !== null ? 1 : 0);
@@ -199,59 +199,161 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
             overflow: 'hidden',
           }}
         >
-          {/* Overlapping concentric radar circles background with center illumination */}
+          {/* Animated concentric radar rings with center illumination (Matching Shamo.bet) */}
           <div
             style={{
               position: 'absolute',
               top: '46%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 140,
-              height: 140,
+              width: 150,
+              height: 150,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(34, 197, 94, 0.22) 0%, rgba(20, 80, 45, 0.08) 50%, transparent 70%)',
+              background:
+                'radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(20, 80, 45, 0.05) 50%, transparent 72%)',
               pointerEvents: 'none',
             }}
           />
+
+          {/* Ring 1 (Inner, 110px): Smooth Clockwise Rotation ~18s */}
           <div
             style={{
               position: 'absolute',
               top: '46%',
               left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 290,
-              height: 290,
-              borderRadius: '50%',
-              border: '1px solid rgba(34, 197, 94, 0.12)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              top: '46%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 190,
-              height: 190,
-              borderRadius: '50%',
-              border: '1px solid rgba(34, 197, 94, 0.16)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              top: '46%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
               width: 110,
               height: 110,
-              borderRadius: '50%',
-              border: '1px solid rgba(34, 197, 94, 0.22)',
               pointerEvents: 'none',
+              animation: 'radarSpinCw 18s linear infinite',
+              willChange: 'transform',
             }}
-          />
+          >
+            <svg
+              width="110"
+              height="110"
+              viewBox="0 0 110 110"
+              style={{
+                display: 'block',
+                filter: 'blur(1px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.18))',
+              }}
+            >
+              <circle
+                cx="55"
+                cy="55"
+                r="50"
+                fill="none"
+                stroke="rgba(52, 211, 153, 0.22)"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeDasharray="34 16 12 18 26 14"
+              />
+            </svg>
+          </div>
+
+          {/* Ring 2 (Middle-Inner, 180px): Clockwise Rotation ~28s */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '46%',
+              left: '50%',
+              width: 180,
+              height: 180,
+              pointerEvents: 'none',
+              animation: 'radarSpinCw 28s linear infinite',
+              willChange: 'transform',
+            }}
+          >
+            <svg
+              width="180"
+              height="180"
+              viewBox="0 0 180 180"
+              style={{
+                display: 'block',
+                filter: 'blur(1px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.15))',
+              }}
+            >
+              <circle
+                cx="90"
+                cy="90"
+                r="85"
+                fill="none"
+                stroke="rgba(52, 211, 153, 0.18)"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeDasharray="52 26 20 22 58 28"
+              />
+            </svg>
+          </div>
+
+          {/* Ring 3 (Middle-Outer, 260px): Clockwise Rotation ~42s */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '46%',
+              left: '50%',
+              width: 260,
+              height: 260,
+              pointerEvents: 'none',
+              animation: 'radarSpinCw 42s linear infinite',
+              willChange: 'transform',
+            }}
+          >
+            <svg
+              width="260"
+              height="260"
+              viewBox="0 0 260 260"
+              style={{
+                display: 'block',
+                filter: 'blur(1.1px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.12))',
+              }}
+            >
+              <circle
+                cx="130"
+                cy="130"
+                r="124"
+                fill="none"
+                stroke="rgba(52, 211, 153, 0.14)"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeDasharray="72 34 30 28 84 38"
+              />
+            </svg>
+          </div>
+
+          {/* Ring 4 (Outer, 350px): Clockwise Rotation ~60s */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '46%',
+              left: '50%',
+              width: 350,
+              height: 350,
+              pointerEvents: 'none',
+              animation: 'radarSpinCw 60s linear infinite',
+              willChange: 'transform',
+            }}
+          >
+            <svg
+              width="350"
+              height="350"
+              viewBox="0 0 350 350"
+              style={{
+                display: 'block',
+                filter: 'blur(1.2px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.08))',
+              }}
+            >
+              <circle
+                cx="175"
+                cy="175"
+                r="169"
+                fill="none"
+                stroke="rgba(52, 211, 153, 0.10)"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeDasharray="110 48 38 36 86 48"
+              />
+            </svg>
+          </div>
 
           {/* Top-Right: Draw count "16 / 20" */}
           <div
@@ -281,15 +383,15 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               ref={callBallRef}
               style={{
                 position: 'absolute',
-                top: 18,
+                top: 16,
                 left: '50%',
                 transform:
                   callingBall.phase === 'flying'
-                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.75)`
+                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.72)`
                     : 'translate(-50%, 0) scale(1)',
                 transition:
                   callingBall.phase === 'flying'
-                    ? 'transform 380ms cubic-bezier(0.22, 1, 0.36, 1)'
+                    ? 'transform 620ms cubic-bezier(0.25, 0.9, 0.32, 1)'
                     : 'none',
                 zIndex: 25,
                 pointerEvents: 'none',
@@ -299,57 +401,57 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  top: -12,
-                  left: -12,
-                  width: 68,
-                  height: 68,
+                  top: -14,
+                  left: -14,
+                  width: 76,
+                  height: 76,
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.45) 0%, rgba(34, 197, 94, 0) 70%)',
+                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.42) 0%, rgba(34, 197, 94, 0) 72%)',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* 3D Glossy Ball (44px diameter, matching Image 1 scale) */}
+              {/* 3D Glossy Ball (48px diameter matching Shamo.bet Image 2) */}
               <div
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   borderRadius: '50%',
                   background: selectedNumbers.includes(callingBall.num)
-                    ? 'radial-gradient(circle at 38% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
-                    : 'radial-gradient(circle at 38% 28%, #4B5A6B 0%, #202D3B 40%, #0F1722 80%, #080D14 100%)',
+                    ? 'radial-gradient(circle at 48% 26%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
+                    : 'radial-gradient(circle at 48% 26%, #415870 0%, #243545 35%, #111A24 68%, #070B10 100%)',
                   boxShadow: selectedNumbers.includes(callingBall.num)
-                    ? '0 0 14px rgba(34, 197, 94, 0.9), inset 0 2px 3px rgba(255,255,255,0.7)'
-                    : '0 5px 12px rgba(0, 0, 0, 0.75), inset 0 1.5px 2px rgba(255, 255, 255, 0.35)',
+                    ? '0 0 16px rgba(34, 197, 94, 0.9), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
+                    : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
                   border: selectedNumbers.includes(callingBall.num)
                     ? '1.5px solid #86EFAC'
-                    : '1px solid #233140',
+                    : '1px solid #1C2B3A',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 20,
+                  fontSize: 21,
                   fontWeight: 900,
-                  color: '#F8F6F0',
+                  color: '#F8FAFC',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
                   letterSpacing: '-0.02em',
                   position: 'relative',
                   animation:
                     callingBall.phase === 'bounce'
-                      ? 'callBallBounce 450ms cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                      ? 'callBallBounce 720ms cubic-bezier(0.25, 1, 0.5, 1)'
                       : 'none',
                 }}
               >
-                {/* Specular shine highlight */}
+                {/* Curved Specular Dome Shine */}
                 <div
                   style={{
                     position: 'absolute',
-                    top: 4,
-                    left: 8,
-                    width: 11,
-                    height: 6,
+                    top: 3,
+                    left: 7,
+                    right: 7,
+                    height: 17,
                     borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.65)',
-                    transform: 'rotate(-25deg)',
-                    filter: 'blur(0.4px)',
+                    background:
+                      'radial-gradient(ellipse at 50% 25%, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.22) 42%, rgba(255, 255, 255, 0) 72%)',
                     pointerEvents: 'none',
                   }}
                 />
@@ -417,33 +519,34 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                           aspectRatio: '1/1',
                           borderRadius: '50%',
                           background: isHit
-                            ? 'radial-gradient(circle at 38% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
-                            : 'radial-gradient(circle at 38% 28%, #4B5A6B 0%, #202D3B 40%, #0F1722 80%, #080D14 100%)',
+                            ? 'radial-gradient(circle at 48% 26%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
+                            : 'radial-gradient(circle at 48% 26%, #415870 0%, #243545 35%, #111A24 68%, #070B10 100%)',
                           boxShadow: isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.8), inset 0 1px 2px rgba(255,255,255,0.6)'
-                            : '0 3px 6px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.25)',
-                          border: isHit ? '1px solid #86EFAC' : '1px solid #1C2733',
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 7px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                          border: isHit ? '1px solid #86EFAC' : '1px solid #162433',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: 'clamp(9px, 2.7vw, 13px)',
                           fontWeight: 900,
-                          color: '#F8F6F0',
+                          color: '#F8FAFC',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
                           letterSpacing: '-0.02em',
                           position: 'relative',
                         }}
                       >
+                        {/* Curved Specular Dome Shine */}
                         <div
                           style={{
                             position: 'absolute',
-                            top: '8%',
-                            left: '18%',
-                            width: '24%',
-                            height: '14%',
+                            top: '5%',
+                            left: '15%',
+                            right: '15%',
+                            height: '35%',
                             borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.6)',
-                            transform: 'rotate(-25deg)',
-                            filter: 'blur(0.3px)',
+                            background:
+                              'radial-gradient(ellipse at 50% 25%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.2) 42%, rgba(255, 255, 255, 0) 75%)',
                             pointerEvents: 'none',
                           }}
                         />
@@ -496,33 +599,34 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                           aspectRatio: '1/1',
                           borderRadius: '50%',
                           background: isHit
-                            ? 'radial-gradient(circle at 38% 28%, #4ADE80 0%, #16A34A 55%, #064E3B 100%)'
-                            : 'radial-gradient(circle at 38% 28%, #4B5A6B 0%, #202D3B 40%, #0F1722 80%, #080D14 100%)',
+                            ? 'radial-gradient(circle at 48% 26%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
+                            : 'radial-gradient(circle at 48% 26%, #415870 0%, #243545 35%, #111A24 68%, #070B10 100%)',
                           boxShadow: isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.8), inset 0 1px 2px rgba(255,255,255,0.6)'
-                            : '0 3px 6px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.25)',
-                          border: isHit ? '1px solid #86EFAC' : '1px solid #1C2733',
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 7px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                          border: isHit ? '1px solid #86EFAC' : '1px solid #162433',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: 'clamp(9px, 2.7vw, 13px)',
                           fontWeight: 900,
-                          color: '#F8F6F0',
+                          color: '#F8FAFC',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
                           letterSpacing: '-0.02em',
                           position: 'relative',
                         }}
                       >
+                        {/* Curved Specular Dome Shine */}
                         <div
                           style={{
                             position: 'absolute',
-                            top: '8%',
-                            left: '18%',
-                            width: '24%',
-                            height: '14%',
+                            top: '5%',
+                            left: '15%',
+                            right: '15%',
+                            height: '35%',
                             borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.6)',
-                            transform: 'rotate(-25deg)',
-                            filter: 'blur(0.3px)',
+                            background:
+                              'radial-gradient(ellipse at 50% 25%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.2) 42%, rgba(255, 255, 255, 0) 75%)',
                             pointerEvents: 'none',
                           }}
                         />
