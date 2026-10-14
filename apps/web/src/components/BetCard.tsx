@@ -1,5 +1,5 @@
 import React from 'react';
-import { KENO_COLORS } from '../theme/kenoTheme';
+import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 export interface BetCardProps {
   id: string;
@@ -21,7 +21,7 @@ export const BetCard: React.FC<BetCardProps> = ({
   isUserTicket = false,
   liveDrawnSet,
 }) => {
-  // Exactly 10 slots per ticket representation (matching Shamo.bet)
+  // Exactly 10 slots per ticket representation (matching mock_web)
   const slots: (number | null)[] = [...numbers];
   while (slots.length < 10) slots.push(null);
 
@@ -32,29 +32,30 @@ export const BetCard: React.FC<BetCardProps> = ({
   return (
     <div
       style={{
-        background: isUserTicket ? '#101F29' : '#0F1823',
-        border: isUserTicket ? '1px solid #1E4436' : '1px solid #1A283B',
-        borderRadius: 8,
-        padding: '8px 10px',
+        background: isUserTicket ? '#1c2e23' : 'rgba(20, 25, 26, 0.55)',
+        border: isUserTicket ? '1px solid #38704c' : '1px solid rgba(255, 255, 255, 0.04)',
+        borderRadius: 3,
+        padding: '6px 8px',
+        marginBottom: 4,
         position: 'relative',
         transition: 'all 0.15s ease',
       }}
     >
-      {/* Top: Username in bright green */}
+      {/* Top: Username in #51b579 Roboto Condensed matching mock_web .pid */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 6,
+          marginBottom: 4,
         }}
       >
         <span
           style={{
-            fontSize: 13,
-            fontWeight: 900,
-            color: isUserTicket ? '#4ADE80' : KENO_COLORS.usernameGreen,
-            letterSpacing: '0.02em',
+            fontSize: 14,
+            fontWeight: 700,
+            fontFamily: KENO_FONTS.numbers,
+            color: '#51b579',
           }}
         >
           {username}
@@ -64,12 +65,13 @@ export const BetCard: React.FC<BetCardProps> = ({
           <span
             style={{
               fontSize: 10,
-              fontWeight: 800,
-              background: 'rgba(34, 197, 94, 0.2)',
-              color: '#4ADE80',
-              padding: '1px 6px',
-              borderRadius: 4,
-              border: '1px solid rgba(74, 222, 128, 0.3)',
+              fontWeight: 700,
+              fontFamily: KENO_FONTS.numbers,
+              background: 'rgba(76, 139, 101, 0.3)',
+              color: '#86EFAC',
+              padding: '1px 5px',
+              borderRadius: 3,
+              border: '1px solid rgba(134, 239, 172, 0.3)',
             }}
           >
             YOU
@@ -77,13 +79,13 @@ export const BetCard: React.FC<BetCardProps> = ({
         )}
       </div>
 
-      {/* 10 Number Slots in a single line (White/grey tiles with green hit) */}
+      {/* 10 Number Slots in a single line matching mock_web .picks_row & .pick_nms */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(10, 1fr)',
-          gap: 3,
-          marginBottom: 8,
+          gap: 2.5,
+          marginBottom: 5,
         }}
       >
         {slots.map((num, idx) => {
@@ -93,8 +95,8 @@ export const BetCard: React.FC<BetCardProps> = ({
                 key={`empty-${idx}`}
                 style={{
                   aspectRatio: '1/1',
-                  borderRadius: 4,
-                  background: '#14202E',
+                  borderRadius: 3,
+                  background: 'rgba(20, 25, 26, 0.4)',
                 }}
               />
             );
@@ -106,15 +108,16 @@ export const BetCard: React.FC<BetCardProps> = ({
               key={`num-${idx}-${num}`}
               style={{
                 aspectRatio: '1/1',
-                borderRadius: 4,
-                background: isHit ? '#22C55E' : '#334155',
-                color: '#FFFFFF',
-                fontSize: 11,
-                fontWeight: 900,
+                borderRadius: 3,
+                background: isHit ? 'linear-gradient(180deg, #254632, #4c8b65)' : '#20282b',
+                color: isHit ? '#FFFFFF' : '#d7d9db',
+                fontFamily: KENO_FONTS.numbers,
+                fontSize: 12,
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isHit ? '0 0 8px rgba(34, 197, 94, 0.7)' : 'none',
+                boxShadow: isHit ? '0 0 6px rgba(107, 226, 168, 0.8)' : 'none',
                 transition: 'background 0.2s ease',
               }}
             >
@@ -124,33 +127,72 @@ export const BetCard: React.FC<BetCardProps> = ({
         })}
       </div>
 
-      {/* Bottom Split: "Bet 600" on left, "Waiting" in yellow or win amount on right */}
+      {/* Bottom Split matching mock_web .status: Bet 600 & Waiting/Won */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 4,
+          fontFamily: KENO_FONTS.numbers,
           fontSize: 12,
-          fontWeight: 800,
+          fontWeight: 700,
         }}
       >
-        <div style={{ color: '#CBD5E1' }}>
+        <div
+          style={{
+            background: 'rgba(20, 25, 26, 0.45)',
+            borderRadius: 3,
+            padding: '3px 6px',
+            color: '#d7d9db',
+            flex: 1,
+            textAlign: 'left',
+          }}
+        >
           Bet {stake}
         </div>
 
-        <div>
-          {isWon && payout ? (
-            <span style={{ color: '#22C55E', fontWeight: 900 }}>
-              +{payout % 1 === 0 ? payout.toLocaleString() : payout.toFixed(2)}
-            </span>
-          ) : isLost ? (
-            <span style={{ color: '#64748B' }}>Lost</span>
-          ) : (
-            <span style={{ color: KENO_COLORS.statusWaiting }}>
-              Waiting
-            </span>
-          )}
-        </div>
+        {isWon && payout && (
+          <div
+            style={{
+              background: 'rgba(37, 70, 50, 0.4)',
+              borderRadius: 3,
+              padding: '3px 6px',
+              color: '#51b579',
+              textAlign: 'right',
+            }}
+          >
+            +{payout % 1 === 0 ? payout.toLocaleString() : payout.toFixed(2)}
+          </div>
+        )}
+
+        {isWaiting && (
+          <div
+            style={{
+              background: 'rgba(20, 25, 26, 0.45)',
+              borderRadius: 3,
+              padding: '3px 6px',
+              color: '#e6b529',
+              textAlign: 'right',
+            }}
+          >
+            Waiting
+          </div>
+        )}
+
+        {isLost && (
+          <div
+            style={{
+              background: 'rgba(20, 25, 26, 0.45)',
+              borderRadius: 3,
+              padding: '3px 6px',
+              color: '#ff5c5c',
+              textAlign: 'right',
+            }}
+          >
+            Lost
+          </div>
+        )}
       </div>
     </div>
   );
