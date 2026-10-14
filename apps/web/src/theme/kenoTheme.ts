@@ -1,50 +1,66 @@
+export const KENO_FONTS = {
+  numbers: "'Roboto Condensed', sans-serif",
+  digital: "'DS-Digital', 'JetBrains Mono', monospace",
+  ui: "'SF Pro Display', 'Outfit', 'Inter', -apple-system, sans-serif",
+};
+
 export const KENO_COLORS = {
-  // Shamo.bet authentic dark palette
-  bgApp: '#060B12',
-  bgCard: '#0C1521',
-  bgSurface: '#121E2D',
-  bgBorder: '#1A2A3D',
+  // Mock Web Authentic dark theme palette
+  bgApp: '#000000',
+  bgDesktop: '#191b31',
+  bgCanvas: 'rgba(27, 30, 31, 0.94)',
+  bgSidebar: 'rgba(27, 30, 31, 0.94)',
+  bgSurface: '#242b31',
+  bgCard: '#1b1e1f',
+  bgBorder: 'rgba(113, 206, 150, 0.2)',
+  bgBorderStrong: 'rgba(31, 85, 54, 0.7)',
 
   // Top header & branding
-  topBarBg: '#05090F',
-  logoFast: '#E2E8F0',
-  logoKeno: '#22C55E',
-  balanceGold: '#FBBF24',
-  idGreen: '#22C55E',
+  topBarBg: '#0a0d0f',
+  logoFast: '#ffffff',
+  logoKeno: '#71ce96',
+  balanceGold: '#e6b529',
+  idGreen: '#71ce96',
 
   // 80-Grid Cells
-  cellDefault: '#162230',
-  cellBorder: '#203042',
-  textDefault: '#8B9BB0',
+  cellDefault: 'linear-gradient(180deg, #333f46, #242b31)',
+  cellDefaultBorder: '#28394c',
+  cellHover: 'linear-gradient(180deg, #435057, #333f46)',
+  textDefault: '#a0a0a0',
 
-  cellHover: '#1C2C3E',
-  pickFill: '#488E67',
-  pickBorder: '#488E67',
+  pickFill: 'linear-gradient(180deg, #254632, #4c8b65)',
+  pickBorder: '#4c8b65',
 
-  drawnFill: '#16A34A',
-  drawnBorder: '#22C55E',
-  drawnText: '#FFFFFF',
+  drawnFill: 'radial-gradient(circle, #0d3b69, #061c33 36%, #05182b 59%, #0a2435 60%, #4c6e6e 84%)',
+  drawnBorder: '#287D54',
+  drawnText: '#ffffff',
 
-  hitFill: '#22C55E',
-  hitBorder: '#4ADE80',
-  hitGlow: 'rgba(34, 197, 94, 0.8)',
+  hitFill: 'radial-gradient(circle, #087b67, #03493f 59%, #0d4239 60%, #47736b 77%, #6be2a8 78%)',
+  hitBorder: '#6be2a8',
+  hitGlow: 'rgba(107, 226, 168, 0.75)',
 
-  // Hot & cold dots
-  dotHot: '#EF4444',
-  dotCold: '#38BDF8',
+  // Hot & cold indicators
+  dotHot: '#ff5c5c',
+  dotCold: '#8bdbff',
 
   // Stake & Bet Bar
-  stakeBarBg: '#131D28',
-  stakeInputBg: '#0D151F',
-  actionBtnGreen: '#22C55E',
-  betBtnIdle: '#1C3829',
-  betBtnActive: '#16A34A',
-  betBtnHover: '#22C55E',
+  stakeBarBg: 'linear-gradient(180deg, #242b31, #333f46)',
+  stakeInputBg: 'transparent',
+  btnQuickBg: 'linear-gradient(180deg, #333f46, #242b31)',
+  actionBtnGreen: '#51b579',
+  betBtnIdle: 'linear-gradient(180deg, #333f46, #242b31)',
+  betBtnActive: 'linear-gradient(180deg, #4c8b65, #254632)',
+  betBtnHover: 'linear-gradient(180deg, #5aa477, #2f563d)',
 
   // Feed & Tickets
-  tabActiveGreen: '#22C55E',
-  usernameGreen: '#22C55E',
-  statusWaiting: '#FACC15',
-  statusWon: '#22C55E',
-  statusLost: '#EF4444',
+  tabActiveGreen: '#71ce96',
+  tabInactive: '#8b8e8f',
+  usernameGreen: '#51b579',
+  statusWaiting: '#e6b529',
+  statusWon: '#51b579',
+  statusLost: '#ff5c5c',
+  ticketTileBg: '#20282b',
+  ticketTileActive: '#35434b',
+  ticketHelpGreen: '#51b579',
 };
+
