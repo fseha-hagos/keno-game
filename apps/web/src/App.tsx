@@ -224,29 +224,35 @@ export const App: React.FC = () => {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: '#09110D',
-        color: '#F8FAFC',
+        backgroundColor: '#000000',
+        color: '#FFFFFF',
         display: 'flex',
         flexDirection: 'column',
-        fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+        fontFamily: "var(--font-ui)",
+        position: 'relative',
       }}
     >
+      {/* Background wallpaper matching mock_web */}
+      <div className="desktop-bg" />
+
       <ToastContainer />
 
       {/* Top Header */}
-      <Header
-        roundNumber={round?.roundNumber}
-        onOpenWallet={() => setWalletModalOpen(true)}
-        onOpenAuth={(mode) => {
-          setAuthMode(mode);
-          setAuthModalOpen(true);
-        }}
-        onOpenProfile={() => setProfileModalOpen(true)}
-        onToggleChat={() => setChatOpen(!chatOpen)}
-        chatOpen={chatOpen}
-      />
+      <div style={{ position: 'relative', zIndex: 10 }}>
+        <Header
+          roundNumber={round?.roundNumber}
+          onOpenWallet={() => setWalletModalOpen(true)}
+          onOpenAuth={(mode) => {
+            setAuthMode(mode);
+            setAuthModalOpen(true);
+          }}
+          onOpenProfile={() => setProfileModalOpen(true)}
+          onToggleChat={() => setChatOpen(!chatOpen)}
+          chatOpen={chatOpen}
+        />
+      </div>
 
-      {/* Main 3-Column Container matching Shamo.bet */}
+      {/* Main 3-Column Container matching mock_web .content_super_wrapper */}
       <div
         style={{
           flex: 1,
@@ -254,16 +260,19 @@ export const App: React.FC = () => {
           justifyContent: 'center',
           width: '100%',
           overflow: 'hidden',
-          background: 'radial-gradient(ellipse at 50% 25%, #132219 0%, #0A120D 100%)',
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <div
           style={{
             display: 'flex',
             width: '100%',
-            maxWidth: 1360,
-            height: 'calc(100vh - 82px)',
+            maxWidth: 1240,
+            height: 'calc(100vh - 84px)',
             boxSizing: 'border-box',
+            padding: '4px',
+            gap: 8,
           }}
         >
           {/* ═════════════════════════════════════════════════════════ */}
@@ -273,8 +282,9 @@ export const App: React.FC = () => {
             style={{
               width: 320,
               flexShrink: 0,
-              borderRight: '1px solid #162436',
-              background: '#08101A',
+              background: 'rgba(27, 30, 31, 0.94)',
+              border: '1px solid rgba(81, 181, 121, 0.2)',
+              borderRadius: 16,
               overflowY: 'auto',
               padding: '10px 8px',
               boxSizing: 'border-box',
@@ -296,11 +306,14 @@ export const App: React.FC = () => {
               flexDirection: 'column',
               alignItems: 'center',
               overflowY: 'auto',
-              padding: '6px 8px 24px',
+              padding: '6px 10px 24px',
               boxSizing: 'border-box',
               width: '100%',
-              maxWidth: 480,
+              maxWidth: 500,
               margin: '0 auto',
+              background: 'rgba(27, 30, 31, 0.94)',
+              border: '1px solid rgba(81, 181, 121, 0.2)',
+              borderRadius: 16,
             }}
           >
             {/* Central Play Stage (Timer / 3D Spheres in Countdown, or Radar & Calling Ball in Draw) */}
@@ -311,7 +324,7 @@ export const App: React.FC = () => {
               onOpenPaytable={() => setPaytableModalOpen(true)}
             />
 
-            {/* 1. COUNTDOWN & BETTING PHASE (Image 1): 80-Grid + BetBar */}
+            {/* 1. COUNTDOWN & BETTING PHASE: 80-Grid + BetBar */}
             {!inDraw ? (
               <>
                 <KenoGrid disabled={!bettingOpen} />
@@ -330,7 +343,7 @@ export const App: React.FC = () => {
                 </div>
               </>
             ) : (
-              /* 2. GAME STARTS / DRAW PHASE (Image 2): Tabs row directly follows settled balls */
+              /* 2. GAME STARTS / DRAW PHASE: Tabs row directly follows settled balls */
               <div style={{ width: '100%', marginTop: 2 }}>
                 <GameFeedPanel />
               </div>
