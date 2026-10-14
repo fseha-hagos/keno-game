@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useGameStore } from '../store/useGameStore';
 import {
   SimulatedBet,
-  generateInitialSimulatedBets,
   createSimulatedBetsBatch,
   getRoundSavedCount,
   saveRoundCount,
@@ -15,6 +15,7 @@ interface UseSimulatedPlayersOptions {
   isDrawing?: boolean;
   drawnNumbers?: (number | string)[];
   enabled?: boolean;
+  isOnline?: boolean;
 }
 
 export function useSimulatedPlayers({
@@ -24,77 +25,104 @@ export function useSimulatedPlayers({
   isDrawing = false,
   drawnNumbers = [],
   enabled = true,
+  isOnline: propIsOnline,
 }: UseSimulatedPlayersOptions) {
-  const currentKey = roundId ? String(roundId) : roundNumber ? String(roundNumber) : 'default-round';
-  const prevKeyRef = useRef(currentKey);
+  // Disconnect protection: only simulate if connected to the backend
+  const storeIsOnline = useGameStore((state) => state.isOnline);
+  const isConnected = propIsOnline !== undefined ? propIsOnline : storeIsOnline;
 
-  const [simulatedBets, setSimulatedBets] = useState<SimulatedBet[]>(() =>
-    generateInitialSimulatedBets(currentKey, 16)
-  );
+  const currentKey = roundId ? String(roundId) : roundNumber ? String(roundNumber) : '';
+  const prevKeyRef = useRef<string | null>(null);
+  const prevStatusRef = useRef<string>(roundStatus);
 
-  // Per-round count: varies realistically per game (3k, 7k, 12k, 21k, etc.)
-  // and climbs monotonically during this round
-  const [totalCount, setTotalCount] = useState<number>(() =>
-    getRoundSavedCount(currentKey)
-  );
+  // Initial bets list (recent tickets in feed) - starts empty for a new round
+  const [simulatedBets, setSimulatedBets] = useState<SimulatedBet[]>([]);
+
+  // Total player count for this round - starts at 0 for a new game
+  const [totalCount, setTotalCount] = useState<number>(() => {
+    if (!currentKey) return 0;
+    return getRoundSavedCount(currentKey);
+  });
 
   const incrementCount = useCallback(
-    (amount = 1) => {
+    (amount: number) => {
       setTotalCount((prev) => {
         const next = prev + Math.max(0, amount);
-        saveRoundCount(currentKey, next);
+        if (currentKey) {
+          saveRoundCount(currentKey, next);
+        }
         return next;
       });
     },
     [currentKey]
   );
 
-  // Switch to new round: load that round's distinct count and generate fresh bets
+  // Switch to new round: start strictly at 0 players when a new game starts
   useEffect(() => {
-    if (prevKeyRef.current !== currentKey) {
-      prevKeyRef.current = currentKey;
-      setSimulatedBets(generateInitialSimulatedBets(currentKey, 16));
-      setTotalCount(getRoundSavedCount(currentKey));
-    }
-  }, [currentKey]);
+    if (!currentKey) return;
 
-  // Simulate human player arrivals during betting countdown
-  // Stochastic intervals (quick bursts, normal pace, natural lulls) + multi-player joins (1, 2, or 3 at once)
+    const isNewRound = prevKeyRef.current !== null && prevKeyRef.current !== currentKey;
+    const isStatusTransitionToOpen = prevStatusRef.current !== 'OPEN' && roundStatus === 'OPEN';
+
+    if (prevKeyRef.current === null) {
+      // First mount: if this round already had progress saved in this session, resume it; otherwise 0
+      const saved = getRoundSavedCount(currentKey);
+      if (saved > 0) {
+        setTotalCount(saved);
+        // Generate a few visual cards to match the saved count
+        const initialCards = Math.min(8, Math.max(1, Math.floor(saved / 500)));
+        setSimulatedBets(createSimulatedBetsBatch(currentKey, initialCards));
+      } else {
+        setTotalCount(0);
+        setSimulatedBets([]);
+      }
+    } else if (isNewRound || isStatusTransitionToOpen) {
+      // New round or new game starts: reset strictly to 0
+      saveRoundCount(currentKey, 0);
+      setTotalCount(0);
+      setSimulatedBets([]);
+    }
+
+    prevKeyRef.current = currentKey;
+    prevStatusRef.current = roundStatus;
+  }, [currentKey, roundStatus]);
+
+  // Simulate human player arrivals during OPEN betting countdown
+  // Stops IMMEDIATELY when the game starts (drawing / closed) or when disconnected
   useEffect(() => {
     if (!enabled) return;
+
+    // 1. Connection check: if user is not connected to backend, DO NOT simulate
+    if (!isConnected || !currentKey) return;
+
+    // 2. Game status check: ONLY add players while round is OPEN and NOT drawing
+    // When the game starts, IMMEDIATELY stop adding!
     if (roundStatus !== 'OPEN' || isDrawing) return;
 
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let isCancelled = false;
 
     const scheduleNextArrival = () => {
-      // Stochastic human cadence (not a ticking clock):
-      // ~20% quick flurry: 450ms - 1000ms
-      // ~55% regular cadence: 1400ms - 2900ms
-      // ~25% natural pause: 3500ms - 5500ms
-      const roll = Math.random();
-      let delay: number;
-      if (roll < 0.2) {
-        delay = Math.floor(Math.random() * 550) + 450;
-      } else if (roll < 0.75) {
-        delay = Math.floor(Math.random() * 1500) + 1400;
-      } else {
-        delay = Math.floor(Math.random() * 2000) + 3500;
-      }
+      if (isCancelled) return;
+
+      // Cadence: arrives in natural intervals (700ms - 1400ms)
+      const delay = Math.floor(Math.random() * 700) + 700;
 
       timeoutId = setTimeout(() => {
-        // Multi-player arrivals:
-        // ~55% single player (1)
-        // ~30% two players join together (2)
-        // ~15% three players burst in (3)
-        const batchRoll = Math.random();
-        const batchSize = batchRoll < 0.55 ? 1 : batchRoll < 0.85 ? 2 : 3;
+        if (isCancelled) return;
 
-        const newBets = createSimulatedBetsBatch(currentKey, batchSize);
-        setSimulatedBets((prev) => [...newBets, ...prev.slice(0, 36 - batchSize)]);
+        // Double check live state before mutating
+        const currentState = useGameStore.getState();
+        if (!currentState.isOnline || currentState.isDrawing) return;
 
-        // Increment round counter by batch size + occasional concurrent table bet
-        const countDelta = batchSize + (Math.random() < 0.35 ? 1 : 0);
-        incrementCount(countDelta);
+        // Batch addition: 120 - 300 players at a time as requested
+        const countIncrement = Math.floor(Math.random() * (300 - 120 + 1)) + 120; // 120 - 300
+        incrementCount(countIncrement);
+
+        // Add 1 to 2 visual ticket cards into the feed so the recent bets feed scrolls authentically
+        const cardBatchSize = Math.random() < 0.65 ? 1 : 2;
+        const newBets = createSimulatedBetsBatch(currentKey, cardBatchSize);
+        setSimulatedBets((prev) => [...newBets, ...prev.slice(0, 32 - cardBatchSize)]);
 
         scheduleNextArrival();
       }, delay);
@@ -103,9 +131,12 @@ export function useSimulatedPlayers({
     scheduleNextArrival();
 
     return () => {
-      clearTimeout(timeoutId);
+      isCancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
-  }, [currentKey, roundStatus, isDrawing, enabled, incrementCount]);
+  }, [currentKey, roundStatus, isDrawing, enabled, isConnected, incrementCount]);
 
   // Drawn numbers set
   const drawnSet = useMemo(() => {
@@ -117,7 +148,7 @@ export function useSimulatedPlayers({
     return set;
   }, [drawnNumbers]);
 
-  const isRoundComplete = roundStatus === 'COMPLETED';
+  const isRoundComplete = roundStatus === 'COMPLETED' || roundStatus === 'SETTLED';
 
   // Live evaluated simulated bets
   const evaluatedBets = useMemo(() => {

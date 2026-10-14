@@ -41,7 +41,7 @@ export const GameFeedPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('GAME');
   const [filterType, setFilterType] = useState<'all' | 'tickets' | 'bets'>('all');
   const { isAuthenticated } = useAuthStore();
-  const { confirmedTickets, drawnNumbers, isDrawing } = useGameStore();
+  const { confirmedTickets, drawnNumbers, isDrawing, isOnline } = useGameStore();
 
   // Fetch real user bet history
   const { data: userBetHistory } = useQuery({
@@ -236,6 +236,7 @@ export const GameFeedPanel: React.FC = () => {
     roundStatus: currentRound?.status,
     isDrawing,
     drawnNumbers,
+    isOnline,
   });
 
   const allCurrentRoundBetsMap = new Map<string, BetDisplayItem>();
