@@ -44,6 +44,7 @@ apps/mobile/ios/
 apps/mobile/.android/
 apps/mobile/.ios/
 apps/mobile_wrapper
+apps/web/mock_web
 
 # Turbo
 .turbo/
