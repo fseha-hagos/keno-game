@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { Minus, Plus, Settings } from 'lucide-react';
-import { KENO_COLORS } from '../theme/kenoTheme';
+import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 interface BetBarProps {
   onPlaceBet: () => void;
@@ -77,56 +77,60 @@ export const BetBar: React.FC<BetBarProps> = ({
         width: '100%',
         maxWidth: 480,
         margin: '0 auto',
-        padding: '6px 4px 8px',
+        padding: '10px 4px 12px',
         boxSizing: 'border-box',
         userSelect: 'none',
       }}
     >
-      {/* 1. Stake Stepper & Multiplier Bar */}
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6,
           alignItems: 'center',
-          background: KENO_COLORS.stakeBarBg,
-          border: '1.5px solid #1E2D3D',
-          borderRadius: 10,
-          padding: '4px 6px',
-          marginBottom: 6,
-          height: 48,
-          boxSizing: 'border-box',
+          justifyContent: 'space-between',
         }}
       >
-        {/* Stepper Minus */}
-        <button
-          type="button"
-          onClick={decrementAllStakes}
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 6,
-            background: 'transparent',
-            border: 'none',
-            color: '#CBD5E1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <Minus size={20} />
-        </button>
-
-        {/* Stake Numeric Display / Input */}
+        {/* Stake Stepper UI matching mock_web .bet_input_ui */}
         <div
           style={{
-            flex: 1,
+            flex: '1 1 180px',
+            minWidth: 150,
+            height: 46,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
+            background: 'linear-gradient(180deg, #242b31, #333f46)',
+            borderRadius: 3,
+            padding: '0 4px',
+            boxSizing: 'border-box',
           }}
         >
+          {/* Stepper Minus */}
+          <button
+            type="button"
+            onClick={decrementAllStakes}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 3,
+              background: 'transparent',
+              border: 'none',
+              color: '#d7d9db',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <Minus size={16} />
+          </button>
+
+          {/* Stake Input */}
           <input
             type="text"
+            inputMode="decimal"
             value={isFocused ? inputText : stake.toFixed(2)}
             onChange={handleTextChange}
             onFocus={() => {
@@ -136,137 +140,150 @@ export const BetBar: React.FC<BetBarProps> = ({
             onBlur={handleBlur}
             style={{
               width: '100%',
+              maxWidth: 90,
               background: 'transparent',
               border: 'none',
               textAlign: 'center',
               color: '#FFFFFF',
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: 900,
               outline: 'none',
-              fontFamily: 'inherit',
+              fontFamily: KENO_FONTS.ui,
             }}
           />
+
+          {/* Stepper Plus */}
+          <button
+            type="button"
+            onClick={incrementAllStakes}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 3,
+              background: 'transparent',
+              border: 'none',
+              color: '#d7d9db',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <Plus size={16} />
+          </button>
         </div>
 
-        {/* Stepper Plus */}
-        <button
-          type="button"
-          onClick={incrementAllStakes}
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 6,
-            background: 'transparent',
-            border: 'none',
-            color: '#CBD5E1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <Plus size={20} />
-        </button>
-
-        {/* X2 Button */}
+        {/* X2 Button matching mock_web .bet_input_btn */}
         <button
           type="button"
           onClick={handleDoubleStake}
           style={{
-            padding: '6px 12px',
-            borderRadius: 6,
-            background: '#182433',
-            border: '1px solid #203144',
-            color: KENO_COLORS.actionBtnGreen,
-            fontSize: 13,
+            height: 46,
+            padding: '0 12px',
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, #333f46, #242b31)',
+            border: 'none',
+            color: '#51b579',
+            fontFamily: KENO_FONTS.ui,
+            fontSize: 14,
             fontWeight: 800,
             cursor: 'pointer',
-            marginLeft: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           X2
         </button>
 
-        {/* MAX Button */}
+        {/* MAX Button matching mock_web .bet_input_btn */}
         <button
           type="button"
           onClick={handleMaxStake}
           style={{
-            padding: '6px 12px',
-            borderRadius: 6,
-            background: '#182433',
-            border: '1px solid #203144',
-            color: KENO_COLORS.actionBtnGreen,
-            fontSize: 13,
+            height: 46,
+            padding: '0 12px',
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, #333f46, #242b31)',
+            border: 'none',
+            color: '#51b579',
+            fontFamily: KENO_FONTS.ui,
+            fontSize: 14,
             fontWeight: 800,
             cursor: 'pointer',
-            marginLeft: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           MAX
         </button>
 
-        {/* Settings Button */}
+        {/* Settings Button matching mock_web */}
         <button
           type="button"
           onClick={onOpenSettings}
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 6,
-            background: '#182433',
-            border: '1px solid #203144',
-            color: KENO_COLORS.actionBtnGreen,
+            width: 44,
+            height: 46,
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, #333f46, #242b31)',
+            border: 'none',
+            color: '#51b579',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            marginLeft: 4,
             padding: 0,
           }}
         >
-          <Settings size={17} />
+          <Settings size={18} />
+        </button>
+
+        {/* Primary BET Button matching mock_web .bet_set_btn */}
+        <button
+          type="button"
+          disabled={!canBet}
+          onClick={onPlaceBet}
+          style={{
+            flex: '1 1 120px',
+            height: 46,
+            borderRadius: 3,
+            background: canBet
+              ? 'linear-gradient(180deg, #4c8b65, #254632)'
+              : 'linear-gradient(180deg, #333f46, #242b31)',
+            border: 'none',
+            color: canBet ? '#FFFFFF' : '#a0a0a0',
+            fontFamily: KENO_FONTS.ui,
+            fontSize: 18,
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            cursor: canBet ? 'pointer' : 'default',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: canBet ? '0 3px 12px rgba(76, 139, 101, 0.5)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {isLoading ? (
+            <div
+              style={{
+                width: 20,
+                height: 20,
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTopColor: '#FFFFFF',
+                borderRadius: '50%',
+                animation: 'spin 0.6s linear infinite',
+              }}
+            />
+          ) : (
+            <span>BET</span>
+          )}
         </button>
       </div>
-
-      {/* 2. Primary BET Button */}
-      <button
-        type="button"
-        disabled={!canBet}
-        onClick={onPlaceBet}
-        style={{
-          width: '100%',
-          height: 52,
-          borderRadius: 10,
-          background: canBet ? KENO_COLORS.betBtnActive : KENO_COLORS.betBtnIdle,
-          border: 'none',
-          color: canBet ? '#FFFFFF' : '#8CA397',
-          fontSize: 18,
-          fontWeight: 900,
-          letterSpacing: '0.04em',
-          cursor: canBet ? 'pointer' : 'default',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: canBet ? '0 4px 16px rgba(22, 163, 74, 0.45)' : 'none',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {isLoading ? (
-          <div
-            style={{
-              width: 22,
-              height: 22,
-              border: '2.5px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#FFFFFF',
-              borderRadius: '50%',
-              animation: 'spin 0.6s linear infinite',
-            }}
-          />
-        ) : (
-          <span>BET</span>
-        )}
-      </button>
     </div>
   );
 };

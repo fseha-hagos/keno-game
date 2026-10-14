@@ -1,37 +1,42 @@
 :root {
-  --bg-primary: #0A0F1D;
-  --bg-secondary: #0F172A;
-  --bg-stage: #0F1923;
-  --bg-card: #172230;
-  --bg-card-hover: #1E2D40;
-  --bg-grid: #111A24;
-  --border-subtle: #1E293B;
-  --border-card: #243447;
+  --bg-primary: #000000;
+  --bg-secondary: #1b1e1fe6;
+  --bg-stage: #1b1e1fe6;
+  --bg-card: #242b31;
+  --bg-card-gradient: linear-gradient(180deg, #333f46, #242b31);
+  --bg-card-hover: linear-gradient(180deg, #435057, #333f46);
+  --border-subtle: rgba(113, 206, 150, 0.2);
+  --border-strong: rgba(31, 85, 54, 0.7);
   
-  --cell-default: #1C2735;
+  --cell-default: linear-gradient(180deg, #333f46, #242b31);
   --cell-border: #28394C;
+  --cell-hover: linear-gradient(180deg, #435057, #333f46);
   
-  --pick-fill: #226444;
-  --pick-border: #38A169;
+  --pick-fill: linear-gradient(180deg, #254632, #4c8b65);
+  --pick-border: #4c8b65;
   
-  --drawn-fill: #163628;
+  --drawn-fill: radial-gradient(circle, #0d3b69, #061c33 36%, #05182b 59%, #0a2435 60%, #4c6e6e 84%);
   --drawn-border: #287D54;
-  --drawn-text: #86EFAC;
+  --drawn-text: #ffffff;
   
-  --hit-fill: #10B981;
-  --hit-border: #34D399;
-  --hit-glow: rgba(16, 185, 129, 0.7);
+  --hit-fill: radial-gradient(circle, #087b67, #03493f 59%, #0d4239 60%, #47736b 77%, #6be2a8 78%);
+  --hit-border: #6be2a8;
+  --hit-glow: rgba(107, 226, 168, 0.75);
 
-  --accent-green: #22C55E;
-  --accent-green-bright: #4ADE80;
-  --accent-gold: #FACC15;
-  --accent-cyan: #00E5FF;
-  --accent-red: #EF4444;
+  --accent-green: #71ce96;
+  --accent-green-mid: #51b579;
+  --accent-green-bright: #5fdb94;
+  --accent-gold: #e6b529;
+  --accent-cyan: #8bdbff;
+  --accent-red: #ff5c5c;
   
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --text-dark: #0F172A;
+  --text-primary: #FFFFFF;
+  --text-secondary: #d7d9db;
+  --text-muted: #a0a0a0;
+  
+  --font-numbers: 'Roboto Condensed', sans-serif;
+  --font-digital: 'DS-Digital', 'JetBrains Mono', monospace;
+  --font-ui: 'SF Pro Display', 'Outfit', 'Inter', -apple-system, sans-serif;
 }
 
 * {
@@ -42,11 +47,74 @@
 }
 
 body {
-  background-color: var(--bg-primary);
+  background-color: #000000;
   color: var(--text-primary);
-  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-ui);
   user-select: none;
   -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Wallpaper background matching mock_web */
+.desktop-bg {
+  z-index: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #191b31;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-size: cover;
+  background-image: url(https://cdn-atlas-v.com/games/keno/img/bg.jpg);
+  pointer-events: none;
+}
+
+/* Digital Timer */
+.game_timer {
+  text-align: center;
+  margin: 4px auto 8px;
+  padding: 6px 16px;
+  width: 320px;
+  max-width: 90%;
+  z-index: 3;
+  background-image: url(https://cdn-atlas-v.com/games/keno/img/timer_bg.svg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  color: #fff;
+  font-family: var(--font-digital);
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: normal;
+}
+
+@media only screen and (max-width: 810px) {
+  .game_timer {
+    margin-top: 10px;
+    font-size: 1.5rem;
+    line-height: 22px;
+    padding: 3px 11px;
+  }
+}
+
+.game_timer_sec {
+  text-align: left;
+  display: inline-block;
+  color: inherit;
+  font-family: var(--font-digital);
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Balls Counter (in draw phase) */
+.balls_counter {
+  font-family: var(--font-digital);
+  font-weight: 700;
+  color: #fff;
 }
 
 /* Scrollbar */

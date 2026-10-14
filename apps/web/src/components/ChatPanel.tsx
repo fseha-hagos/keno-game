@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
 import { Send, ThumbsUp, Smile, CloudRain } from 'lucide-react';
+import { KENO_FONTS } from '../theme/kenoTheme';
 
 interface ChatMessage {
   id: string;
   user: string;
+  avatarUrl?: string;
   avatarColor: string;
   text: string;
   upvotes: number;
 }
 
 const INITIAL_MESSAGES: ChatMessage[] = [
-  { id: '1', user: 'j***k', avatarColor: '#F59E0B', text: 'Fam', upvotes: 1 },
-  { id: '2', user: 'c***d', avatarColor: '#EF4444', text: 'Araaa minishe account layi yenabarewuni birr withdraw adaragubigni', upvotes: 2 },
-  { id: '3', user: 'c***d', avatarColor: '#EF4444', text: 'Araaa min ayinati lebinati nw koyi irasachewu withdraw adrigo miwosduti', upvotes: 0 },
-  { id: '4', user: 'i***p', avatarColor: '#06B6D4', text: 'ydmrrrr', upvotes: 1 },
-  { id: '5', user: 's***r', avatarColor: '#84CC16', text: 'Rain', upvotes: 0 },
-  { id: '6', user: 'z***w', avatarColor: '#A855F7', text: '🔥', upvotes: 1 },
-  { id: '7', user: 'c***d', avatarColor: '#EF4444', text: 'Guys', upvotes: 0 },
+  { id: '1', user: 'j***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-1.png', avatarColor: '#F59E0B', text: 'Fam', upvotes: 1 },
+  { id: '2', user: 'c***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'Araaa minishe account layi yenabarewuni birr withdraw adaragubigni', upvotes: 2 },
+  { id: '3', user: 'c***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'Araaa min ayinati lebinati nw koyi irasachewu withdraw adrigo miwosduti', upvotes: 0 },
+  { id: '4', user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', avatarColor: '#c7ceea', text: 'ydmrrrr', upvotes: 1 },
+  { id: '5', user: 's***r', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', avatarColor: '#a2d729', text: 'Rain', upvotes: 0 },
+  { id: '6', user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', avatarColor: '#ffb7b2', text: '🔥', upvotes: 1 },
+  { id: '7', user: 'm***u', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', avatarColor: '#b5ead7', text: 'Ere bamaryam', upvotes: 1 },
+  { id: '8', user: 'm***o', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-14.png', avatarColor: '#ffdab9', text: 'Guys', upvotes: 0 },
 ];
+
 
 export const ChatPanel: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
@@ -32,7 +36,7 @@ export const ChatPanel: React.FC = () => {
       {
         id: String(Date.now()),
         user: 'You',
-        avatarColor: '#10B981',
+        avatarColor: '#51b579',
         text: inputText.trim(),
         upvotes: 0,
       },
@@ -54,22 +58,25 @@ export const ChatPanel: React.FC = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: '#0B131D',
-        borderLeft: '1px solid #162436',
+        background: 'rgba(27, 30, 31, 0.94)',
+        borderLeft: '1px solid rgba(81, 181, 121, 0.2)',
+        borderRadius: 16,
+        overflow: 'hidden',
         boxSizing: 'border-box',
         userSelect: 'none',
+        fontFamily: KENO_FONTS.ui,
       }}
     >
-      {/* Top Header: Live Online Users indicator */}
+      {/* Top Header: Live Online Users indicator matching mock_web .active-users */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,
           padding: '10px 14px',
-          borderBottom: '1px solid #162436',
+          borderBottom: '1px solid rgba(81, 181, 121, 0.2)',
           fontSize: 12,
-          fontWeight: 800,
+          fontWeight: 700,
           color: '#E2E8F0',
         }}
       >
@@ -78,11 +85,11 @@ export const ChatPanel: React.FC = () => {
             width: 7,
             height: 7,
             borderRadius: '50%',
-            backgroundColor: '#22C55E',
-            boxShadow: '0 0 6px #22C55E',
+            backgroundColor: '#71ce96',
+            boxShadow: '0 0 6px #71ce96',
           }}
         />
-        <span>995</span>
+        <span style={{ color: '#71ce96', fontWeight: 800 }}>3,557</span>
       </div>
 
       {/* Messages Stream */}
@@ -102,21 +109,36 @@ export const ChatPanel: React.FC = () => {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 3,
+              gap: 2,
             }}
           >
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                gap: 6,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {msg.avatarUrl ? (
+                <img
+                  src={msg.avatarUrl}
+                  alt={msg.user}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    backgroundColor: '#333f46',
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
                 <div
                   style={{
-                    width: 20,
-                    height: 20,
+                    width: 22,
+                    height: 22,
                     borderRadius: '50%',
                     background: msg.avatarColor,
                     display: 'flex',
@@ -124,28 +146,38 @@ export const ChatPanel: React.FC = () => {
                     justifyContent: 'center',
                     fontSize: 10,
                     fontWeight: 900,
-                    color: '#FFFFFF',
+                    color: '#000',
                   }}
                 >
-                  {((msg.user && msg.user[0]) || 'U').toUpperCase()}
+                  {msg.user[0]?.toUpperCase()}
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#94A3B8' }}>
-                  {msg.user}
-                </span>
-              </div>
+              )}
 
-              {/* Upvote button */}
+              <span
+                className="fast-keno-player-name"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: msg.avatarColor,
+                  cursor: 'pointer',
+                }}
+              >
+                {msg.user}
+              </span>
+
+              <div style={{ flex: 1 }} />
+
               <button
                 type="button"
                 onClick={() => handleUpvote(msg.id)}
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#64748B',
-                  fontSize: 10,
+                  color: msg.upvotes > 0 ? '#71ce96' : '#64748B',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 3,
+                  fontSize: 10,
                   cursor: 'pointer',
                   padding: 2,
                 }}
@@ -170,23 +202,23 @@ export const ChatPanel: React.FC = () => {
         ))}
       </div>
 
-      {/* Bottom Input Area */}
+      {/* Bottom Input Area matching mock_web .fast-keno-chat-input-area */}
       <form
         onSubmit={handleSend}
         style={{
           padding: '10px',
-          borderTop: '1px solid #162436',
-          background: '#080E16',
+          borderTop: '1px solid rgba(81, 181, 121, 0.2)',
+          background: 'linear-gradient(180deg, #333f46, #242b31)',
         }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            background: '#0E1724',
-            border: '1px solid #1E2D3E',
-            borderRadius: 8,
-            padding: '4px 8px',
+            background: 'linear-gradient(180deg, #242b31, #333f46)',
+            border: '1px solid rgba(81, 181, 121, 0.2)',
+            borderRadius: 3,
+            padding: '4px 6px',
             marginBottom: 6,
           }}
         >
@@ -200,23 +232,27 @@ export const ChatPanel: React.FC = () => {
               flex: 1,
               background: 'transparent',
               border: 'none',
-              color: '#F8FAFC',
+              color: '#FFFFFF',
               fontSize: 12,
               outline: 'none',
+              fontFamily: KENO_FONTS.ui,
             }}
           />
           <button
             type="submit"
             style={{
-              background: 'transparent',
+              background: 'linear-gradient(180deg, #4c8b65, #254632)',
               border: 'none',
-              color: '#38BDF8',
+              borderRadius: 3,
+              color: '#FFFFFF',
               cursor: 'pointer',
-              padding: 2,
+              padding: '4px 8px',
               display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Send size={14} />
+            <Send size={13} />
           </button>
         </div>
 
@@ -226,15 +262,18 @@ export const ChatPanel: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             fontSize: 10,
-            color: '#64748B',
+            color: '#a0a0a0',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-              <Smile size={12} color="#FBBF24" /> GIF
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', color: '#71ce96' }}>
+              <Smile size={12} color="#71ce96" /> Emoji
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-              <CloudRain size={12} color="#38BDF8" /> Rain
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', color: '#71ce96' }}>
+              GIF
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', color: '#71ce96' }}>
+              <CloudRain size={12} color="#71ce96" /> Rain
             </span>
           </div>
           <span>160</span>

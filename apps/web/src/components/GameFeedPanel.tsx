@@ -5,7 +5,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 import { Play, RotateCcw, Check, BarChart2, Crown } from 'lucide-react';
-import { KENO_COLORS } from '../theme/kenoTheme';
+import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
+import { useSimulatedPlayers } from '../hooks/useSimulatedPlayers';
+import { BetCard } from './BetCard';
 
 export type FeedTab = 'GAME' | 'HISTORY' | 'RESULTS' | 'STATISTICS' | 'LEADERBOARD';
 
@@ -18,6 +20,7 @@ interface BetDisplayItem {
   payout?: number;
   time?: string;
   currency?: string;
+  isUserTicket?: boolean;
 }
 
 interface HistoryDrawGroup {
@@ -38,7 +41,7 @@ export const GameFeedPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('GAME');
   const [filterType, setFilterType] = useState<'all' | 'tickets' | 'bets'>('all');
   const { isAuthenticated } = useAuthStore();
-  const { confirmedTickets, drawnNumbers } = useGameStore();
+  const { confirmedTickets, drawnNumbers, isDrawing } = useGameStore();
 
   // Fetch real user bet history
   const { data: userBetHistory } = useQuery({
@@ -227,11 +230,24 @@ export const GameFeedPanel: React.FC = () => {
       };
     });
 
+  const { simulatedBets, totalCount: simTotalCount } = useSimulatedPlayers({
+    roundId: currentRound?.id,
+    roundNumber: currentRound?.roundNumber,
+    roundStatus: currentRound?.status,
+    isDrawing,
+    drawnNumbers,
+  });
+
   const allCurrentRoundBetsMap = new Map<string, BetDisplayItem>();
-  userTicketItems.forEach((t) => allCurrentRoundBetsMap.set(t.id, t));
+  userTicketItems.forEach((t) => allCurrentRoundBetsMap.set(t.id, { ...t, isUserTicket: true }));
   liveRecentItems.forEach((t) => {
     if (!allCurrentRoundBetsMap.has(t.id)) {
       allCurrentRoundBetsMap.set(t.id, t);
+    }
+  });
+  simulatedBets.forEach((s) => {
+    if (!allCurrentRoundBetsMap.has(s.id)) {
+      allCurrentRoundBetsMap.set(s.id, s);
     }
   });
   const allCurrentRoundBets = Array.from(allCurrentRoundBetsMap.values());
@@ -291,27 +307,49 @@ export const GameFeedPanel: React.FC = () => {
         userSelect: 'none',
       }}
     >
-      {/* 1. Shamo.bet Top Tabs Row: GAME, HISTORY, RESULTS, STATISTICS, LEADERBOARD */}
+      {/* 1. Tabs Row matching mock_web .tabs: GAME, HISTORY, RESULTS, STATISTICS, LEADERS */}
       <div
         className="no-scrollbar"
         style={{
           display: 'flex',
           alignItems: 'center',
+          gap: 12,
           overflowX: 'auto',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
-          borderBottom: '1px solid #1A283B',
-          marginBottom: 10,
+          borderBottom: '1px solid rgba(81, 181, 121, 0.25)',
+          marginBottom: 8,
           width: '100%',
+          padding: '2px 2px 0',
         }}
       >
         {[
-          { key: 'GAME', label: 'GAME', icon: <Play size={13} fill={activeTab === 'GAME' ? '#22C55E' : 'none'} /> },
-          { key: 'HISTORY', label: 'HISTORY', icon: <RotateCcw size={13} /> },
-          { key: 'RESULTS', label: 'RESULTS', icon: <Check size={14} /> },
-          { key: 'STATISTICS', label: 'STATISTICS', icon: <BarChart2 size={13} /> },
-          { key: 'LEADERBOARD', label: 'LEADERBOARD', icon: <Crown size={13} /> },
+          {
+            key: 'GAME',
+            label: 'GAME',
+            icon: <Play size={12} fill="#71ce96" color="#71ce96" />,
+          },
+          {
+            key: 'HISTORY',
+            label: 'HISTORY',
+            icon: <RotateCcw size={13} color="#71ce96" strokeWidth={2.8} />,
+          },
+          {
+            key: 'RESULTS',
+            label: 'RESULTS',
+            icon: <Check size={14} color="#71ce96" strokeWidth={3.4} />,
+          },
+          {
+            key: 'STATISTICS',
+            label: 'STATISTICS',
+            icon: <BarChart2 size={13} color="#71ce96" strokeWidth={2.6} />,
+          },
+          {
+            key: 'LEADERBOARD',
+            label: 'LEADERS',
+            icon: <Crown size={13} color="#71ce96" strokeWidth={2.5} />,
+          },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -321,44 +359,47 @@ export const GameFeedPanel: React.FC = () => {
               onClick={() => setActiveTab(tab.key as FeedTab)}
               style={{
                 flexShrink: 0,
-                padding: '8px 12px',
+                padding: '6px 3px 7px',
                 border: 'none',
                 background: 'transparent',
-                color: isActive ? KENO_COLORS.tabActiveGreen : '#8C9DAC',
-                fontSize: 11,
-                fontWeight: 900,
-                letterSpacing: '0.04em',
+                color: '#71ce96',
+                opacity: isActive ? 1 : 0.85,
+                fontFamily: KENO_FONTS.ui,
+                fontSize: 12.5,
+                fontWeight: isActive ? 800 : 700,
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
                 gap: 5,
                 whiteSpace: 'nowrap',
-                borderBottom: isActive ? '2px solid #22C55E' : '2px solid transparent',
+                borderBottom: isActive ? '2.5px solid #71ce96' : '2.5px solid transparent',
                 transition: 'all 0.12s ease',
               }}
             >
-              {tab.icon}
+              <span style={{ display: 'flex', alignItems: 'center' }}>{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* 2. Sub-filters row: All 4718, My Tickets 0, My Bets 0 */}
+      {/* 2. Sub-filters row matching mock_web .tickets_stat: All, My Tickets, My Bets */}
       {activeTab === 'GAME' && (
         <div
           className="no-scrollbar"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
-            marginBottom: 10,
-            padding: '0 4px',
+            justifyContent: 'space-between',
+            marginBottom: 8,
+            padding: '6px 4px',
+            borderBottom: '1px solid rgba(81, 181, 121, 0.15)',
             overflowX: 'auto',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch',
+            fontFamily: KENO_FONTS.ui,
+            fontSize: 12,
             whiteSpace: 'nowrap',
           }}
         >
@@ -366,54 +407,51 @@ export const GameFeedPanel: React.FC = () => {
             type="button"
             onClick={() => setFilterType('all')}
             style={{
-              flexShrink: 0,
               background: 'transparent',
               border: 'none',
-              color: filterType === 'all' ? '#FFFFFF' : '#8C9DAC',
-              fontSize: 12,
+              color: filterType === 'all' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.55)',
               fontWeight: 700,
               cursor: 'pointer',
               padding: 0,
-              whiteSpace: 'nowrap',
+              fontFamily: KENO_FONTS.ui,
+              fontSize: 12,
             }}
           >
-            All <span style={{ color: '#22C55E' }}>{allCurrentRoundBets.length}</span>
+            All <span style={{ color: '#71ce96', marginLeft: 3 }}>{simTotalCount}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setFilterType('tickets')}
             style={{
-              flexShrink: 0,
               background: 'transparent',
               border: 'none',
-              color: filterType === 'tickets' ? '#FFFFFF' : '#8C9DAC',
-              fontSize: 12,
+              color: filterType === 'tickets' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.55)',
               fontWeight: 700,
               cursor: 'pointer',
               padding: 0,
-              whiteSpace: 'nowrap',
+              fontFamily: KENO_FONTS.ui,
+              fontSize: 12,
             }}
           >
-            My Tickets <span style={{ color: '#22C55E' }}>{userTicketItems.length}</span>
+            My Tickets <span style={{ color: '#71ce96', marginLeft: 3 }}>{userTicketItems.length}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setFilterType('bets')}
             style={{
-              flexShrink: 0,
               background: 'transparent',
               border: 'none',
-              color: filterType === 'bets' ? '#FFFFFF' : '#8C9DAC',
-              fontSize: 12,
+              color: filterType === 'bets' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.55)',
               fontWeight: 700,
               cursor: 'pointer',
               padding: 0,
-              whiteSpace: 'nowrap',
+              fontFamily: KENO_FONTS.ui,
+              fontSize: 12,
             }}
           >
-            My Bets <span style={{ color: '#22C55E' }}>{userTicketItems.length}</span>
+            My Bets <span style={{ color: '#71ce96', marginLeft: 3 }}>{userTicketItems.length}</span>
           </button>
         </div>
       )}
@@ -438,119 +476,29 @@ export const GameFeedPanel: React.FC = () => {
               No bets placed for Round #{currentRoundNum ?? '—'} yet. Pick numbers and tap BET!
             </div>
           ) : (
-            displayedGameBets.map((item) => {
-              const cleanNumbers = item.numbers.map(Number).filter((n) => !isNaN(n));
+            displayedGameBets.map((item: any) => {
+              const cleanNumbers = (item.numbers || []).map(Number).filter((n: number) => !isNaN(n));
               const spots = cleanNumbers.length;
-              const hitCount = cleanNumbers.filter((n) => liveDrawnSet.has(n)).length;
+              const hitCount = cleanNumbers.filter((n: number) => liveDrawnSet.has(n)).length;
               const multiplier =
                 spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
               const liveWin =
                 item.payout !== undefined && item.payout > 0
                   ? item.payout
                   : item.stake * multiplier;
-              const isWon = (item.payout ?? 0) > 0 || liveWin > 0;
-
-              // Exactly 10 slots per ticket representation
-              const slots: (number | null)[] = [...item.numbers];
-              while (slots.length < 10) slots.push(null);
 
               return (
-                <div
+                <BetCard
                   key={item.id}
-                  style={{
-                    background: '#0F1823',
-                    border: '1px solid #1A283B',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                  }}
-                >
-                  {/* Top: Masked Username in green */}
-                  <div style={{ marginBottom: 6 }}>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: KENO_COLORS.usernameGreen,
-                        letterSpacing: '0.02em',
-                      }}
-                    >
-                      {item.username}
-                    </span>
-                  </div>
-
-                  {/* 10 Number Slots in a single line (White/grey tiles with green hit) */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(10, 1fr)',
-                      gap: 3,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {slots.map((num, idx) => {
-                      if (num === null) {
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              aspectRatio: '1/1',
-                              borderRadius: 4,
-                              background: '#14202E',
-                            }}
-                          />
-                        );
-                      }
-
-                      const isHit = liveDrawnSet.has(Number(num));
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            aspectRatio: '1/1',
-                            borderRadius: 4,
-                            background: isHit ? '#22C55E' : '#334155',
-                            color: '#FFFFFF',
-                            fontSize: 11,
-                            fontWeight: 900,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: isHit ? '0 0 8px rgba(34, 197, 94, 0.7)' : 'none',
-                          }}
-                        >
-                          {num}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Bottom Split: "Bet 4000" on left, "Waiting" in yellow or win amount on right */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: 12,
-                      fontWeight: 800,
-                    }}
-                  >
-                    <div style={{ color: '#CBD5E1' }}>
-                      Bet {item.stake}
-                    </div>
-
-                    <div>
-                      {isWon && liveWin > 0 ? (
-                        <span style={{ color: '#FFFFFF', fontWeight: 900 }}>
-                          {liveWin % 1 === 0 ? liveWin.toLocaleString() : liveWin.toFixed(2)}
-                        </span>
-                      ) : (
-                        <span style={{ color: KENO_COLORS.statusWaiting }}>
-                          {item.status || 'Waiting'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  id={item.id}
+                  username={item.username}
+                  numbers={cleanNumbers}
+                  stake={item.stake}
+                  status={item.status}
+                  payout={liveWin}
+                  isUserTicket={item.isUserTicket || item.username.startsWith('You')}
+                  liveDrawnSet={liveDrawnSet}
+                />
               );
             })
           )}
