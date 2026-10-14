@@ -36,7 +36,37 @@ export const App: React.FC = () => {
   } = useGameStore();
 
   const [timeLeft, setTimeLeft] = useState<number>(40);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 1024 : false,
+  );
   const [chatOpen, setChatOpen] = useState(true);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileChatOpen) {
+        setMobileChatOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileChatOpen]);
+
+  const handleToggleChat = () => {
+    if (isMobile) {
+      setMobileChatOpen((prev) => !prev);
+    } else {
+      setChatOpen((prev) => !prev);
+    }
+  };
 
   // Modals state
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -247,8 +277,8 @@ export const App: React.FC = () => {
             setAuthModalOpen(true);
           }}
           onOpenProfile={() => setProfileModalOpen(true)}
-          onToggleChat={() => setChatOpen(!chatOpen)}
-          chatOpen={chatOpen}
+          onToggleChat={handleToggleChat}
+          chatOpen={isMobile ? mobileChatOpen : chatOpen}
         />
       </div>
 
@@ -367,6 +397,45 @@ export const App: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Mobile Chat Slide-over Drawer */}
+      {mobileChatOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Live Chat"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 140,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={() => setMobileChatOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 380,
+              height: '100%',
+              maxHeight: '100dvh',
+              background: 'rgba(20, 24, 26, 0.98)',
+              borderLeft: '1px solid rgba(81, 181, 121, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '-8px 0 35px rgba(0, 0, 0, 0.85)',
+              animation: 'slideDrawerRight 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChatPanel onClose={() => setMobileChatOpen(false)} isMobile />
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <AuthModal
