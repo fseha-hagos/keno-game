@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { ShieldCheck, Menu, MessageSquare, X } from 'lucide-react';
-import { KENO_COLORS } from '../theme/kenoTheme';
+import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 interface HeaderProps {
   roundNumber?: number | string;
@@ -100,32 +100,18 @@ export const Header: React.FC<HeaderProps> = ({
           gap: 12,
         }}
       >
-        {/* Left: FAST KENO metallic slanted logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 0.9, cursor: 'pointer' }}>
-          <span
+        {/* Left: Official Fast Keno Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <img
+            src="/logo_keno.png"
+            alt="Fast Keno"
             style={{
-              fontSize: 14,
-              fontWeight: 900,
-              fontStyle: 'italic',
-              color: '#FFFFFF',
-              letterSpacing: '0.08em',
-              textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+              height: 28,
+              maxHeight: 32,
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))',
             }}
-          >
-            FAST
-          </span>
-          <span
-            style={{
-              fontSize: 17,
-              fontWeight: 900,
-              fontStyle: 'italic',
-              color: '#22C55E',
-              letterSpacing: '0.06em',
-              textShadow: '0 0 10px rgba(34, 197, 94, 0.5)',
-            }}
-          >
-            KENO
-          </span>
+          />
         </div>
 
         {/* Center: Split Pill (Balance on left, ID on right) */}
@@ -133,10 +119,11 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            background: '#091613',
-            border: '1.5px solid #1F3E2F',
-            borderRadius: 22,
+            background: 'rgba(30, 43, 34, 0.5)',
+            border: '1px solid rgba(31, 85, 54, 0.7)',
+            borderRadius: 50,
             overflow: 'hidden',
+            height: 28,
           }}
         >
           {/* Balance side (Clickable to wallet / auth) */}
@@ -146,41 +133,43 @@ export const Header: React.FC<HeaderProps> = ({
             style={{
               background: 'transparent',
               border: 'none',
-              padding: '6px 14px',
+              padding: '2px 10px',
               display: 'flex',
               alignItems: 'baseline',
               gap: 4,
               cursor: 'pointer',
-              borderRight: '1px solid #1F3E2F',
+              borderRight: '1px solid rgba(31, 85, 54, 0.5)',
             }}
           >
             <span
               style={{
                 fontSize: 13,
-                fontWeight: 900,
-                color: '#FBBF24',
-                letterSpacing: '0.02em',
+                fontWeight: 700,
+                color: '#e6b529',
+                fontFamily: KENO_FONTS.ui,
               }}
             >
               {isAuthenticated ? formattedBalance : '0.00'}
             </span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8' }}>ETB</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
           </button>
 
           {/* Round ID side */}
           <div
             style={{
-              padding: '6px 14px',
+              padding: '2px 10px',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               fontSize: 12,
-              fontWeight: 700,
-              color: '#E2E8F0',
+              fontWeight: 400,
+              color: '#FFFFFF',
+              fontFamily: KENO_FONTS.ui,
             }}
           >
-            <span>ID: {displayRoundNumber}</span>
-            <ShieldCheck size={14} color="#22C55E" />
+            <span style={{ color: '#71ce96', fontWeight: 600 }}>ID:</span>
+            <span style={{ color: '#FFFFFF' }}>{displayRoundNumber}</span>
+            <ShieldCheck size={13} color="#71ce96" />
           </div>
         </div>
 

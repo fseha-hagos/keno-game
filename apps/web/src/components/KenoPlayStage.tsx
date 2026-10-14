@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 import { HelpCircle } from 'lucide-react';
+import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 interface KenoPlayStageProps {
   roundNumber?: number | string;
@@ -40,58 +41,113 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
     deltaY: number;
   }
 
-  // Settled balls: up to 20 drawn balls in 2 rows (Row 2 = balls 1-10, Row 1 = balls 11-20)
+  // Synchronous settled balls reference to prevent stale state race conditions during animations & reconnects
+  const settledBallsRef = useRef<number[]>([]);
   const [settledBalls, setSettledBalls] = useState<number[]>([]);
   const [callingBall, setCallingBall] = useState<CallingBallInfo | null>(null);
+  const [justLandedNum, setJustLandedNum] = useState<number | null>(null);
   const [completedHoldActive, setCompletedHoldActive] = useState(false);
 
   const queueRef = useRef<number[]>([]);
   const isAnimatingRef = useRef(false);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const callBallRef = useRef<HTMLDivElement | null>(null);
+  const callBallAnchorRef = useRef<HTMLDivElement | null>(null);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const lastRoundRef = useRef<number | string | undefined>(roundNumber);
 
-  // Ingest incoming drawn numbers into settled sequence
+  // Clear timers helper
+  const clearAllTimers = () => {
+    timersRef.current.forEach((t) => clearTimeout(t));
+    timersRef.current = [];
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, []);
+
+  // Reset stage cleanly when a new round starts
+  useEffect(() => {
+    if (roundNumber !== undefined && lastRoundRef.current !== roundNumber) {
+      lastRoundRef.current = roundNumber;
+      clearAllTimers();
+      queueRef.current = [];
+      isAnimatingRef.current = false;
+      settledBallsRef.current = [];
+      setSettledBalls([]);
+      setCallingBall(null);
+      setJustLandedNum(null);
+      setCompletedHoldActive(false);
+    }
+  }, [roundNumber]);
+
+  // Robust ingestion of drawn numbers handling page refreshes, reconnection batches & live draws
   useEffect(() => {
     if (drawnNumbers.length === 0) {
       if (!completedHoldActive) {
-        setSettledBalls([]);
-        setCallingBall(null);
+        clearAllTimers();
         queueRef.current = [];
         isAnimatingRef.current = false;
+        settledBallsRef.current = [];
+        setSettledBalls([]);
+        setCallingBall(null);
+        setJustLandedNum(null);
       }
       return;
     }
 
-    // Determine numbers not yet displayed
-    const existing = new Set([
-      ...settledBalls,
+    // Determine numbers not yet accounted for in settled, currently calling, or in queue
+    const accounted = new Set([
+      ...settledBallsRef.current,
       ...(callingBall ? [callingBall.num] : []),
       ...queueRef.current,
     ]);
-    const newNums = drawnNumbers.filter((n) => !existing.has(n));
+    const missing = drawnNumbers.filter((n) => !accounted.has(n));
+    if (missing.length === 0) return;
 
-    if (newNums.length > 0) {
-      if (settledBalls.length === 0 && newNums.length > 2) {
-        // Fast-forward initial numbers if reconnecting mid-draw
-        const instant = newNums.slice(0, newNums.length - 1);
-        const nextAnimate = newNums[newNums.length - 1];
-        setSettledBalls(instant);
-        if (nextAnimate !== undefined) {
-          queueRef.current.push(nextAnimate);
-        }
-      } else {
-        queueRef.current.push(...newNums);
+    // Case 1: Page refreshed after round already completed (all 20 balls present immediately)
+    if (settledBallsRef.current.length === 0 && drawnNumbers.length >= 20) {
+      settledBallsRef.current = [...drawnNumbers];
+      setSettledBalls([...drawnNumbers]);
+      setCompletedHoldActive(true);
+      return;
+    }
+
+    // Case 2: Page refreshed mid-draw or reconnected after drop with multiple balls (> 2) waiting
+    if (missing.length > 2) {
+      // Instantly settle all previous balls up to the second-to-last ball
+      const instantList = missing.slice(0, missing.length - 1);
+      const nextToAnimate = missing[missing.length - 1];
+
+      const updatedSettled = [...settledBallsRef.current, ...instantList];
+      settledBallsRef.current = updatedSettled;
+      setSettledBalls(updatedSettled);
+
+      // Smoothly animate only the newest active ball to its correct target slot
+      if (nextToAnimate !== undefined) {
+        queueRef.current.push(nextToAnimate);
       }
-      processNextBall();
+      triggerNextBall();
+    } else {
+      // Case 3: Live single-ball or dual-ball emission - queue smoothly
+      queueRef.current.push(...missing);
+      triggerNextBall();
     }
   }, [drawnNumbers, completedHoldActive]);
 
-  const processNextBall = () => {
+  const triggerNextBall = () => {
     if (isAnimatingRef.current || queueRef.current.length === 0) return;
+
+    const targetIdx = settledBallsRef.current.length;
+    if (targetIdx >= 20) {
+      isAnimatingRef.current = false;
+      return;
+    }
 
     isAnimatingRef.current = true;
     const num = queueRef.current.shift()!;
-    const targetIdx = settledBalls.length; // 0 to 19
 
     // Step 1: Center bounce
     setCallingBall({
@@ -102,27 +158,27 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       deltaY: 0,
     });
 
-    // Step 2: Transition to flying towards target slot after 720ms bounce (smooth & unhurried)
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
+      // Measure delta from static anchor to target slot
       let dx = 0;
       let dy = 0;
 
       const targetEl = slotRefs.current[targetIdx];
-      const callEl = callBallRef.current;
+      const anchorEl = callBallAnchorRef.current;
 
-      if (targetEl && callEl) {
+      if (targetEl && anchorEl) {
         const tRect = targetEl.getBoundingClientRect();
-        const cRect = callEl.getBoundingClientRect();
-        dx = tRect.left + tRect.width / 2 - (cRect.left + cRect.width / 2);
-        dy = tRect.top + tRect.height / 2 - (cRect.top + cRect.height / 2);
+        const aRect = anchorEl.getBoundingClientRect();
+        dx = tRect.left + tRect.width / 2 - (aRect.left + aRect.width / 2);
+        dy = tRect.top + tRect.height / 2 - (aRect.top + aRect.height / 2);
       } else {
-        // Fallback calculations based on 10 columns & 2 rows
         const col = targetIdx < 10 ? targetIdx : targetIdx - 10;
         const isBottom = targetIdx < 10;
-        dx = (col - 4.5) * 36;
+        dx = (col - 4.5) * 40;
         dy = isBottom ? 95 : 55;
       }
 
+      // Step 2: Smooth flight to target slot
       setCallingBall({
         num,
         index: targetIdx,
@@ -131,22 +187,37 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         deltaY: dy,
       });
 
-      // Step 3: Land into settledBalls slot after 620ms smooth flight
-      setTimeout(() => {
-        setSettledBalls((prev) => (prev.includes(num) ? prev : [...prev, num]));
+      const t2 = setTimeout(() => {
+        // Step 3: Land in slot
+        const updated = settledBallsRef.current.includes(num)
+          ? settledBallsRef.current
+          : [...settledBallsRef.current, num];
+        settledBallsRef.current = updated;
+        setSettledBalls(updated);
         setCallingBall(null);
+        setJustLandedNum(num);
+
+        const t3 = setTimeout(() => {
+          setJustLandedNum(null);
+        }, 800);
+        timersRef.current.push(t3);
+
         isAnimatingRef.current = false;
 
         if (drawnNumbers.length >= 20 && queueRef.current.length === 0) {
           setCompletedHoldActive(true);
-          setTimeout(() => setCompletedHoldActive(false), 3500);
+          const t4 = setTimeout(() => setCompletedHoldActive(false), 3500);
+          timersRef.current.push(t4);
         }
 
         if (queueRef.current.length > 0) {
-          setTimeout(processNextBall, 200);
+          const t5 = setTimeout(triggerNextBall, 150);
+          timersRef.current.push(t5);
         }
-      }, 620);
-    }, 720);
+      }, 500);
+      timersRef.current.push(t2);
+    }, 650);
+    timersRef.current.push(t1);
   };
 
   const countDrawn = settledBalls.length + (callingBall !== null ? 1 : 0);
@@ -162,6 +233,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
     const s = secs % 60;
     return `${String(m).padStart(2, '0')} : ${String(s).padStart(2, '0')}`;
   };
+
 
   const spotEntries = spots > 0 ? DEFAULT_96_PAYTABLE_ENTRIES.filter((e) => e.spots === spots) : [];
   const maxMultiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
@@ -355,43 +427,57 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
             </svg>
           </div>
 
-          {/* Top-Right: Draw count "16 / 20" */}
+          {/* Top-Right: Draw count "18 / 20" matching Image 1 */}
           <div
             style={{
               position: 'absolute',
-              top: 5,
+              top: 6,
               right: 12,
               zIndex: 10,
-              fontSize: 15,
-              fontWeight: 900,
+              fontSize: 20,
+              fontWeight: 800,
+              fontFamily: KENO_FONTS.numbers,
               color: '#FFFFFF',
-              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-              letterSpacing: '0.04em',
+              letterSpacing: '0.02em',
               display: 'flex',
               alignItems: 'center',
-              gap: 3,
+              gap: 4,
             }}
           >
             <span>{Math.min(20, countDrawn)}</span>
-            <span style={{ color: '#22C55E' }}>/</span>
+            <span style={{ color: '#51b579' }}>/</span>
             <span>20</span>
           </div>
+
+          {/* Static reference anchor for measuring flight trajectory */}
+          <div
+            ref={callBallAnchorRef}
+            style={{
+              position: 'absolute',
+              top: 14,
+              left: '50%',
+              width: 52,
+              height: 52,
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+              visibility: 'hidden',
+            }}
+          />
 
           {/* Center / Flying CALLING BALL with Green Halo & Bounce Animation */}
           {callingBall && (
             <div
-              ref={callBallRef}
               style={{
                 position: 'absolute',
-                top: 16,
+                top: 14,
                 left: '50%',
                 transform:
                   callingBall.phase === 'flying'
-                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.72)`
+                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.74)`
                     : 'translate(-50%, 0) scale(1)',
                 transition:
                   callingBall.phase === 'flying'
-                    ? 'transform 620ms cubic-bezier(0.25, 0.9, 0.32, 1)'
+                    ? 'transform 500ms cubic-bezier(0.25, 0.9, 0.32, 1)'
                     : 'none',
                 zIndex: 25,
                 pointerEvents: 'none',
@@ -401,43 +487,39 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  top: -14,
-                  left: -14,
-                  width: 76,
-                  height: 76,
+                  top: -16,
+                  left: -16,
+                  width: 84,
+                  height: 84,
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.42) 0%, rgba(34, 197, 94, 0) 72%)',
+                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.45) 0%, rgba(34, 197, 94, 0) 72%)',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* 3D Glossy Ball (48px diameter matching Shamo.bet Image 2) */}
+              {/* 3D Glossy Ball (52px diameter matching Image 1) */}
               <div
                 style={{
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   borderRadius: '50%',
-                  background: selectedNumbers.includes(callingBall.num)
-                    ? 'radial-gradient(circle at 48% 26%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
-                    : 'radial-gradient(circle at 48% 26%, #415870 0%, #243545 35%, #111A24 68%, #070B10 100%)',
-                  boxShadow: selectedNumbers.includes(callingBall.num)
-                    ? '0 0 16px rgba(34, 197, 94, 0.9), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
-                    : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
-                  border: selectedNumbers.includes(callingBall.num)
-                    ? '1.5px solid #86EFAC'
-                    : '1px solid #1C2B3A',
+                  position: 'relative',
+                  overflow: 'hidden',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 21,
-                  fontWeight: 900,
-                  color: '#F8FAFC',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
-                  letterSpacing: '-0.02em',
-                  position: 'relative',
+                  background: selectedNumbers.includes(callingBall.num)
+                    ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
+                    : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
+                  boxShadow: selectedNumbers.includes(callingBall.num)
+                    ? '0 0 18px rgba(34, 197, 94, 0.9), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
+                    : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
+                  border: selectedNumbers.includes(callingBall.num)
+                    ? '1.5px solid #86EFAC'
+                    : '1px solid rgba(255, 255, 255, 0.2)',
                   animation:
                     callingBall.phase === 'bounce'
-                      ? 'callBallBounce 720ms cubic-bezier(0.25, 1, 0.5, 1)'
+                      ? 'callBallBounce 650ms cubic-bezier(0.25, 1, 0.5, 1)'
                       : 'none',
                 }}
               >
@@ -446,16 +528,46 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   style={{
                     position: 'absolute',
                     top: 3,
-                    left: 7,
-                    right: 7,
-                    height: 17,
+                    left: '18%',
+                    width: '64%',
+                    height: '38%',
                     borderRadius: '50%',
                     background:
-                      'radial-gradient(ellipse at 50% 25%, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.22) 42%, rgba(255, 255, 255, 0) 72%)',
+                      'linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.05) 100%)',
                     pointerEvents: 'none',
+                    zIndex: 2,
                   }}
                 />
-                <span>{callingBall.num}</span>
+                {/* Bottom Shadow Depth */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: '5%',
+                    bottom: '5%',
+                    width: '60%',
+                    height: '60%',
+                    borderRadius: '50%',
+                    background:
+                      'radial-gradient(circle, #020911 0%, rgba(1, 8, 15, 0.3) 54%, transparent 75%)',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'relative',
+                    zIndex: 3,
+                    fontFamily: KENO_FONTS.numbers,
+                    fontSize: 32,
+                    fontWeight: 800,
+                    color: '#FFFFFF',
+                    lineHeight: 1,
+                    letterSpacing: '-0.02em',
+                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+                  }}
+                >
+                  {callingBall.num}
+                </span>
               </div>
             </div>
           )}
@@ -464,17 +576,17 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
           <div
             style={{
               position: 'absolute',
-              bottom: 6,
+              bottom: 8,
               left: 0,
               right: 0,
               margin: '0 auto',
               width: '100%',
-              maxWidth: 420,
+              maxWidth: 430,
               display: 'flex',
               flexDirection: 'column',
-              gap: 'clamp(2px, 0.6vw, 3px)',
+              gap: 6,
               zIndex: 5,
-              padding: '0 6px',
+              padding: '0 8px',
               boxSizing: 'border-box',
             }}
           >
@@ -483,7 +595,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-                gap: 'clamp(1.5px, 0.6vw, 3px)',
+                gap: 'clamp(4px, 1.2vw, 6px)',
                 width: '100%',
               }}
             >
@@ -491,6 +603,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 const slotIdx = 10 + col;
                 const ballNum = settledBalls[slotIdx];
                 const isHit = ballNum !== undefined && selectedNumbers.includes(ballNum);
+                const isJustLanded = ballNum !== undefined && ballNum === justLandedNum;
 
                 return (
                   <div
@@ -500,7 +613,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     }}
                     style={{
                       width: '100%',
-                      maxWidth: 34,
+                      maxWidth: 37,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
@@ -514,43 +627,76 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                         style={{
                           width: '100%',
                           height: '100%',
-                          maxWidth: 34,
-                          maxHeight: 34,
-                          aspectRatio: '1/1',
                           borderRadius: '50%',
-                          background: isHit
-                            ? 'radial-gradient(circle at 48% 26%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
-                            : 'radial-gradient(circle at 48% 26%, #415870 0%, #243545 35%, #111A24 68%, #070B10 100%)',
-                          boxShadow: isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                            : '0 3px 7px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
-                          border: isHit ? '1px solid #86EFAC' : '1px solid #162433',
+                          position: 'relative',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 'clamp(9px, 2.7vw, 13px)',
-                          fontWeight: 900,
-                          color: '#F8FAFC',
-                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
-                          letterSpacing: '-0.02em',
-                          position: 'relative',
+                          background: isHit
+                            ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
+                            : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
+                          boxShadow: isJustLanded
+                            ? '0 0 16px rgba(112, 247, 166, 0.9), 0 0 6px rgba(112, 247, 166, 0.6)'
+                            : isHit
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                          border: isJustLanded
+                            ? '1.5px solid #70f7a6'
+                            : isHit
+                            ? '1px solid #86EFAC'
+                            : '1px solid rgba(255, 255, 255, 0.12)',
+                          transform: isJustLanded ? 'scale(1.06)' : 'scale(1)',
+                          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                          overflow: 'hidden',
                         }}
                       >
                         {/* Curved Specular Dome Shine */}
                         <div
                           style={{
                             position: 'absolute',
-                            top: '5%',
-                            left: '15%',
-                            right: '15%',
-                            height: '35%',
+                            top: '3%',
+                            left: '18%',
+                            width: '64%',
+                            height: '38%',
                             borderRadius: '50%',
                             background:
-                              'radial-gradient(ellipse at 50% 25%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.2) 42%, rgba(255, 255, 255, 0) 75%)',
+                              'linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.05) 100%)',
                             pointerEvents: 'none',
+                            zIndex: 2,
                           }}
                         />
-                        <span>{ballNum}</span>
+                        {/* Bottom Shadow Depth */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: '5%',
+                            bottom: '5%',
+                            width: '60%',
+                            height: '60%',
+                            borderRadius: '50%',
+                            background:
+                              'radial-gradient(circle, #020911 0%, rgba(1, 8, 15, 0.3) 54%, transparent 75%)',
+                            pointerEvents: 'none',
+                            zIndex: 1,
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: 'relative',
+                            zIndex: 3,
+                            fontFamily: KENO_FONTS.numbers,
+                            fontSize: 'clamp(16px, 4.4vw, 20px)',
+                            fontWeight: 800,
+                            color: '#FFFFFF',
+                            lineHeight: 1,
+                            letterSpacing: '-0.03em',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.95)',
+                            padding: 0,
+                            margin: 0,
+                          }}
+                        >
+                          {ballNum}
+                        </span>
                       </div>
                     ) : null}
                   </div>
@@ -563,7 +709,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-                gap: 'clamp(1.5px, 0.6vw, 3px)',
+                gap: 'clamp(4px, 1.2vw, 6px)',
                 width: '100%',
               }}
             >
@@ -571,6 +717,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 const slotIdx = col;
                 const ballNum = settledBalls[slotIdx];
                 const isHit = ballNum !== undefined && selectedNumbers.includes(ballNum);
+                const isJustLanded = ballNum !== undefined && ballNum === justLandedNum;
 
                 return (
                   <div
@@ -580,7 +727,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     }}
                     style={{
                       width: '100%',
-                      maxWidth: 34,
+                      maxWidth: 37,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
@@ -594,43 +741,76 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                         style={{
                           width: '100%',
                           height: '100%',
-                          maxWidth: 34,
-                          maxHeight: 34,
-                          aspectRatio: '1/1',
                           borderRadius: '50%',
-                          background: isHit
-                            ? 'radial-gradient(circle at 48% 26%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
-                            : 'radial-gradient(circle at 48% 26%, #415870 0%, #243545 35%, #111A24 68%, #070B10 100%)',
-                          boxShadow: isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                            : '0 3px 7px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
-                          border: isHit ? '1px solid #86EFAC' : '1px solid #162433',
+                          position: 'relative',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 'clamp(9px, 2.7vw, 13px)',
-                          fontWeight: 900,
-                          color: '#F8FAFC',
-                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
-                          letterSpacing: '-0.02em',
-                          position: 'relative',
+                          background: isHit
+                            ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
+                            : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
+                          boxShadow: isJustLanded
+                            ? '0 0 16px rgba(112, 247, 166, 0.9), 0 0 6px rgba(112, 247, 166, 0.6)'
+                            : isHit
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                          border: isJustLanded
+                            ? '1.5px solid #70f7a6'
+                            : isHit
+                            ? '1px solid #86EFAC'
+                            : '1px solid rgba(255, 255, 255, 0.12)',
+                          transform: isJustLanded ? 'scale(1.06)' : 'scale(1)',
+                          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                          overflow: 'hidden',
                         }}
                       >
                         {/* Curved Specular Dome Shine */}
                         <div
                           style={{
                             position: 'absolute',
-                            top: '5%',
-                            left: '15%',
-                            right: '15%',
-                            height: '35%',
+                            top: '3%',
+                            left: '18%',
+                            width: '64%',
+                            height: '38%',
                             borderRadius: '50%',
                             background:
-                              'radial-gradient(ellipse at 50% 25%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.2) 42%, rgba(255, 255, 255, 0) 75%)',
+                              'linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.05) 100%)',
                             pointerEvents: 'none',
+                            zIndex: 2,
                           }}
                         />
-                        <span>{ballNum}</span>
+                        {/* Bottom Shadow Depth */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: '5%',
+                            bottom: '5%',
+                            width: '60%',
+                            height: '60%',
+                            borderRadius: '50%',
+                            background:
+                              'radial-gradient(circle, #020911 0%, rgba(1, 8, 15, 0.3) 54%, transparent 75%)',
+                            pointerEvents: 'none',
+                            zIndex: 1,
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: 'relative',
+                            zIndex: 3,
+                            fontFamily: KENO_FONTS.numbers,
+                            fontSize: 'clamp(16px, 4.4vw, 20px)',
+                            fontWeight: 800,
+                            color: '#FFFFFF',
+                            lineHeight: 1,
+                            letterSpacing: '-0.03em',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.95)',
+                            padding: 0,
+                            margin: 0,
+                          }}
+                        >
+                          {ballNum}
+                        </span>
                       </div>
                     ) : null}
                   </div>
@@ -641,10 +821,10 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         </div>
       ) : (
         /* ─────────────────────────────────────────────────────────── */
-        /* 2. COUNTDOWN & BETTING PHASE (Exact Match with Image 1)     */
+        /* 2. COUNTDOWN & BETTING PHASE (Matching mock_web style_one)  */
         /* ─────────────────────────────────────────────────────────── */
         <div>
-          {/* Centered Digital Countdown Timer (e.g. "00 : 26" with Cyan/Green Glow) */}
+          {/* Centered Digital Countdown Timer with DS-Digital and timer_bg */}
           <div
             style={{
               display: 'flex',
@@ -653,35 +833,32 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               padding: '2px 0 6px',
             }}
           >
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 900,
-                letterSpacing: '0.12em',
-                color: timeLeft <= 5 && bettingOpen ? '#EF4444' : '#6EE7B7',
-                textShadow: '0 0 12px rgba(110, 231, 183, 0.65)',
-                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-              }}
-            >
-              {bettingOpen && timeLeft > 0 ? formatTimer(timeLeft) : '00 : 00'}
+            <div className="game_timer">
+              <span>00 : </span>
+              <span className="game_timer_sec">
+                {bettingOpen && timeLeft > 0 ? (timeLeft < 10 ? `0${timeLeft}` : timeLeft) : '00'}
+              </span>
             </div>
           </div>
 
-          {/* When 0 numbers chosen: "Choose 10 numbers / From 1 to 80" Card */}
+          {/* When 0 numbers chosen: "Choose 10 numbers / From 1 to 80" Card matching .bet_selections */}
           {spots === 0 ? (
             <div
               style={{
-                background: '#162329',
-                border: '1px solid #1F333A',
-                borderRadius: 14,
-                padding: '14px 16px',
+                backgroundColor: '#283134',
+                backgroundImage: 'url(https://cdn-atlas-v.com/games/keno/img/ticket_bg.svg)',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: 'cover',
+                backgroundPosition: '0 50%',
+                borderRadius: 6,
+                padding: '14px 18px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 6,
+                marginBottom: 8,
                 position: 'relative',
                 overflow: 'hidden',
-                minHeight: 120,
+                minHeight: 125,
                 boxSizing: 'border-box',
               }}
             >
@@ -694,7 +871,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   width: 170,
                   height: 170,
                   borderRadius: '50%',
-                  border: '1px solid rgba(34, 197, 94, 0.15)',
+                  border: '1px solid rgba(113, 206, 150, 0.15)',
                   pointerEvents: 'none',
                 }}
               />
@@ -706,12 +883,12 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   width: 120,
                   height: 120,
                   borderRadius: '50%',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  border: '1px solid rgba(113, 206, 150, 0.2)',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* 3D Balls Cluster on the left: 80, 10, 1 (Exact Match with Image 1) */}
+              {/* 3D Balls Cluster on the left: 80, 10, 1 */}
               <div
                 style={{
                   position: 'relative',
@@ -735,7 +912,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 10,
-                    fontWeight: 900,
+                    fontWeight: 700,
+                    fontFamily: KENO_FONTS.numbers,
                     color: '#FFFFFF',
                   }}
                 >
@@ -757,7 +935,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 13,
-                    fontWeight: 900,
+                    fontWeight: 700,
+                    fontFamily: KENO_FONTS.numbers,
                     color: '#FFFFFF',
                   }}
                 >
@@ -773,19 +952,20 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     width: 52,
                     height: 52,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle at 35% 28%, #4ADE80 0%, #16A34A 52%, #064E3B 100%)',
-                    boxShadow: '0 0 16px rgba(34, 197, 94, 0.75), inset 0 2px 4px rgba(255,255,255,0.7)',
+                    background: 'radial-gradient(circle at 35% 28%, #5fdb94 0%, #254632 65%, #1b3826 100%)',
+                    boxShadow: '0 0 16px rgba(113, 206, 150, 0.75), inset 0 2px 4px rgba(255,255,255,0.7)',
                     border: '1.5px solid #86EFAC',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 24,
-                    fontWeight: 900,
-                    color: '#86EFAC',
+                    fontWeight: 700,
+                    fontFamily: KENO_FONTS.numbers,
+                    color: '#FFFFFF',
                     textShadow: '0 1px 2px rgba(0,0,0,0.6)',
                   }}
                 >
-                  {/* Glossy specular shine reflection on top of ball 1 */}
+                  {/* Glossy specular shine reflection */}
                   <div
                     style={{
                       position: 'absolute',
@@ -803,41 +983,42 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 </div>
               </div>
 
-              {/* Card Center Text */}
-              <div style={{ textAlign: 'left', zIndex: 2, marginLeft: 10, flex: 1 }}>
+              {/* Card Center Text matching mock_web .ticket_helptext */}
+              <div style={{ textAlign: 'left', zIndex: 2, marginLeft: 14, flex: 1 }}>
                 <div
                   style={{
-                    fontSize: 22,
-                    fontWeight: 800,
+                    fontSize: 24,
+                    fontWeight: 700,
                     color: '#FFFFFF',
-                    lineHeight: 1.1,
-                    letterSpacing: '-0.02em',
+                    lineHeight: 1.2,
+                    fontFamily: KENO_FONTS.numbers,
                   }}
                 >
                   Choose 10 numbers
                 </div>
                 <div
                   style={{
-                    fontSize: 15,
+                    fontSize: 18,
                     fontWeight: 700,
-                    color: '#22C55E',
+                    color: '#5fdb94',
                     marginTop: 4,
+                    fontFamily: KENO_FONTS.numbers,
                   }}
                 >
                   From 1 to 80
                 </div>
               </div>
 
-              {/* Right: Circular '?' Help Button */}
+              {/* Right: Circular '?' Help Button matching mock_web .ticket_help */}
               <button
                 type="button"
                 onClick={onOpenPaytable}
                 style={{
-                  background: '#1D3035',
-                  border: '1px solid #234346',
-                  color: '#22C55E',
-                  width: 28,
-                  height: 28,
+                  background: '#35434b',
+                  border: 'none',
+                  color: '#51b579',
+                  width: 32,
+                  height: 32,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
@@ -845,20 +1026,26 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   cursor: 'pointer',
                   zIndex: 2,
                   padding: 0,
+                  fontFamily: KENO_FONTS.numbers,
+                  fontSize: 20,
+                  fontWeight: 700,
                 }}
               >
-                <HelpCircle size={15} />
+                ?
               </button>
             </div>
           ) : (
             /* When 1 to 10 numbers chosen: "Possible win" + Paytable + 10 Slots */
             <div
               style={{
-                background: '#162329',
-                border: '1px solid #1F333A',
-                borderRadius: 14,
-                padding: '10px 14px 10px',
-                marginBottom: 6,
+                backgroundColor: '#283134',
+                backgroundImage: 'url(https://cdn-atlas-v.com/games/keno/img/ticket_bg.svg)',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: 'cover',
+                backgroundPosition: '0 50%',
+                borderRadius: 6,
+                padding: '12px 14px',
+                marginBottom: 8,
                 boxSizing: 'border-box',
               }}
             >
@@ -868,14 +1055,28 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: 6,
+                  marginBottom: 8,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ fontSize: 13, color: '#94A3B8', fontWeight: 800 }}>
-                    Possible win
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      fontWeight: 700,
+                      fontFamily: KENO_FONTS.numbers,
+                    }}
+                  >
+                    Possible win:
                   </span>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: '#22C55E' }}>
+                  <span
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 700,
+                      color: '#51b579',
+                      fontFamily: KENO_FONTS.numbers,
+                    }}
+                  >
                     {possibleWin}
                   </span>
                 </div>
@@ -884,20 +1085,23 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   type="button"
                   onClick={onOpenPaytable}
                   style={{
-                    background: '#1D3035',
-                    border: '1px solid #234346',
-                    color: '#22C55E',
-                    width: 24,
-                    height: 24,
+                    background: '#35434b',
+                    border: 'none',
+                    color: '#51b579',
+                    width: 26,
+                    height: 26,
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
                     padding: 0,
+                    fontFamily: KENO_FONTS.numbers,
+                    fontSize: 16,
+                    fontWeight: 700,
                   }}
                 >
-                  <HelpCircle size={13} />
+                  ?
                 </button>
               </div>
 
@@ -911,9 +1115,10 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     marginBottom: 8,
                     overflowX: 'auto',
                     scrollbarWidth: 'none',
+                    fontFamily: KENO_FONTS.numbers,
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', fontSize: 11, fontWeight: 800, color: '#8B9BB0', lineHeight: 1.25 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', fontSize: 12, fontWeight: 700, color: 'rgba(255, 255, 255, 0.5)', lineHeight: 1.25 }}>
                     <span>Match</span>
                     <span>Pays</span>
                   </div>
@@ -926,20 +1131,20 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          fontSize: 11,
-                          fontWeight: 800,
+                          fontSize: 12,
+                          fontWeight: 700,
                           lineHeight: 1.25,
                         }}
                       >
-                        <span style={{ color: '#E2E8F0' }}>{e.hits}</span>
-                        <span style={{ color: '#8B9BB0' }}>x{e.multiplier}</span>
+                        <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{e.hits}</span>
+                        <span style={{ color: '#51b579' }}>x{e.multiplier}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Line 3: Exactly 10 Square Slots in a single line */}
+              {/* Line 3: Exactly 10 Square Slots in a single line matching mock_web .ticket_sel_tbl */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3.5 }}>
                 {selectedSlots.map((num, i) => {
                   if (num !== null) {
@@ -950,16 +1155,19 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                         onClick={() => toggleNumber(num)}
                         style={{
                           aspectRatio: '1/1',
-                          borderRadius: 4,
-                          background: '#121C26',
-                          border: '1px solid #203144',
+                          borderRadius: 3,
+                          background: '#20282b',
+                          border: 'none',
                           color: '#FFFFFF',
-                          fontSize: 11,
-                          fontWeight: 900,
+                          fontFamily: KENO_FONTS.numbers,
+                          fontSize: 16,
+                          fontWeight: 800,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          padding: 0,
+                          transition: 'background 0.1s ease',
                         }}
                       >
                         {num}
@@ -971,9 +1179,9 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                       key={`empty-${i}`}
                       style={{
                         aspectRatio: '1/1',
-                        borderRadius: 4,
-                        background: '#0B131D',
-                        border: '1px dashed #1B2B3C',
+                        borderRadius: 3,
+                        background: 'rgba(32, 40, 43, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
                       }}
                     />
                   );
