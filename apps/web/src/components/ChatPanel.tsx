@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, ThumbsUp, Smile, CloudRain, Sparkles, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, ThumbsUp, Smile, CloudRain, Sparkles, X, ChevronDown } from 'lucide-react';
 import { KENO_FONTS } from '../theme/kenoTheme';
 import { useAuthStore } from '../store/useAuthStore';
+import { useGameStore } from '../store/useGameStore';
 import { apiClient } from '../api/client';
 import { socketService } from '../services/socket';
 
@@ -30,6 +31,25 @@ const INITIAL_MESSAGES: ChatMessage[] = [
 const EMOJI_LIST = ['🔥', '🎉', '🚀', '❤️', '👏', '🤑', '🍀', '🎲', '😂', '💎', '🎯', '🤞', '⚡', '💯', '💰', '✨'];
 const QUICK_GIF_CHIPS = ['🎯 Keno Luck!', '💎 Big Win!', '🔥 On Fire!', '🚀 To the Moon!', '🍀 Lucky 80!'];
 
+// Authentic community banter pool for live casino atmosphere
+const LIVE_COMMUNITY_POOL = [
+  { user: 'b***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-5.png', text: '70 and 77 please 🙏' },
+  { user: '09***44', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-9.png', text: 'ydmrrrr' },
+  { user: 'k***m', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-2.png', text: 'Big win on 5 picks! 🔥' },
+  { user: 'd***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-10.png', text: 'Good luck everyone 🍀' },
+  { user: 's***r', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', text: 'Rain' },
+  { user: 't***e', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-6.png', text: '10 birr and a dream 🚀' },
+  { user: '09***82', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', text: 'Rain pls!' },
+  { user: 'h***s', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-13.png', text: 'Let’s hit that 80!' },
+  { user: 'y***n', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-15.png', text: '💥💥💥' },
+  { user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', text: 'min new zarei luck' },
+  { user: 'a***b', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', text: 'ayzoh fam' },
+  { user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', text: '🔥' },
+  { user: 'm***u', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', text: 'Ere bamaryam' },
+];
+
+const LOCAL_STORAGE_LIKES_KEY = 'fast_keno_liked_messages';
+
 interface ChatPanelProps {
   onClose?: () => void;
   isMobile?: boolean;
@@ -37,18 +57,56 @@ interface ChatPanelProps {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false }) => {
   const { user, isAuthenticated } = useAuthStore();
+  const isOnline = useGameStore((state) => state.isOnline);
+
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifMenu, setShowGifMenu] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // Live online player count (fluctuates organically while online)
+  const [onlineCount, setOnlineCount] = useState(3557);
+
+  // Single-like tracking per user per comment
+  const [likedMessageIds, setLikedMessageIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_LIKES_KEY);
+      return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  // Recent like pop animation trigger
+  const [recentLikedId, setRecentLikedId] = useState<string | null>(null);
+
+  // Smart scrolling & unread indicator state
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [hasNewBelow, setHasNewBelow] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const isScrolledUpRef = useRef(false);
+  isScrolledUpRef.current = isScrolledUp;
 
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'nearest' });
-  };
+    setHasNewBelow(false);
+  }, []);
+
+  // Monitor scroll position
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isAtBottom = distanceToBottom < 65;
+    setIsScrolledUp(!isAtBottom);
+    if (isAtBottom) {
+      setHasNewBelow(false);
+    }
+  }, []);
 
   // Mask username helper (e.g. "alexander" -> "a***r")
   const getMaskedUsername = (name?: string) => {
@@ -69,7 +127,33 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
     return colors[Math.abs(hash) % colors.length]!;
   };
 
-  // Load initial messages from REST API on mount
+  // 1. Live fluctuating online user count
+  useEffect(() => {
+    if (!isOnline) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const jitterOnlineCount = () => {
+      const delay = 3500 + Math.random() * 3200; // 3.5s - 6.7s
+      timeoutId = setTimeout(() => {
+        setOnlineCount((prev) => {
+          // Natural fluctuation step between -3 and +4
+          const delta = Math.floor(Math.random() * 8) - 3;
+          const next = prev + delta;
+          // Keep realistically between 3,515 and 3,595
+          if (next < 3520) return prev + Math.floor(Math.random() * 4) + 1;
+          if (next > 3585) return prev - Math.floor(Math.random() * 4) - 1;
+          return next;
+        });
+        jitterOnlineCount();
+      }, delay);
+    };
+
+    jitterOnlineCount();
+    return () => clearTimeout(timeoutId);
+  }, [isOnline]);
+
+  // 2. Fetch initial messages and listen for live WebSocket events
   useEffect(() => {
     let isMounted = true;
 
@@ -88,10 +172,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
             createdAt: m.createdAt,
           }));
           setMessages(mapped);
-          setTimeout(() => scrollToBottom('auto'), 100);
+          setTimeout(() => scrollToBottom('auto'), 120);
         }
       } catch {
-        // Fallback to initial starter messages if API not available
+        // Fallback to starter messages
       }
     };
 
@@ -101,7 +185,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
     const unsubscribeChat = socketService.onChatMessage((data: any) => {
       if (!data) return;
       setMessages((prev) => {
-        // If message already exists (e.g. from optimistic send), update it
         const exists = prev.some((m) => m.id === String(data.id));
         if (exists) {
           return prev.map((m) => (m.id === String(data.id) ? { ...m, ...data } : m));
@@ -120,7 +203,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
           },
         ];
       });
-      setTimeout(() => scrollToBottom('smooth'), 50);
+
+      if (isScrolledUpRef.current) {
+        setHasNewBelow(true);
+      } else {
+        setTimeout(() => scrollToBottom('smooth'), 50);
+      }
     });
 
     // Listen for live like reactions
@@ -138,8 +226,71 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
       unsubscribeChat();
       unsubscribeLikes();
     };
-  }, []);
+  }, [scrollToBottom]);
 
+  // 3. Live community player chatter & organic reactions simulator
+  useEffect(() => {
+    if (!isOnline) return;
+
+    // Periodic organic chat message
+    let chatTimer: ReturnType<typeof setTimeout>;
+    const scheduleNextCommunityMessage = () => {
+      const interval = 16000 + Math.random() * 16000; // 16s - 32s
+      chatTimer = setTimeout(() => {
+        const template = LIVE_COMMUNITY_POOL[Math.floor(Math.random() * LIVE_COMMUNITY_POOL.length)]!;
+        const newMsg: ChatMessage = {
+          id: `live-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          user: template.user,
+          avatarUrl: template.avatarUrl,
+          avatarColor: getUserColor(template.user),
+          text: template.text,
+          upvotes: 0,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => {
+          // Limit to recent 100 messages in memory
+          const updated = [...prev, newMsg];
+          return updated.length > 100 ? updated.slice(updated.length - 100) : updated;
+        });
+
+        if (isScrolledUpRef.current) {
+          setHasNewBelow(true);
+        } else {
+          setTimeout(() => scrollToBottom('smooth'), 60);
+        }
+
+        scheduleNextCommunityMessage();
+      }, interval);
+    };
+
+    scheduleNextCommunityMessage();
+
+    // Periodic organic like reaction by other online players
+    let likeTimer: ReturnType<typeof setTimeout>;
+    const scheduleNextCommunityLike = () => {
+      const interval = 22000 + Math.random() * 25000; // 22s - 47s
+      likeTimer = setTimeout(() => {
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          // Pick a recent message from last 12 messages
+          const candidateSlice = prev.slice(-12);
+          const target = candidateSlice[Math.floor(Math.random() * candidateSlice.length)]!;
+          return prev.map((m) => (m.id === target.id ? { ...m, upvotes: m.upvotes + 1 } : m));
+        });
+        scheduleNextCommunityLike();
+      }, interval);
+    };
+
+    scheduleNextCommunityLike();
+
+    return () => {
+      clearTimeout(chatTimer);
+      clearTimeout(likeTimer);
+    };
+  }, [isOnline, scrollToBottom]);
+
+  // 4. Send message handler
   const handleSend = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
     const messageContent = (customText || inputText).trim();
@@ -157,7 +308,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
     const color = getUserColor(displayName);
     const tempId = `temp-${Date.now()}`;
 
-    // 1. Optimistic UI update
+    // Optimistic UI append
     const optimisticMessage: ChatMessage = {
       id: tempId,
       user: displayName,
@@ -171,10 +322,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
 
     setMessages((prev) => [...prev, optimisticMessage]);
     setInputText('');
+    setHasNewBelow(false);
     setTimeout(() => scrollToBottom('smooth'), 50);
 
     try {
-      // 2. Persist to API & broadcast across all WebSocket players
       const res = await apiClient.post('/api/v1/chat/messages', {
         userId: user?.id,
         username: displayName,
@@ -189,24 +340,57 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
         );
       }
     } catch {
-      // Keep optimistic message displayed so user experience is not disrupted
+      // Keep optimistic message displayed so user experience is smooth
     } finally {
       setIsSending(false);
     }
   };
 
+  // 5. Single-like per comment enforcement: toggle like / unlike
   const handleUpvote = async (id: string) => {
-    // 1. Optimistic increment
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, upvotes: m.upvotes + 1 } : m)),
-    );
+    const isAlreadyLiked = likedMessageIds.has(id);
+    const nextLiked = new Set(likedMessageIds);
 
-    // 2. Send to API / socket
-    try {
-      socketService.likeChatMessage(id);
-      await apiClient.post(`/api/v1/chat/messages/${id}/like`);
-    } catch {
-      // Ignore like errors gracefully
+    if (isAlreadyLiked) {
+      // Unlike (toggle off)
+      nextLiked.delete(id);
+      setLikedMessageIds(nextLiked);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_LIKES_KEY, JSON.stringify(Array.from(nextLiked)));
+      } catch {}
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, upvotes: Math.max(0, m.upvotes - 1) } : m)),
+      );
+
+      try {
+        socketService.likeChatMessage(id, 'unlike');
+        await apiClient.post(`/api/v1/chat/messages/${id}/like`, { action: 'unlike' });
+      } catch {
+        // Silently tolerate network hiccups
+      }
+    } else {
+      // Like (single like per comment)
+      nextLiked.add(id);
+      setLikedMessageIds(nextLiked);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_LIKES_KEY, JSON.stringify(Array.from(nextLiked)));
+      } catch {}
+
+      // Pop animation
+      setRecentLikedId(id);
+      setTimeout(() => setRecentLikedId(null), 500);
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, upvotes: m.upvotes + 1 } : m)),
+      );
+
+      try {
+        socketService.likeChatMessage(id, 'like');
+        await apiClient.post(`/api/v1/chat/messages/${id}/like`, { action: 'like' });
+      } catch {
+        // Silently tolerate
+      }
     }
   };
 
@@ -221,6 +405,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
   const handleGifChipClick = (chip: string) => {
     handleSend(undefined, chip);
   };
+
+  const charsLeft = 160 - inputText.length;
 
   return (
     <div
@@ -240,7 +426,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
         position: 'relative',
       }}
     >
-      {/* Top Header: Live Online Users indicator matching mock_web .active-users */}
+      {/* Top Header: Live Online Users indicator with breathing pulse dot */}
       <div
         style={{
           display: 'flex',
@@ -254,17 +440,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
           background: isMobile ? 'rgba(27, 32, 35, 0.95)' : 'transparent',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <span
+            className={isOnline ? 'fast-keno-live-dot-pulsing' : ''}
             style={{
               width: 7,
               height: 7,
               borderRadius: '50%',
-              backgroundColor: '#71ce96',
-              boxShadow: '0 0 6px #71ce96',
+              backgroundColor: isOnline ? '#71ce96' : '#64748b',
+              boxShadow: isOnline ? '0 0 6px #71ce96' : 'none',
+              transition: 'background-color 0.3s ease',
             }}
           />
-          <span style={{ color: '#71ce96', fontWeight: 800 }}>3,557</span>
+          <span
+            style={{
+              color: isOnline ? '#71ce96' : '#94a3b8',
+              fontWeight: 800,
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '0.2px',
+            }}
+          >
+            {isOnline ? onlineCount.toLocaleString() : 'Offline'}
+          </span>
           <span style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)' }}>online</span>
         </div>
 
@@ -272,11 +469,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
           <span
             style={{
               fontSize: 10,
-              padding: '2px 7px',
+              padding: '2px 8px',
               borderRadius: 10,
               background: 'rgba(113, 206, 150, 0.15)',
               color: '#71ce96',
               fontWeight: 700,
+              border: '1px solid rgba(113, 206, 150, 0.25)',
+              letterSpacing: '0.3px',
             }}
           >
             Live Room
@@ -310,6 +509,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
       {/* Messages Stream */}
       <div
         ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="fast-keno-chat-scroll"
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -317,109 +518,167 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
+          scrollBehavior: 'smooth',
         }}
       >
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
+        {messages.map((msg) => {
+          const isLikedByMe = likedMessageIds.has(msg.id);
+          const isPopping = recentLikedId === msg.id;
+
+          return (
             <div
+              key={msg.id}
+              className="fast-keno-chat-msg-enter"
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 6,
+                flexDirection: 'column',
+                gap: 2,
               }}
             >
-              {msg.avatarUrl ? (
-                <img
-                  src={msg.avatarUrl}
-                  alt={msg.user}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    backgroundColor: '#333f46',
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    background: msg.avatarColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    color: '#000',
-                  }}
-                >
-                  {msg.user[0]?.toUpperCase()}
-                </div>
-              )}
-
-              <span
-                className="fast-keno-player-name"
+              <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: msg.avatarColor,
-                  cursor: 'pointer',
-                }}
-              >
-                {msg.user}
-              </span>
-
-              <div style={{ flex: 1 }} />
-
-              <button
-                type="button"
-                onClick={() => handleUpvote(msg.id)}
-                title="Upvote comment"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: msg.upvotes > 0 ? '#71ce96' : '#64748B',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 3,
-                  fontSize: 10,
-                  cursor: 'pointer',
-                  padding: 2,
-                  transition: 'transform 0.1s ease',
+                  gap: 6,
                 }}
               >
-                {msg.upvotes > 0 && <span>{msg.upvotes}</span>}
-                <ThumbsUp size={11} />
-              </button>
-            </div>
+                {msg.avatarUrl ? (
+                  <img
+                    src={msg.avatarUrl}
+                    alt={msg.user}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      backgroundColor: '#333f46',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: msg.avatarColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 900,
+                      color: '#000',
+                    }}
+                  >
+                    {msg.user[0]?.toUpperCase()}
+                  </div>
+                )}
 
-            <div
-              style={{
-                fontSize: 12,
-                color: '#E2E8F0',
-                lineHeight: 1.35,
-                paddingLeft: 26,
-                wordBreak: 'break-word',
-              }}
-            >
-              {msg.text}
+                <span
+                  className="fast-keno-player-name"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: msg.avatarColor,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {msg.user}
+                </span>
+
+                <div style={{ flex: 1 }} />
+
+                {/* Single Like per User per Comment Button */}
+                <button
+                  type="button"
+                  onClick={() => handleUpvote(msg.id)}
+                  title={isLikedByMe ? 'You liked this comment (click to unlike)' : 'Like comment'}
+                  className={isPopping ? 'fast-keno-like-popping' : ''}
+                  style={{
+                    background: isLikedByMe ? 'rgba(113, 206, 150, 0.15)' : 'transparent',
+                    border: isLikedByMe ? '1px solid rgba(113, 206, 150, 0.35)' : '1px solid transparent',
+                    borderRadius: 12,
+                    color: isLikedByMe || msg.upvotes > 0 ? '#71ce96' : '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    fontSize: 10,
+                    fontWeight: isLikedByMe ? 700 : 500,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  {msg.upvotes > 0 && (
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{msg.upvotes}</span>
+                  )}
+                  <ThumbsUp
+                    size={11}
+                    fill={isLikedByMe ? '#71ce96' : 'none'}
+                    color={isLikedByMe || msg.upvotes > 0 ? '#71ce96' : '#64748B'}
+                  />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: '#E2E8F0',
+                  lineHeight: 1.35,
+                  paddingLeft: 26,
+                  wordBreak: 'break-word',
+                }}
+              >
+                {msg.text}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Floating "New messages below" indicator when scrolled up */}
+      {hasNewBelow && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom('smooth')}
+          style={{
+            position: 'absolute',
+            bottom: 74,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(180deg, #2a3e32, #1b2820)',
+            border: '1px solid #51b579',
+            borderRadius: 20,
+            padding: '4px 12px',
+            color: '#71ce96',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 6px 18px rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            zIndex: 40,
+            animation: 'chatMsgSlideIn 0.2s ease-out',
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: '#71ce96',
+              boxShadow: '0 0 6px #71ce96',
+            }}
+          />
+          <span>New messages</span>
+          <ChevronDown size={13} />
+        </button>
+      )}
 
       {/* Floating Emoji Picker Popover */}
       {showEmojiPicker && (
@@ -435,6 +694,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
             padding: 8,
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.8)',
             zIndex: 50,
+            animation: 'chatMsgSlideIn 0.15s ease-out',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -463,7 +723,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  transition: 'transform 0.1s ease',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
               >
                 {emoji}
               </button>
@@ -486,6 +749,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
             padding: 8,
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.8)',
             zIndex: 50,
+            animation: 'chatMsgSlideIn 0.15s ease-out',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -514,6 +778,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
                   cursor: 'pointer',
                   padding: '6px 8px',
                   textAlign: 'left',
+                  transition: 'background 0.15s ease',
                 }}
               >
                 {chip}
@@ -523,7 +788,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
         </div>
       )}
 
-      {/* Bottom Input Area matching mock_web .fast-keno-chat-input-area */}
+      {/* Bottom Input Area */}
       <form
         onSubmit={handleSend}
         style={{
@@ -537,10 +802,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
             display: 'flex',
             alignItems: 'center',
             background: 'linear-gradient(180deg, #242b31, #333f46)',
-            border: '1px solid rgba(81, 181, 121, 0.2)',
-            borderRadius: 3,
+            border: isInputFocused ? '1px solid rgba(113, 206, 150, 0.6)' : '1px solid rgba(81, 181, 121, 0.2)',
+            borderRadius: 4,
             padding: '4px 6px',
             marginBottom: 6,
+            boxShadow: isInputFocused ? '0 0 8px rgba(113, 206, 150, 0.2)' : 'none',
+            transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           }}
         >
           <input
@@ -548,7 +815,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
             placeholder="Send message"
             value={inputText}
             maxLength={160}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
             onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             style={{
               flex: 1,
               background: 'transparent',
@@ -574,7 +849,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'background 0.15s ease',
+              transition: 'background 0.15s ease, transform 0.1s ease',
             }}
           >
             <Send size={13} />
@@ -603,6 +878,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
                 cursor: 'pointer',
                 color: showEmojiPicker ? '#51b579' : '#71ce96',
                 fontWeight: 600,
+                transition: 'color 0.15s ease',
               }}
             >
               <Smile size={12} color="#71ce96" /> Emoji
@@ -619,6 +895,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
                 cursor: 'pointer',
                 color: showGifMenu ? '#51b579' : '#71ce96',
                 fontWeight: 600,
+                transition: 'color 0.15s ease',
               }}
             >
               <Sparkles size={11} color="#71ce96" /> GIF
@@ -632,15 +909,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
                 cursor: 'pointer',
                 color: '#71ce96',
                 fontWeight: 600,
+                transition: 'color 0.15s ease',
               }}
             >
               <CloudRain size={12} color="#71ce96" /> Rain
             </span>
           </div>
-          <span>{160 - inputText.length}</span>
+
+          <span
+            style={{
+              color: charsLeft < 20 ? '#f59e0b' : charsLeft === 0 ? '#ff5c5c' : '#a0a0a0',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {charsLeft}
+          </span>
         </div>
       </form>
     </div>
   );
 };
-
