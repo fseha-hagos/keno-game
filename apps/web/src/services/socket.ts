@@ -171,9 +171,9 @@ class SocketService {
     }
   }
 
-  likeChatMessage(messageId: string) {
+  likeChatMessage(messageId: string, action: 'like' | 'unlike' = 'like') {
     if (this.socket && this.socket.connected) {
-      this.socket.emit('chat:like', { messageId });
+      this.socket.emit('chat:like', { messageId, action });
     }
   }
 
