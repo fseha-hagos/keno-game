@@ -354,30 +354,21 @@ export const App: React.FC = () => {
               onOpenPaytable={() => setPaytableModalOpen(true)}
             />
 
-            {/* 1. COUNTDOWN & BETTING PHASE: 80-Grid + BetBar */}
-            {!inDraw ? (
-              <>
-                <KenoGrid disabled={!bettingOpen} />
+            {/* 80-Grid: Always visible so drawn numbers light up green (#51b579) during draw */}
+            <KenoGrid disabled={!bettingOpen} />
 
-                <BetBar
-                  onPlaceBet={handlePlaceBet}
-                  isLoading={betMutation.isPending}
-                  disabled={!bettingOpen}
-                  onOpenSettings={() => setLimitsModalOpen(true)}
-                />
+            <BetBar
+              onPlaceBet={handlePlaceBet}
+              isLoading={betMutation.isPending}
+              disabled={!bettingOpen}
+              onOpenSettings={() => setLimitsModalOpen(true)}
+            />
 
-                <BetSlipsPanel />
+            <BetSlipsPanel />
 
-                <div className="show-on-mobile" style={{ width: '100%', marginTop: 10 }}>
-                  <GameFeedPanel />
-                </div>
-              </>
-            ) : (
-              /* 2. GAME STARTS / DRAW PHASE: Tabs row directly follows settled balls */
-              <div style={{ width: '100%', marginTop: 2 }}>
-                <GameFeedPanel />
-              </div>
-            )}
+            <div className="show-on-mobile" style={{ width: '100%', marginTop: 10 }}>
+              <GameFeedPanel />
+            </div>
           </main>
 
           {/* ═════════════════════════════════════════════════════════ */}
