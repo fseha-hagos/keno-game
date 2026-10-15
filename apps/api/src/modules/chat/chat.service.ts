@@ -139,13 +139,17 @@ export class ChatService implements OnModuleInit {
     return dto;
   }
 
-  async likeMessage(messageId: string): Promise<{ id: string; upvotes: number }> {
+  async likeMessage(messageId: string, action: 'like' | 'unlike' = 'like'): Promise<{ id: string; upvotes: number }> {
     const message = await this.chatRepo.findOne({ where: { id: messageId } });
     if (!message) {
       throw new BadRequestException('Message not found');
     }
 
-    message.upvotes = (message.upvotes || 0) + 1;
+    if (action === 'unlike') {
+      message.upvotes = Math.max(0, (message.upvotes || 0) - 1);
+    } else {
+      message.upvotes = (message.upvotes || 0) + 1;
+    }
     await this.chatRepo.save(message);
 
     // Broadcast like event to all players

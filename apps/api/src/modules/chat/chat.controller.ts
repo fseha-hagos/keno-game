@@ -37,7 +37,7 @@ export class ChatController {
   }
 
   @Post('messages/:id/like')
-  async likeMessage(@Param('id') id: string) {
-    return this.chatService.likeMessage(id);
+  async likeMessage(@Param('id') id: string, @Body('action') action?: 'like' | 'unlike') {
+    return this.chatService.likeMessage(id, action || 'like');
   }
 }
