@@ -5,7 +5,7 @@ export const GAME_CONFIG = {
   MAX_SPOTS: 5,
   DEFAULT_CURRENCY: 'ETB',
   SUPPORTED_CURRENCIES: ['ETB', 'USD', 'EUR', 'GBP'],
-  MIN_STAKE_MINOR: '100', // 1.00 ETB
+  MIN_STAKE_MINOR: '400', // 4.00 ETB (minimum bet amount)
   MAX_STAKE_MINOR: '50000', // 500.00 ETB
   ROUND_BETTING_WINDOW_SECONDS: 60, // 1 minute (60s) immediate countdown window
   ROUND_DRAW_INTERVAL_SECONDS: 60,
