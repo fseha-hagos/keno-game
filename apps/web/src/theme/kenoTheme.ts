@@ -22,22 +22,21 @@ export const KENO_COLORS = {
   balanceGold: '#e6b529',
   idGreen: '#71ce96',
 
-  // 80-Grid Cells
   cellDefault: 'linear-gradient(180deg, #333f46, #242b31)',
   cellDefaultBorder: '#28394c',
   cellHover: 'linear-gradient(180deg, #435057, #333f46)',
-  textDefault: '#a0a0a0',
+  textDefault: '#8f989d',
 
   pickFill: 'linear-gradient(180deg, #254632, #4c8b65)',
   pickBorder: '#4c8b65',
 
-  drawnFill: 'radial-gradient(circle, #0d3b69, #061c33 36%, #05182b 59%, #0a2435 60%, #4c6e6e 84%)',
-  drawnBorder: '#287D54',
+  drawnFill: '#51b579',
+  drawnBorder: '#51b579',
   drawnText: '#ffffff',
 
-  hitFill: 'radial-gradient(circle, #087b67, #03493f 59%, #0d4239 60%, #47736b 77%, #6be2a8 78%)',
-  hitBorder: '#6be2a8',
-  hitGlow: 'rgba(107, 226, 168, 0.75)',
+  hitFill: '#51b579',
+  hitBorder: '#71ce96',
+  hitGlow: '0 0 14px rgba(81, 181, 121, 0.95), inset 0 0 4px rgba(255, 255, 255, 0.5)',
 
   // Hot & cold indicators
   dotHot: '#ff5c5c',
