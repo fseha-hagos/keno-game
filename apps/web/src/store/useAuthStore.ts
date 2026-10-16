@@ -20,6 +20,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     setStoredToken('access_token', accessToken);
     setStoredToken('refresh_token', refreshToken);
     set({ user, isAuthenticated: true, isLoading: false });
+    try {
+      const { socketService } = await import('../services/socket');
+      socketService.authenticateUser(user.id);
+    } catch {}
   },
 
   logout: async () => {

@@ -16,27 +16,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'login',
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [identifier, setIdentifier] = useState('');
   const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { setAuth } = useAuthStore();
+
+  const formatApiError = (err: any): string => {
+    const data = err.response?.data;
+    if (!data) {
+      if (err.message === 'Network Error') {
+        return 'Cannot connect to server. Please verify your connection.';
+      }
+      return err.message || 'Authentication failed. Please try again.';
+    }
+    if (Array.isArray(data.message)) {
+      return data.message.join('. ');
+    }
+    if (typeof data.message === 'string') {
+      return data.message;
+    }
+    if (typeof data.error === 'string') {
+      return data.error;
+    }
+    return 'Authentication failed. Please verify your details.';
+  };
 
   if (!isOpen) return null;
 
+  const handleSwitchMode = (newMode: 'login' | 'register') => {
+    setMode(newMode);
+    setErrorMessage(null);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim() || !password) {
-      toastError('Validation Error', 'Please enter your phone number and password');
+    setErrorMessage(null);
+
+    const cleanId = identifier.trim();
+    if (!cleanId || !password) {
+      const msg = 'Please enter your phone number or username and password';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
       return;
     }
 
     try {
       setIsLoading(true);
       const res = await apiClient.post('/api/v1/auth/login', {
-        phone: phone.trim(),
+        phone: cleanId,
         password,
       });
 
@@ -45,10 +77,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       toastSuccess('Welcome Back!', `Signed in as ${user.username}`);
       onClose();
     } catch (err: any) {
-      toastError(
-        'Login Failed',
-        err.response?.data?.message || 'Invalid credentials. Please verify and try again.',
-      );
+      const errText = formatApiError(err);
+      setErrorMessage(errText);
+      toastError('Login Failed', errText);
     } finally {
       setIsLoading(false);
     }
@@ -56,26 +87,58 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim() || !username.trim() || !password || !confirmPassword) {
-      toastError('Validation Error', 'Please fill in all required registration fields');
+    setErrorMessage(null);
+
+    const cleanPhone = phone.trim();
+    const cleanUser = username.trim();
+
+    if (!cleanPhone || !cleanUser || !password || !confirmPassword) {
+      const msg = 'Please fill in all registration fields';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
+      return;
+    }
+
+    if (cleanPhone.length < 7) {
+      const msg = 'Phone number must be at least 7 digits';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
+      return;
+    }
+
+    if (cleanUser.length < 3) {
+      const msg = 'Username must be at least 3 characters';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(cleanUser)) {
+      const msg = 'Username can only contain letters, numbers, and underscores';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
       return;
     }
 
     if (password.length < 6) {
-      toastError('Validation Error', 'Password must be at least 6 characters long');
+      const msg = 'Password must be at least 6 characters long';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
       return;
     }
 
     if (password !== confirmPassword) {
-      toastError('Validation Error', 'Passwords do not match');
+      const msg = 'Passwords do not match';
+      setErrorMessage(msg);
+      toastError('Validation Error', msg);
       return;
     }
 
     try {
       setIsLoading(true);
       const res = await apiClient.post('/api/v1/auth/register', {
-        phone: phone.trim(),
-        username: username.trim(),
+        phone: cleanPhone,
+        username: cleanUser,
         password,
         dateOfBirth: '2000-01-01',
         acceptTerms: true,
@@ -86,10 +149,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       toastSuccess('Welcome to Fast Keno!', `Your player account ${user.username} is ready!`);
       onClose();
     } catch (err: any) {
-      toastError(
-        'Registration Failed',
-        err.response?.data?.message || 'Could not complete registration. Try another phone or username.',
-      );
+      const errText = formatApiError(err);
+      setErrorMessage(errText);
+      toastError('Registration Failed', errText);
     } finally {
       setIsLoading(false);
     }
@@ -148,12 +210,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             borderRadius: 12,
             padding: 4,
             border: '1px solid #1E293B',
-            marginBottom: 20,
+            marginBottom: 16,
           }}
         >
           <button
             type="button"
-            onClick={() => setMode('login')}
+            onClick={() => handleSwitchMode('login')}
             style={{
               flex: 1,
               padding: '10px 0',
@@ -164,13 +226,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               fontSize: 13,
               fontWeight: 800,
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             Sign In
           </button>
           <button
             type="button"
-            onClick={() => setMode('register')}
+            onClick={() => handleSwitchMode('register')}
             style={{
               flex: 1,
               padding: '10px 0',
@@ -181,18 +244,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               fontSize: 13,
               fontWeight: 800,
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             Register
           </button>
         </div>
 
+        {/* Inline Error Banner */}
+        {errorMessage && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: 10,
+              padding: '10px 14px',
+              marginBottom: 16,
+              color: '#FCA5A5',
+              fontSize: 13,
+              lineHeight: 1.4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>⚠️</span>
+            <span style={{ flex: 1 }}>{errorMessage}</span>
+          </div>
+        )}
+
         {/* FORM */}
         <form onSubmit={mode === 'login' ? handleLogin : handleRegister}>
-          {mode === 'register' && (
+          {mode === 'login' ? (
+            /* Login Identifier (Phone or Username) */
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                Username
+                Phone Number or Username
               </label>
               <div
                 style={{
@@ -207,9 +294,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <UserIcon size={16} color="#64748B" />
                 <input
                   type="text"
-                  placeholder="Player username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="0911223344 or PlayerName"
+                  value={identifier}
+                  onChange={(e) => {
+                    setIdentifier(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  autoFocus
                   style={{
                     flex: 1,
                     background: 'transparent',
@@ -222,46 +313,88 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 />
               </div>
             </div>
-          )}
+          ) : (
+            /* Register: Username & Phone */
+            <>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
+                  Username <span style={{ fontSize: 11, color: '#64748B' }}>(Letters, numbers & _)</span>
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#0B1320',
+                    border: '1px solid #334155',
+                    borderRadius: 10,
+                    padding: '0 12px',
+                  }}
+                >
+                  <UserIcon size={16} color="#64748B" />
+                  <input
+                    type="text"
+                    placeholder="e.g. keno_pro"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '12px 10px',
+                      color: '#F8FAFC',
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
 
-          {/* Phone */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-              Mobile Phone
-            </label>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: '#0B1320',
-                border: '1px solid #334155',
-                borderRadius: 10,
-                padding: '0 12px',
-              }}
-            >
-              <Phone size={16} color="#64748B" />
-              <input
-                type="tel"
-                placeholder="0911223344"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: 'transparent',
-                  border: 'none',
-                  padding: '12px 10px',
-                  color: '#F8FAFC',
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
+                  Mobile Phone <span style={{ fontSize: 11, color: '#64748B' }}>(e.g. 0911223344)</span>
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#0B1320',
+                    border: '1px solid #334155',
+                    borderRadius: 10,
+                    padding: '0 12px',
+                  }}
+                >
+                  <Phone size={16} color="#64748B" />
+                  <input
+                    type="tel"
+                    placeholder="0911223344"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    style={{
+                      flex: 1,
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '12px 10px',
+                      color: '#F8FAFC',
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Password */}
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-              Password
+              Password <span style={{ fontSize: 11, color: '#64748B' }}>(Min. 6 characters)</span>
             </label>
             <div
               style={{
@@ -278,7 +411,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 style={{
                   flex: 1,
                   background: 'transparent',
@@ -320,7 +456,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   style={{
                     flex: 1,
                     background: 'transparent',

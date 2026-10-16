@@ -173,8 +173,74 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Hamburger Menu & Chat Toggle Icons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Right: Auth buttons / User Profile & Menu / Chat */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => onOpenAuth('login')}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  color: '#10B981',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuth('register')}
+                style={{
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  color: '#FFFFFF',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Register
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              style={{
+                background: 'rgba(30, 41, 59, 0.7)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: 20,
+                padding: '3px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                color: '#F8FAFC',
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+              title="View Account Profile"
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981' }} />
+              <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.username || 'Player'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={isAuthenticated ? onOpenProfile : () => onOpenAuth('login')}
