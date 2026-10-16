@@ -114,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
-        {/* Center: Split Pill (Balance on left, ID on right) */}
+        {/* Center: Split Pill (Balance on left if authenticated, ID on right) */}
         <div
           style={{
             display: 'flex',
@@ -126,33 +126,36 @@ export const Header: React.FC<HeaderProps> = ({
             height: 28,
           }}
         >
-          {/* Balance side (Clickable to wallet / auth) */}
-          <button
-            type="button"
-            onClick={isAuthenticated ? onOpenWallet : () => onOpenAuth('login')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '2px 10px',
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 4,
-              cursor: 'pointer',
-              borderRight: '1px solid rgba(31, 85, 54, 0.5)',
-            }}
-          >
-            <span
+          {/* Balance side: ONLY shown when authenticated */}
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={onOpenWallet}
               style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#e6b529',
-                fontFamily: KENO_FONTS.ui,
+                background: 'transparent',
+                border: 'none',
+                padding: '2px 10px',
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 4,
+                cursor: 'pointer',
+                borderRight: '1px solid rgba(31, 85, 54, 0.5)',
               }}
+              title="Open Wallet"
             >
-              {isAuthenticated ? formattedBalance : '0.00'}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
-          </button>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#e6b529',
+                  fontFamily: KENO_FONTS.ui,
+                }}
+              >
+                {formattedBalance}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
+            </button>
+          )}
 
           {/* Round ID side */}
           <div
@@ -173,110 +176,111 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Auth buttons / User Profile & Menu / Chat */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Right side:
+            When NOT authenticated: [ Sign In ] [ Register ] [ ☰ ] (message/chat icon hidden)
+            When LOGGED IN: [ ☰ ] [ 💬 ] (matching screenshot 1)
+        */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {!isAuthenticated ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('login')}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    color: '#10B981',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('register')}
+                  style={{
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    color: '#FFFFFF',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Register
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => onOpenAuth('login')}
                 style={{
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  borderRadius: 6,
-                  padding: '4px 10px',
-                  color: '#10B981',
-                  fontSize: 12,
-                  fontWeight: 700,
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94A3B8',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 4,
                 }}
+                title="Menu & Account"
               >
-                Sign In
+                <Menu size={20} color="#22C55E" />
               </button>
+            </>
+          ) : (
+            <>
               <button
                 type="button"
-                onClick={() => onOpenAuth('register')}
+                onClick={onOpenProfile}
                 style={{
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  background: 'transparent',
                   border: 'none',
-                  borderRadius: 6,
-                  padding: '4px 10px',
-                  color: '#FFFFFF',
-                  fontSize: 12,
-                  fontWeight: 700,
+                  color: '#94A3B8',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 4,
                 }}
+                title="Menu & Account"
               >
-                Register
+                <Menu size={20} color="#22C55E" />
               </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              style={{
-                background: 'rgba(30, 41, 59, 0.7)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: 20,
-                padding: '3px 10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-                color: '#F8FAFC',
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-              title="View Account Profile"
-            >
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981' }} />
-              <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user?.username || 'Player'}
-              </span>
-            </button>
-          )}
 
-          <button
-            type="button"
-            onClick={isAuthenticated ? onOpenProfile : () => onOpenAuth('login')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#94A3B8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 4,
-            }}
-            title="Menu & Account"
-          >
-            <Menu size={20} color="#22C55E" />
-          </button>
-
-          {onToggleChat && (
-            <button
-              type="button"
-              onClick={onToggleChat}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: chatOpen ? '#22C55E' : '#64748B',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 4,
-              }}
-              title="Toggle Live Chat"
-            >
-              <MessageSquare size={20} />
-            </button>
+              {onToggleChat && (
+                <button
+                  type="button"
+                  onClick={onToggleChat}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: chatOpen ? '#22C55E' : '#64748B',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 4,
+                  }}
+                  title="Toggle Live Chat"
+                >
+                  <MessageSquare size={20} />
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

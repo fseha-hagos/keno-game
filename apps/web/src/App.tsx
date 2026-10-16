@@ -216,10 +216,8 @@ export const App: React.FC = () => {
       addConfirmedTickets(results);
       resetSlips();
 
-      toastSuccess(
-        count > 1 ? `🎉 ${count} Bets Placed!` : '🎉 Bet Placed!',
-        `${totalStake.toFixed(2)} ETB placed for Round #${round?.roundNumber}.`,
-      );
+      const displayStake = totalStake % 1 === 0 ? totalStake : totalStake.toFixed(2);
+      toastSuccess(`${displayStake} ETB placed`);
 
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
@@ -256,6 +254,7 @@ export const App: React.FC = () => {
 
   const bettingOpen = round?.status === 'OPEN' && timeLeft > 0;
   const inDraw = isDrawing || drawnNumbers.length > 0;
+  const isGameRunning = !bettingOpen || inDraw;
 
   return (
     <div
@@ -361,15 +360,32 @@ export const App: React.FC = () => {
               onOpenPaytable={() => setPaytableModalOpen(true)}
             />
 
-            {/* 80-Grid: Always visible so drawn numbers light up green (#51b579) during draw */}
-            <KenoGrid disabled={!bettingOpen} />
+            {/* 80-Grid: Always visible on desktop; on mobile hidden when the game starts/draws */}
+            <div
+              className={isGameRunning ? 'hide-on-mobile' : undefined}
+              style={{
+                width: '100%',
+                display: isGameRunning && isMobile ? 'none' : 'block',
+              }}
+            >
+              <KenoGrid disabled={!bettingOpen} />
+            </div>
 
-            <BetBar
-              onPlaceBet={handlePlaceBet}
-              isLoading={betMutation.isPending}
-              disabled={!bettingOpen}
-              onOpenSettings={() => setLimitsModalOpen(true)}
-            />
+            {/* BetBar: Always visible on desktop; on mobile hidden when the game starts/draws */}
+            <div
+              className={isGameRunning ? 'hide-on-mobile' : undefined}
+              style={{
+                width: '100%',
+                display: isGameRunning && isMobile ? 'none' : 'block',
+              }}
+            >
+              <BetBar
+                onPlaceBet={handlePlaceBet}
+                isLoading={betMutation.isPending}
+                disabled={!bettingOpen}
+                onOpenSettings={() => setLimitsModalOpen(true)}
+              />
+            </div>
 
             <BetSlipsPanel />
 
