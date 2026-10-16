@@ -101,46 +101,25 @@ const ROUND_STORAGE_PREFIX = 'keno_round_cnt_';
  * Tiers vary naturally: ~3k (quiet), ~7k (moderate), ~12k (busy), ~21k (peak).
  * Deterministic for the same roundKey so it remains consistent within the round.
  */
-export function getRoundBaseCount(roundKey: string | number): number {
-  const str = String(roundKey || 'round-default');
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  const absHash = Math.abs(hash);
-  const tierRoll = absHash % 100;
-
-  if (tierRoll < 22) {
-    // ~22% of games: Quiet / off-peak (2,800 - 4,800, e.g. ~3.4k)
-    return 2800 + (absHash % 2000);
-  } else if (tierRoll < 52) {
-    // ~30% of games: Moderate traffic (5,500 - 9,500, e.g. ~7k)
-    return 5500 + (absHash % 4000);
-  } else if (tierRoll < 80) {
-    // ~28% of games: Busy traffic (10,000 - 16,500, e.g. ~10k - 14k)
-    return 10000 + (absHash % 6500);
-  } else {
-    // ~20% of games: Peak rush (18,000 - 24,200, e.g. ~21k)
-    return 18000 + (absHash % 6200);
-  }
+export function getRoundBaseCount(_roundKey?: string | number): number {
+  return 0; // Always start from 0 for fresh rounds
 }
 
 /**
- * Load the latest saved count for this round (guaranteed >= base count)
+ * Load the latest saved count for this round (0 if brand new)
  */
 export function getRoundSavedCount(roundKey: string | number): number {
-  const base = getRoundBaseCount(roundKey);
-  if (typeof window === 'undefined') return base;
+  if (typeof window === 'undefined') return 0;
   try {
     const saved = localStorage.getItem(`${ROUND_STORAGE_PREFIX}${roundKey}`);
-    if (saved) {
+    if (saved !== null) {
       const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed >= base) {
+      if (!isNaN(parsed) && parsed >= 0) {
         return parsed;
       }
     }
   } catch {}
-  return base;
+  return 0;
 }
 
 /**

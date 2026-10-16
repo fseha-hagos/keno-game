@@ -54,7 +54,12 @@ export class BetsService {
       );
     }
 
-    // 3. Responsible Gambling Limits Check
+    // 3. Minimum Stake Check (Minimum 4.00 ETB)
+    if (BigInt(input.stakeMinor) < BigInt(GAME_CONFIG.MIN_STAKE_MINOR)) {
+      throw new BadRequestException('Minimum bet amount is 4.00 ETB');
+    }
+
+    // 4. Responsible Gambling Limits Check
     await this.rgService.assertCanPlaceBet(userId, input.stakeMinor);
 
     // 4. Validate Selection Properties

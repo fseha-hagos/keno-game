@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { Minus, Plus, Settings } from 'lucide-react';
-import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
+import { KENO_FONTS } from '../theme/kenoTheme';
 
 interface BetBarProps {
   onPlaceBet: () => void;
@@ -9,6 +9,8 @@ interface BetBarProps {
   disabled?: boolean;
   onOpenSettings?: () => void;
 }
+
+const MIN_BET = 4; // Minimum allowed bet amount is 4.00 ETB
 
 export const BetBar: React.FC<BetBarProps> = ({
   onPlaceBet,
@@ -24,7 +26,7 @@ export const BetBar: React.FC<BetBarProps> = ({
   } = useGameStore();
 
   const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '400';
-  const stake = Number(referenceStakeMinor) / 100;
+  const stake = Math.max(MIN_BET, Number(referenceStakeMinor) / 100);
 
   const [inputText, setInputText] = useState(stake.toFixed(2));
   const [isFocused, setIsFocused] = useState(false);
@@ -40,32 +42,46 @@ export const BetBar: React.FC<BetBarProps> = ({
     setInputText(text);
 
     const val = parseFloat(text);
-    if (!isNaN(val) && val > 0) {
-      setStakeMinor(String(Math.round(val * 100)));
+    if (!isNaN(val)) {
+      const clamped = Math.max(MIN_BET, val);
+      setStakeMinor(String(Math.round(clamped * 100)));
     }
   };
 
   const handleBlur = () => {
     setIsFocused(false);
     const val = parseFloat(inputText);
-    if (isNaN(val) || val <= 0) {
-      setStakeMinor('100'); // minimum 1.00 ETB
-      setInputText('1.00');
+    if (isNaN(val) || val < MIN_BET) {
+      setStakeMinor('400'); // Minimum 4.00 ETB
+      setInputText('4.00');
     } else {
-      const clamped = Math.min(Math.max(val, 1), 50000);
+      const clamped = Math.min(Math.max(val, MIN_BET), 50000);
       setStakeMinor(String(Math.round(clamped * 100)));
       setInputText(clamped.toFixed(2));
     }
   };
 
+  const handleDecrement = () => {
+    if (stake <= MIN_BET) {
+      setStakeMinor('400');
+      setInputText('4.00');
+      return;
+    }
+    decrementAllStakes();
+  };
+
+  const handleIncrement = () => {
+    incrementAllStakes();
+  };
+
   const handleDoubleStake = () => {
-    const current = Number(referenceStakeMinor);
-    const doubled = Math.min(current * 2, 500000); // cap at 5000.00
+    const current = Math.max(MIN_BET * 100, Number(referenceStakeMinor));
+    const doubled = Math.min(current * 2, 500000); // cap at 5000.00 ETB
     setStakeMinor(String(doubled));
   };
 
   const handleMaxStake = () => {
-    setStakeMinor('500000'); // 5000.00
+    setStakeMinor('500000'); // 5000.00 ETB
   };
 
   const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
@@ -77,57 +93,62 @@ export const BetBar: React.FC<BetBarProps> = ({
         width: '100%',
         maxWidth: 480,
         margin: '0 auto',
-        padding: '10px 4px 12px',
+        padding: '8px 2px 14px',
         boxSizing: 'border-box',
         userSelect: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
       }}
     >
+      {/* Top Row: Stepper ( - 4.00 + ), X2, MAX, Settings (Gear) */}
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          gap: 6,
           alignItems: 'center',
-          justifyContent: 'space-between',
+          gap: 6,
+          width: '100%',
         }}
       >
-        {/* Stake Stepper UI matching mock_web .bet_input_ui */}
+        {/* Stepper Capsule */}
         <div
           style={{
-            flex: '1 1 180px',
-            minWidth: 150,
-            height: 46,
+            flex: 1,
+            height: 44,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'linear-gradient(180deg, #242b31, #333f46)',
-            borderRadius: 3,
-            padding: '0 4px',
+            background: '#242b31',
+            borderRadius: 4,
+            padding: '0 8px',
             boxSizing: 'border-box',
           }}
         >
-          {/* Stepper Minus */}
+          {/* Stepper Minus (Disallowed below 4.00) */}
           <button
             type="button"
-            onClick={decrementAllStakes}
+            onClick={handleDecrement}
+            disabled={stake <= MIN_BET}
+            title={stake <= MIN_BET ? 'Minimum bet is 4.00 ETB' : 'Decrease bet'}
             style={{
               width: 32,
               height: 32,
               borderRadius: 3,
               background: 'transparent',
               border: 'none',
-              color: '#d7d9db',
+              color: stake <= MIN_BET ? '#4b5563' : '#cdd5df',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
+              cursor: stake <= MIN_BET ? 'not-allowed' : 'pointer',
               padding: 0,
+              transition: 'color 0.15s ease',
             }}
           >
-            <Minus size={16} />
+            <Minus size={17} strokeWidth={2.4} />
           </button>
 
-          {/* Stake Input */}
+          {/* Stake Input Value (e.g. 4.00) */}
           <input
             type="text"
             inputMode="decimal"
@@ -135,18 +156,18 @@ export const BetBar: React.FC<BetBarProps> = ({
             onChange={handleTextChange}
             onFocus={() => {
               setIsFocused(true);
-              setInputText(stake > 0 ? String(stake) : '');
+              setInputText(stake >= MIN_BET ? String(stake) : '4');
             }}
             onBlur={handleBlur}
             style={{
               width: '100%',
-              maxWidth: 90,
+              maxWidth: 95,
               background: 'transparent',
               border: 'none',
               textAlign: 'center',
               color: '#FFFFFF',
-              fontSize: 18,
-              fontWeight: 900,
+              fontSize: 19,
+              fontWeight: 800,
               outline: 'none',
               fontFamily: KENO_FONTS.ui,
             }}
@@ -155,34 +176,37 @@ export const BetBar: React.FC<BetBarProps> = ({
           {/* Stepper Plus */}
           <button
             type="button"
-            onClick={incrementAllStakes}
+            onClick={handleIncrement}
+            title="Increase bet"
             style={{
               width: 32,
               height: 32,
               borderRadius: 3,
               background: 'transparent',
               border: 'none',
-              color: '#d7d9db',
+              color: '#cdd5df',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               padding: 0,
+              transition: 'color 0.15s ease',
             }}
           >
-            <Plus size={16} />
+            <Plus size={17} strokeWidth={2.4} />
           </button>
         </div>
 
-        {/* X2 Button matching mock_web .bet_input_btn */}
+        {/* X2 Button */}
         <button
           type="button"
           onClick={handleDoubleStake}
+          title="Double bet"
           style={{
-            height: 46,
-            padding: '0 12px',
-            borderRadius: 3,
-            background: 'linear-gradient(180deg, #333f46, #242b31)',
+            height: 44,
+            padding: '0 13px',
+            borderRadius: 4,
+            background: '#242b31',
             border: 'none',
             color: '#51b579',
             fontFamily: KENO_FONTS.ui,
@@ -192,20 +216,22 @@ export const BetBar: React.FC<BetBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'background 0.12s ease',
           }}
         >
           X2
         </button>
 
-        {/* MAX Button matching mock_web .bet_input_btn */}
+        {/* MAX Button */}
         <button
           type="button"
           onClick={handleMaxStake}
+          title="Max bet"
           style={{
-            height: 46,
-            padding: '0 12px',
-            borderRadius: 3,
-            background: 'linear-gradient(180deg, #333f46, #242b31)',
+            height: 44,
+            padding: '0 13px',
+            borderRadius: 4,
+            background: '#242b31',
             border: 'none',
             color: '#51b579',
             fontFamily: KENO_FONTS.ui,
@@ -215,20 +241,22 @@ export const BetBar: React.FC<BetBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'background 0.12s ease',
           }}
         >
           MAX
         </button>
 
-        {/* Settings Button matching mock_web */}
+        {/* Settings Gear Button */}
         <button
           type="button"
           onClick={onOpenSettings}
+          title="Settings"
           style={{
             width: 44,
-            height: 46,
-            borderRadius: 3,
-            background: 'linear-gradient(180deg, #333f46, #242b31)',
+            height: 44,
+            borderRadius: 4,
+            background: '#242b31',
             border: 'none',
             color: '#51b579',
             display: 'flex',
@@ -236,54 +264,53 @@ export const BetBar: React.FC<BetBarProps> = ({
             justifyContent: 'center',
             cursor: 'pointer',
             padding: 0,
+            transition: 'background 0.12s ease',
           }}
         >
           <Settings size={18} />
         </button>
-
-        {/* Primary BET Button matching mock_web .bet_set_btn */}
-        <button
-          type="button"
-          disabled={!canBet}
-          onClick={onPlaceBet}
-          style={{
-            flex: '1 1 120px',
-            height: 46,
-            borderRadius: 3,
-            background: canBet
-              ? 'linear-gradient(180deg, #4c8b65, #254632)'
-              : 'linear-gradient(180deg, #333f46, #242b31)',
-            border: 'none',
-            color: canBet ? '#FFFFFF' : '#a0a0a0',
-            fontFamily: KENO_FONTS.ui,
-            fontSize: 18,
-            fontWeight: 800,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            cursor: canBet ? 'pointer' : 'default',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: canBet ? '0 3px 12px rgba(76, 139, 101, 0.5)' : 'none',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          {isLoading ? (
-            <div
-              style={{
-                width: 20,
-                height: 20,
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderTopColor: '#FFFFFF',
-                borderRadius: '50%',
-                animation: 'spin 0.6s linear infinite',
-              }}
-            />
-          ) : (
-            <span>BET</span>
-          )}
-        </button>
       </div>
+
+      {/* Bottom Row: Full-Width Primary BET Button */}
+      <button
+        type="button"
+        disabled={!canBet}
+        onClick={onPlaceBet}
+        style={{
+          width: '100%',
+          height: 48,
+          borderRadius: 4,
+          background: canBet ? '#2d4a34' : '#223226',
+          border: 'none',
+          color: canBet ? '#a8bdae' : '#596e60',
+          fontFamily: KENO_FONTS.ui,
+          fontSize: 19,
+          fontWeight: 800,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          cursor: canBet ? 'pointer' : 'default',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.15s ease',
+          boxShadow: canBet ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none',
+        }}
+      >
+        {isLoading ? (
+          <div
+            style={{
+              width: 20,
+              height: 20,
+              border: '2px solid rgba(168, 189, 174, 0.3)',
+              borderTopColor: '#a8bdae',
+              borderRadius: '50%',
+              animation: 'spin 0.6s linear infinite',
+            }}
+          />
+        ) : (
+          <span>BET</span>
+        )}
+      </button>
     </div>
   );
 };

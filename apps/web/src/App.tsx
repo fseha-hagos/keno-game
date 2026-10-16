@@ -21,7 +21,7 @@ import { toastSuccess, toastError, toastInfo } from './services/toast';
 
 export const App: React.FC = () => {
   const queryClient = useQueryClient();
-  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, checkAuth } = useAuthStore();
   const {
     betSlips,
     currency,
@@ -36,7 +36,37 @@ export const App: React.FC = () => {
   } = useGameStore();
 
   const [timeLeft, setTimeLeft] = useState<number>(40);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 1024 : false,
+  );
   const [chatOpen, setChatOpen] = useState(true);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileChatOpen) {
+        setMobileChatOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileChatOpen]);
+
+  const handleToggleChat = () => {
+    if (isMobile) {
+      setMobileChatOpen((prev) => !prev);
+    } else {
+      setChatOpen((prev) => !prev);
+    }
+  };
 
   // Modals state
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -54,6 +84,13 @@ export const App: React.FC = () => {
       socketService.disconnect();
     };
   }, []);
+
+  // Sync user authentication with websocket
+  useEffect(() => {
+    if (user?.id) {
+      socketService.authenticateUser(user.id);
+    }
+  }, [user?.id]);
 
   // Fetch active game round
   const { data: round } = useQuery({
@@ -179,10 +216,8 @@ export const App: React.FC = () => {
       addConfirmedTickets(results);
       resetSlips();
 
-      toastSuccess(
-        count > 1 ? `🎉 ${count} Bets Placed!` : '🎉 Bet Placed!',
-        `${totalStake.toFixed(2)} ETB placed for Round #${round?.roundNumber}.`,
-      );
+      const displayStake = totalStake % 1 === 0 ? totalStake : totalStake.toFixed(2);
+      toastSuccess(`${displayStake} ETB placed`);
 
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
@@ -219,6 +254,7 @@ export const App: React.FC = () => {
 
   const bettingOpen = round?.status === 'OPEN' && timeLeft > 0;
   const inDraw = isDrawing || drawnNumbers.length > 0;
+  const isGameRunning = !bettingOpen || inDraw;
 
   return (
     <div
@@ -247,8 +283,8 @@ export const App: React.FC = () => {
             setAuthModalOpen(true);
           }}
           onOpenProfile={() => setProfileModalOpen(true)}
-          onToggleChat={() => setChatOpen(!chatOpen)}
-          chatOpen={chatOpen}
+          onToggleChat={handleToggleChat}
+          chatOpen={isMobile ? mobileChatOpen : chatOpen}
         />
       </div>
 
@@ -324,30 +360,38 @@ export const App: React.FC = () => {
               onOpenPaytable={() => setPaytableModalOpen(true)}
             />
 
-            {/* 1. COUNTDOWN & BETTING PHASE: 80-Grid + BetBar */}
-            {!inDraw ? (
-              <>
-                <KenoGrid disabled={!bettingOpen} />
+            {/* 80-Grid: Always visible on desktop; on mobile hidden when the game starts/draws */}
+            <div
+              className={isGameRunning ? 'hide-on-mobile' : undefined}
+              style={{
+                width: '100%',
+                display: isGameRunning && isMobile ? 'none' : 'block',
+              }}
+            >
+              <KenoGrid disabled={!bettingOpen} />
+            </div>
 
-                <BetBar
-                  onPlaceBet={handlePlaceBet}
-                  isLoading={betMutation.isPending}
-                  disabled={!bettingOpen}
-                  onOpenSettings={() => setLimitsModalOpen(true)}
-                />
+            {/* BetBar: Always visible on desktop; on mobile hidden when the game starts/draws */}
+            <div
+              className={isGameRunning ? 'hide-on-mobile' : undefined}
+              style={{
+                width: '100%',
+                display: isGameRunning && isMobile ? 'none' : 'block',
+              }}
+            >
+              <BetBar
+                onPlaceBet={handlePlaceBet}
+                isLoading={betMutation.isPending}
+                disabled={!bettingOpen}
+                onOpenSettings={() => setLimitsModalOpen(true)}
+              />
+            </div>
 
-                <BetSlipsPanel />
+            <BetSlipsPanel />
 
-                <div className="show-on-mobile" style={{ width: '100%', marginTop: 10 }}>
-                  <GameFeedPanel />
-                </div>
-              </>
-            ) : (
-              /* 2. GAME STARTS / DRAW PHASE: Tabs row directly follows settled balls */
-              <div style={{ width: '100%', marginTop: 2 }}>
-                <GameFeedPanel />
-              </div>
-            )}
+            <div className="show-on-mobile" style={{ width: '100%', marginTop: 10 }}>
+              <GameFeedPanel />
+            </div>
           </main>
 
           {/* ═════════════════════════════════════════════════════════ */}
@@ -367,6 +411,45 @@ export const App: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Mobile Chat Slide-over Drawer */}
+      {mobileChatOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Live Chat"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 140,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={() => setMobileChatOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 380,
+              height: '100%',
+              maxHeight: '100dvh',
+              background: 'rgba(20, 24, 26, 0.98)',
+              borderLeft: '1px solid rgba(81, 181, 121, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '-8px 0 35px rgba(0, 0, 0, 0.85)',
+              animation: 'slideDrawerRight 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChatPanel onClose={() => setMobileChatOpen(false)} isMobile />
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <AuthModal

@@ -95,9 +95,23 @@ export enum WebSocketEvents {
   ROUND_COMPLETED = 'keno.round.completed',
   BET_SETTLED = 'keno.bet.settled',
   WALLET_BALANCE_UPDATED = 'wallet.balance.updated',
+  CHAT_MESSAGE_CREATED = 'keno.chat.message.created',
+  CHAT_MESSAGE_LIKED = 'keno.chat.message.liked',
 }
 
 // Data Interfaces & DTOs
+
+export interface ChatMessageDto {
+  id: string;
+  userId?: string;
+  username: string;
+  avatarUrl?: string;
+  avatarColor: string;
+  text: string;
+  upvotes: number;
+  createdAt: string;
+}
+
 
 export interface UserDto {
   id: string;

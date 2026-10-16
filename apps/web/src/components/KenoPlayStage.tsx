@@ -271,158 +271,193 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
             overflow: 'hidden',
           }}
         >
-          {/* Animated concentric radar rings with center illumination (Matching Shamo.bet) */}
+          {/* Animated concentric radar rings with center illumination placed near the top */}
           <div
             style={{
               position: 'absolute',
-              top: '46%',
+              top: 34,
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 150,
-              height: 150,
+              width: 140,
+              height: 140,
               borderRadius: '50%',
               background:
-                'radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(20, 80, 45, 0.05) 50%, transparent 72%)',
+                'radial-gradient(circle, rgba(52, 211, 153, 0.28) 0%, rgba(20, 80, 45, 0.1) 40%, transparent 72%)',
               pointerEvents: 'none',
             }}
           />
 
-          {/* Ring 1 (Inner, 110px): Smooth Clockwise Rotation ~18s */}
+          {/* Ring 0 (Smallest Circle where ball emerges, 54px): ~14s counter-clockwise */}
           <div
             style={{
               position: 'absolute',
-              top: '46%',
+              top: 34,
               left: '50%',
-              width: 110,
-              height: 110,
+              width: 54,
+              height: 54,
+              pointerEvents: 'none',
+              animation: 'radarSpinCcw 14s linear infinite',
+              willChange: 'transform',
+            }}
+          >
+            <svg
+              width="54"
+              height="54"
+              viewBox="0 0 54 54"
+              style={{
+                display: 'block',
+                filter: 'drop-shadow(0 0 4px rgba(52, 211, 153, 0.4))',
+              }}
+            >
+              <circle
+                cx="27"
+                cy="27"
+                r="24"
+                fill="none"
+                stroke="rgba(52, 211, 153, 0.36)"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeDasharray="14 10 18 10"
+              />
+            </svg>
+          </div>
+
+          {/* Ring 1 (Inner, 105px): Smooth Clockwise Rotation ~18s */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 34,
+              left: '50%',
+              width: 105,
+              height: 105,
               pointerEvents: 'none',
               animation: 'radarSpinCw 18s linear infinite',
               willChange: 'transform',
             }}
           >
             <svg
-              width="110"
-              height="110"
-              viewBox="0 0 110 110"
+              width="105"
+              height="105"
+              viewBox="0 0 105 105"
               style={{
                 display: 'block',
                 filter: 'blur(1px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.18))',
               }}
             >
               <circle
-                cx="55"
-                cy="55"
-                r="50"
+                cx="52.5"
+                cy="52.5"
+                r="49"
                 fill="none"
                 stroke="rgba(52, 211, 153, 0.22)"
-                strokeWidth="2.8"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="34 16 12 18 26 14"
+                strokeDasharray="32 15 11 17 24 13"
               />
             </svg>
           </div>
 
-          {/* Ring 2 (Middle-Inner, 180px): Clockwise Rotation ~28s */}
+          {/* Ring 2 (Middle-Inner, 170px): Clockwise Rotation ~28s */}
           <div
             style={{
               position: 'absolute',
-              top: '46%',
+              top: 34,
               left: '50%',
-              width: 180,
-              height: 180,
+              width: 170,
+              height: 170,
               pointerEvents: 'none',
               animation: 'radarSpinCw 28s linear infinite',
               willChange: 'transform',
             }}
           >
             <svg
-              width="180"
-              height="180"
-              viewBox="0 0 180 180"
+              width="170"
+              height="170"
+              viewBox="0 0 170 170"
               style={{
                 display: 'block',
                 filter: 'blur(1px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.15))',
               }}
             >
               <circle
-                cx="90"
-                cy="90"
-                r="85"
+                cx="85"
+                cy="85"
+                r="81"
                 fill="none"
                 stroke="rgba(52, 211, 153, 0.18)"
-                strokeWidth="2.8"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="52 26 20 22 58 28"
+                strokeDasharray="50 25 18 20 54 26"
               />
             </svg>
           </div>
 
-          {/* Ring 3 (Middle-Outer, 260px): Clockwise Rotation ~42s */}
+          {/* Ring 3 (Middle-Outer, 250px): Clockwise Rotation ~42s */}
           <div
             style={{
               position: 'absolute',
-              top: '46%',
+              top: 34,
               left: '50%',
-              width: 260,
-              height: 260,
+              width: 250,
+              height: 250,
               pointerEvents: 'none',
               animation: 'radarSpinCw 42s linear infinite',
               willChange: 'transform',
             }}
           >
             <svg
-              width="260"
-              height="260"
-              viewBox="0 0 260 260"
+              width="250"
+              height="250"
+              viewBox="0 0 250 250"
               style={{
                 display: 'block',
                 filter: 'blur(1.1px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.12))',
               }}
             >
               <circle
-                cx="130"
-                cy="130"
-                r="124"
+                cx="125"
+                cy="125"
+                r="120"
                 fill="none"
                 stroke="rgba(52, 211, 153, 0.14)"
-                strokeWidth="2.8"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="72 34 30 28 84 38"
+                strokeDasharray="70 32 28 26 80 36"
               />
             </svg>
           </div>
 
-          {/* Ring 4 (Outer, 350px): Clockwise Rotation ~60s */}
+          {/* Ring 4 (Outer, 340px): Clockwise Rotation ~60s */}
           <div
             style={{
               position: 'absolute',
-              top: '46%',
+              top: 34,
               left: '50%',
-              width: 350,
-              height: 350,
+              width: 340,
+              height: 340,
               pointerEvents: 'none',
               animation: 'radarSpinCw 60s linear infinite',
               willChange: 'transform',
             }}
           >
             <svg
-              width="350"
-              height="350"
-              viewBox="0 0 350 350"
+              width="340"
+              height="340"
+              viewBox="0 0 340 340"
               style={{
                 display: 'block',
                 filter: 'blur(1.2px) drop-shadow(0 0 3px rgba(34, 197, 94, 0.08))',
               }}
             >
               <circle
-                cx="175"
-                cy="175"
-                r="169"
+                cx="170"
+                cy="170"
+                r="165"
                 fill="none"
                 stroke="rgba(52, 211, 153, 0.10)"
-                strokeWidth="2.8"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="110 48 38 36 86 48"
+                strokeDasharray="100 44 36 34 80 44"
               />
             </svg>
           </div>
@@ -449,32 +484,32 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
             <span>20</span>
           </div>
 
-          {/* Static reference anchor for measuring flight trajectory */}
+          {/* Static reference anchor for measuring flight trajectory from smallest circle */}
           <div
             ref={callBallAnchorRef}
             style={{
               position: 'absolute',
-              top: 14,
+              top: 34,
               left: '50%',
-              width: 52,
-              height: 52,
-              transform: 'translateX(-50%)',
+              width: 50,
+              height: 50,
+              transform: 'translate(-50%, -50%)',
               pointerEvents: 'none',
               visibility: 'hidden',
             }}
           />
 
-          {/* Center / Flying CALLING BALL with Green Halo & Bounce Animation */}
+          {/* Calling Ball emerging from the smallest circle with Green Halo & Bounce Animation */}
           {callingBall && (
             <div
               style={{
                 position: 'absolute',
-                top: 14,
+                top: 34,
                 left: '50%',
                 transform:
                   callingBall.phase === 'flying'
-                    ? `translate(calc(-50% + ${callingBall.deltaX}px), ${callingBall.deltaY}px) scale(0.74)`
-                    : 'translate(-50%, 0) scale(1)',
+                    ? `translate(calc(-50% + ${callingBall.deltaX}px), calc(-50% + ${callingBall.deltaY}px)) scale(0.68)`
+                    : 'translate(-50%, -50%) scale(1)',
                 transition:
                   callingBall.phase === 'flying'
                     ? 'transform 500ms cubic-bezier(0.25, 0.9, 0.32, 1)'
@@ -489,19 +524,19 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   position: 'absolute',
                   top: -16,
                   left: -16,
-                  width: 84,
-                  height: 84,
+                  width: 82,
+                  height: 82,
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(34, 197, 94, 0.45) 0%, rgba(34, 197, 94, 0) 72%)',
+                  background: 'radial-gradient(circle, rgba(52, 211, 153, 0.55) 0%, rgba(34, 197, 94, 0.15) 45%, transparent 72%)',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* 3D Glossy Ball (52px diameter matching Image 1) */}
+              {/* 3D Glossy Ball (50px diameter matching smallest circle) */}
               <div
                 style={{
-                  width: 52,
-                  height: 52,
+                  width: 50,
+                  height: 50,
                   borderRadius: '50%',
                   position: 'relative',
                   overflow: 'hidden',
@@ -512,14 +547,14 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                     : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
                   boxShadow: selectedNumbers.includes(callingBall.num)
-                    ? '0 0 18px rgba(34, 197, 94, 0.9), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
+                    ? '0 0 20px rgba(34, 197, 94, 0.95), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
                     : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
                   border: selectedNumbers.includes(callingBall.num)
                     ? '1.5px solid #86EFAC'
                     : '1px solid rgba(255, 255, 255, 0.2)',
                   animation:
                     callingBall.phase === 'bounce'
-                      ? 'callBallBounce 650ms cubic-bezier(0.25, 1, 0.5, 1)'
+                      ? 'callBallBounce 650ms cubic-bezier(0.2, 0.9, 0.3, 1)'
                       : 'none',
                 }}
               >

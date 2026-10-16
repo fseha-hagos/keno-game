@@ -32,10 +32,10 @@ export const BetCard: React.FC<BetCardProps> = ({
   return (
     <div
       style={{
-        background: isUserTicket ? '#1c2e23' : 'rgba(20, 25, 26, 0.55)',
+        background: isUserTicket ? '#1c2e23' : '#1e2629',
         border: isUserTicket ? '1px solid #38704c' : '1px solid rgba(255, 255, 255, 0.04)',
-        borderRadius: 3,
-        padding: '6px 8px',
+        borderRadius: 4,
+        padding: '6px 7px',
         marginBottom: 4,
         position: 'relative',
         transition: 'all 0.15s ease',
@@ -56,6 +56,7 @@ export const BetCard: React.FC<BetCardProps> = ({
             fontWeight: 700,
             fontFamily: KENO_FONTS.numbers,
             color: '#51b579',
+            letterSpacing: '0.02em',
           }}
         >
           {username}
@@ -84,7 +85,7 @@ export const BetCard: React.FC<BetCardProps> = ({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(10, 1fr)',
-          gap: 2.5,
+          gap: 3,
           marginBottom: 5,
         }}
       >
@@ -96,7 +97,7 @@ export const BetCard: React.FC<BetCardProps> = ({
                 style={{
                   aspectRatio: '1/1',
                   borderRadius: 3,
-                  background: 'rgba(20, 25, 26, 0.4)',
+                  background: 'rgba(20, 25, 26, 0.45)',
                 }}
               />
             );
@@ -109,16 +110,16 @@ export const BetCard: React.FC<BetCardProps> = ({
               style={{
                 aspectRatio: '1/1',
                 borderRadius: 3,
-                background: isHit ? 'linear-gradient(180deg, #254632, #4c8b65)' : '#20282b',
+                background: isHit ? '#51b579' : '#35434b',
                 color: isHit ? '#FFFFFF' : '#d7d9db',
                 fontFamily: KENO_FONTS.numbers,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isHit ? '0 0 6px rgba(107, 226, 168, 0.8)' : 'none',
-                transition: 'background 0.2s ease',
+                boxShadow: isHit ? '0 0 8px rgba(81, 181, 121, 0.75)' : 'none',
+                transition: 'background 0.15s ease',
               }}
             >
               {num}
@@ -127,16 +128,16 @@ export const BetCard: React.FC<BetCardProps> = ({
         })}
       </div>
 
-      {/* Bottom Split matching mock_web .status: Bet 600 & Waiting/Won */}
+      {/* Bottom Split: Bet amount and Waiting/Won have the EXACT same width (50/50) */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
           gap: 4,
           fontFamily: KENO_FONTS.numbers,
-          fontSize: 12,
+          fontSize: 12.5,
           fontWeight: 700,
+          marginTop: 4,
         }}
       >
         <div
@@ -145,42 +146,34 @@ export const BetCard: React.FC<BetCardProps> = ({
             borderRadius: 3,
             padding: '3px 6px',
             color: '#d7d9db',
-            flex: 1,
             textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
           }}
         >
           Bet {stake}
         </div>
 
-        {isWon && payout && (
-          <div
-            style={{
-              background: 'rgba(37, 70, 50, 0.4)',
-              borderRadius: 3,
-              padding: '3px 6px',
-              color: '#51b579',
-              textAlign: 'right',
-            }}
-          >
-            +{payout % 1 === 0 ? payout.toLocaleString() : payout.toFixed(2)}
-          </div>
-        )}
-
-        {isWaiting && (
+        {isWon && payout !== undefined ? (
           <div
             style={{
               background: 'rgba(20, 25, 26, 0.45)',
               borderRadius: 3,
               padding: '3px 6px',
-              color: '#e6b529',
+              color: '#51b579',
               textAlign: 'right',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
             }}
           >
-            Waiting
+            {payout >= stake ? `+${payout.toLocaleString()}` : payout.toLocaleString()}
           </div>
-        )}
-
-        {isLost && (
+        ) : isLost ? (
           <div
             style={{
               background: 'rgba(20, 25, 26, 0.45)',
@@ -188,9 +181,31 @@ export const BetCard: React.FC<BetCardProps> = ({
               padding: '3px 6px',
               color: '#ff5c5c',
               textAlign: 'right',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
             }}
           >
             Lost
+          </div>
+        ) : (
+          <div
+            style={{
+              background: 'rgba(20, 25, 26, 0.45)',
+              borderRadius: 3,
+              padding: '3px 6px',
+              color: '#ffe833',
+              textAlign: 'right',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Waiting
           </div>
         )}
       </div>

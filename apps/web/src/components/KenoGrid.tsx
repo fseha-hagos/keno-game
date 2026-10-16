@@ -48,8 +48,8 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
           const isSelected = selectedSet.has(num);
           const isDrawn = drawnSet.has(num);
           const isHit = isSelected && isDrawn;
-          const isHot = !isSelected && !isDrawn && HOT_NUMBERS.includes(num);
-          const isCold = !isSelected && !isDrawn && COLD_NUMBERS.includes(num);
+          const isHot = HOT_NUMBERS.includes(num);
+          const isCold = COLD_NUMBERS.includes(num);
 
           let bg = KENO_COLORS.cellDefault;
           let textColor = KENO_COLORS.textDefault;
@@ -58,14 +58,15 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
           if (isHit) {
             bg = KENO_COLORS.hitFill;
             textColor = '#FFFFFF';
-            shadow = '0 0 12px rgba(107, 226, 168, 0.85)';
+            shadow = 'none';
           } else if (isDrawn) {
             bg = KENO_COLORS.drawnFill;
             textColor = '#FFFFFF';
+            shadow = 'none';
           } else if (isSelected) {
             bg = KENO_COLORS.pickFill;
             textColor = '#FFFFFF';
-            shadow = '0 0 6px rgba(76, 139, 101, 0.6)';
+            shadow = 'none';
           }
 
           return (
@@ -74,7 +75,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
               type="button"
               disabled={disabled}
               onClick={() => toggleNumber(num)}
-              className={isHit ? 'animate-pop' : ''}
+              className=""
               style={{
                 aspectRatio: '1 / 1',
                 width: '100%',
@@ -90,7 +91,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 justifyContent: 'center',
                 cursor: disabled ? 'default' : 'pointer',
                 boxShadow: shadow,
-                transition: 'background 0.12s ease-out, transform 0.08s ease',
+                transition: 'none',
                 position: 'relative',
                 padding: 0,
               }}
@@ -102,12 +103,13 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '8%',
-                    left: '8%',
+                    top: '5%',
+                    left: '5%',
                     width: 5,
                     height: 5,
                     borderRadius: '50%',
                     backgroundColor: KENO_COLORS.dotHot,
+                    pointerEvents: 'none',
                   }}
                 />
               )}
@@ -117,12 +119,13 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '8%',
-                    left: '8%',
+                    top: '5%',
+                    left: '5%',
                     width: 5,
                     height: 5,
                     borderRadius: '50%',
                     backgroundColor: KENO_COLORS.dotCold,
+                    pointerEvents: 'none',
                   }}
                 />
               )}

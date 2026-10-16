@@ -15,6 +15,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { EventsModule } from './modules/websocket/events.module';
 import { HealthModule } from './modules/health/health.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { HealthModule } from './modules/health/health.module';
     DatabaseModule,
     AuditModule,
     EventsModule,
+    ChatModule,
     RngModule,
     LedgerModule,
     WalletModule,
@@ -40,3 +42,4 @@ import { HealthModule } from './modules/health/health.module';
   ],
 })
 export class AppModule {}
+

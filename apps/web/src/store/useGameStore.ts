@@ -6,21 +6,25 @@ export interface BetSlip {
   stakeMinor: string; // in cents, e.g. "500" = 5.00 ETB
 }
 
-const STAKE_STEPS = [100, 200, 500, 1000, 2000, 5000]; // cents
+const STAKE_STEPS = [400, 500, 1000, 2000, 5000, 10000]; // cents (minimum 4.00 ETB)
 const MAX_SLIPS = 5;
 
-function makeSlip(id: string, stakeMinor = '500'): BetSlip {
+function makeSlip(id: string, stakeMinor = '400'): BetSlip {
   return { id, selectedNumbers: [], stakeMinor };
 }
 
 function nextStake(current: string, direction: 1 | -1): string {
-  const minor = Number(current);
+  const minor = Math.max(400, Number(current));
   const idx = STAKE_STEPS.indexOf(minor);
   if (idx === -1) {
     const nearest = STAKE_STEPS.reduce((prev, s) =>
       Math.abs(s - minor) < Math.abs(prev - minor) ? s : prev
     );
-    return String(nearest);
+    const nearestIdx = STAKE_STEPS.indexOf(nearest);
+    const next = nearestIdx + direction;
+    if (next < 0) return String(STAKE_STEPS[0]);
+    if (next >= STAKE_STEPS.length) return String(STAKE_STEPS[STAKE_STEPS.length - 1]);
+    return String(STAKE_STEPS[next]);
   }
   const next = idx + direction;
   if (next < 0) return String(STAKE_STEPS[0]);
@@ -31,7 +35,7 @@ function nextStake(current: string, direction: 1 | -1): string {
 function pruneEmptySlips(
   slips: BetSlip[],
   activeSlipId: string,
-  preservedStake = '500'
+  preservedStake = '400'
 ): { betSlips: BetSlip[]; activeSlipId: string } {
   const kept = slips.filter(
     (s) => s.selectedNumbers.length > 0 || s.id === activeSlipId
@@ -236,9 +240,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     }),
 
   setStakeMinor: (stake: string) =>
-    set((state) => ({
-      betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: stake })),
-    })),
+    set((state) => {
+      const parsed = Math.max(400, Number(stake) || 400);
+      const safe = String(parsed);
+      return {
+        betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: safe })),
+      };
+    }),
 
   confirmedTickets: [],
 
@@ -252,7 +260,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resetSlips: () =>
     set((state) => {
       const active = state.betSlips.find((s) => s.id === state.activeSlipId);
-      const currentStake = active?.stakeMinor ?? state.betSlips[0]?.stakeMinor ?? '500';
+      const currentStake = active?.stakeMinor ?? state.betSlips[0]?.stakeMinor ?? '400';
       return {
         betSlips: [makeSlip(INITIAL_SLIP_ID, currentStake)],
         activeSlipId: INITIAL_SLIP_ID,

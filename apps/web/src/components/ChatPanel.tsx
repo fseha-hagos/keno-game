@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
-import { Send, ThumbsUp, Smile, CloudRain } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, ThumbsUp, Smile, CloudRain, Sparkles, X, ChevronDown } from 'lucide-react';
 import { KENO_FONTS } from '../theme/kenoTheme';
+import { useAuthStore } from '../store/useAuthStore';
+import { useGameStore } from '../store/useGameStore';
+import { apiClient } from '../api/client';
+import { socketService } from '../services/socket';
 
 interface ChatMessage {
   id: string;
   user: string;
+  userId?: string;
   avatarUrl?: string;
   avatarColor: string;
   text: string;
   upvotes: number;
+  createdAt?: string;
 }
 
 const INITIAL_MESSAGES: ChatMessage[] = [
@@ -22,33 +28,385 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   { id: '8', user: 'm***o', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-14.png', avatarColor: '#ffdab9', text: 'Guys', upvotes: 0 },
 ];
 
+const EMOJI_LIST = ['🔥', '🎉', '🚀', '❤️', '👏', '🤑', '🍀', '🎲', '😂', '💎', '🎯', '🤞', '⚡', '💯', '💰', '✨'];
+const QUICK_GIF_CHIPS = ['🎯 Keno Luck!', '💎 Big Win!', '🔥 On Fire!', '🚀 To the Moon!', '🍀 Lucky 80!'];
 
-export const ChatPanel: React.FC = () => {
+// Authentic community banter pool for live casino atmosphere
+const LIVE_COMMUNITY_POOL = [
+  { user: 'b***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-5.png', text: '70 and 77 please 🙏' },
+  { user: '09***44', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-9.png', text: 'ydmrrrr' },
+  { user: 'k***m', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-2.png', text: 'Big win on 5 picks! 🔥' },
+  { user: 'd***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-10.png', text: 'Good luck everyone 🍀' },
+  { user: 's***r', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', text: 'Rain' },
+  { user: 't***e', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-6.png', text: '10 birr and a dream 🚀' },
+  { user: '09***82', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', text: 'Rain pls!' },
+  { user: 'h***s', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-13.png', text: 'Let’s hit that 80!' },
+  { user: 'y***n', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-15.png', text: '💥💥💥' },
+  { user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', text: 'min new zarei luck' },
+  { user: 'a***b', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', text: 'ayzoh fam' },
+  { user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', text: '🔥' },
+  { user: 'm***u', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', text: 'Ere bamaryam' },
+];
+
+const LOCAL_STORAGE_LIKES_KEY = 'fast_keno_liked_messages';
+
+interface ChatPanelProps {
+  onClose?: () => void;
+  isMobile?: boolean;
+}
+
+export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false }) => {
+  const { user, isAuthenticated } = useAuthStore();
+  const isOnline = useGameStore((state) => state.isOnline);
+
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifMenu, setShowGifMenu] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  // Live online player count (fluctuates organically while online)
+  const [onlineCount, setOnlineCount] = useState(3557);
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        user: 'You',
-        avatarColor: '#51b579',
-        text: inputText.trim(),
-        upvotes: 0,
-      },
-    ]);
+  // Single-like tracking per user per comment
+  const [likedMessageIds, setLikedMessageIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_LIKES_KEY);
+      return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  // Recent like pop animation trigger
+  const [recentLikedId, setRecentLikedId] = useState<string | null>(null);
+
+  // Smart scrolling & unread indicator state
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [hasNewBelow, setHasNewBelow] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const isScrolledUpRef = useRef(false);
+  isScrolledUpRef.current = isScrolledUp;
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'nearest' });
+    setHasNewBelow(false);
+  }, []);
+
+  // Monitor scroll position
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isAtBottom = distanceToBottom < 65;
+    setIsScrolledUp(!isAtBottom);
+    if (isAtBottom) {
+      setHasNewBelow(false);
+    }
+  }, []);
+
+  // Mask username helper (e.g. "alexander" -> "a***r")
+  const getMaskedUsername = (name?: string) => {
+    if (!name) return 'Guest';
+    const clean = name.trim();
+    if (clean.length <= 2) return `${clean[0]}*`;
+    return `${clean[0]}***${clean[clean.length - 1]}`;
+  };
+
+  // User avatar colors
+  const getUserColor = (name?: string) => {
+    const colors = ['#71ce96', '#f59e0b', '#b5ead7', '#c7ceea', '#a2d729', '#ffb7b2', '#ffdab9', '#38bdf8'];
+    if (!name) return colors[0]!;
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length]!;
+  };
+
+  // 1. Live fluctuating online user count
+  useEffect(() => {
+    if (!isOnline) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const jitterOnlineCount = () => {
+      const delay = 3500 + Math.random() * 3200; // 3.5s - 6.7s
+      timeoutId = setTimeout(() => {
+        setOnlineCount((prev) => {
+          // Natural fluctuation step between -3 and +4
+          const delta = Math.floor(Math.random() * 8) - 3;
+          const next = prev + delta;
+          // Keep realistically between 3,515 and 3,595
+          if (next < 3520) return prev + Math.floor(Math.random() * 4) + 1;
+          if (next > 3585) return prev - Math.floor(Math.random() * 4) - 1;
+          return next;
+        });
+        jitterOnlineCount();
+      }, delay);
+    };
+
+    jitterOnlineCount();
+    return () => clearTimeout(timeoutId);
+  }, [isOnline]);
+
+  // 2. Fetch initial messages and listen for live WebSocket events
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchMessages = async () => {
+      try {
+        const res = await apiClient.get('/api/v1/chat/messages?limit=60');
+        if (isMounted && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: ChatMessage[] = res.data.map((m: any) => ({
+            id: String(m.id),
+            user: m.username,
+            userId: m.userId,
+            avatarUrl: m.avatarUrl,
+            avatarColor: m.avatarColor || getUserColor(m.username),
+            text: m.text,
+            upvotes: m.upvotes || 0,
+            createdAt: m.createdAt,
+          }));
+          setMessages(mapped);
+          setTimeout(() => scrollToBottom('auto'), 120);
+        }
+      } catch {
+        // Fallback to starter messages
+      }
+    };
+
+    fetchMessages();
+
+    // Listen for live broadcast messages from socket gateway
+    const unsubscribeChat = socketService.onChatMessage((data: any) => {
+      if (!data) return;
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.id === String(data.id));
+        if (exists) {
+          return prev.map((m) => (m.id === String(data.id) ? { ...m, ...data } : m));
+        }
+        return [
+          ...prev,
+          {
+            id: String(data.id || Date.now()),
+            user: data.username || 'Player',
+            userId: data.userId,
+            avatarUrl: data.avatarUrl,
+            avatarColor: data.avatarColor || getUserColor(data.username),
+            text: data.text,
+            upvotes: data.upvotes || 0,
+            createdAt: data.createdAt,
+          },
+        ];
+      });
+
+      if (isScrolledUpRef.current) {
+        setHasNewBelow(true);
+      } else {
+        setTimeout(() => scrollToBottom('smooth'), 50);
+      }
+    });
+
+    // Listen for live like reactions
+    const unsubscribeLikes = socketService.onChatLiked((likeData) => {
+      if (!likeData?.messageId) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === String(likeData.messageId) ? { ...m, upvotes: likeData.upvotes } : m,
+        ),
+      );
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribeChat();
+      unsubscribeLikes();
+    };
+  }, [scrollToBottom]);
+
+  // 3. Live community player chatter & organic reactions simulator
+  useEffect(() => {
+    if (!isOnline) return;
+
+    // Periodic organic chat message
+    let chatTimer: ReturnType<typeof setTimeout>;
+    const scheduleNextCommunityMessage = () => {
+      const interval = 16000 + Math.random() * 16000; // 16s - 32s
+      chatTimer = setTimeout(() => {
+        const template = LIVE_COMMUNITY_POOL[Math.floor(Math.random() * LIVE_COMMUNITY_POOL.length)]!;
+        const newMsg: ChatMessage = {
+          id: `live-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          user: template.user,
+          avatarUrl: template.avatarUrl,
+          avatarColor: getUserColor(template.user),
+          text: template.text,
+          upvotes: 0,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => {
+          // Limit to recent 100 messages in memory
+          const updated = [...prev, newMsg];
+          return updated.length > 100 ? updated.slice(updated.length - 100) : updated;
+        });
+
+        if (isScrolledUpRef.current) {
+          setHasNewBelow(true);
+        } else {
+          setTimeout(() => scrollToBottom('smooth'), 60);
+        }
+
+        scheduleNextCommunityMessage();
+      }, interval);
+    };
+
+    scheduleNextCommunityMessage();
+
+    // Periodic organic like reaction by other online players
+    let likeTimer: ReturnType<typeof setTimeout>;
+    const scheduleNextCommunityLike = () => {
+      const interval = 22000 + Math.random() * 25000; // 22s - 47s
+      likeTimer = setTimeout(() => {
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          // Pick a recent message from last 12 messages
+          const candidateSlice = prev.slice(-12);
+          const target = candidateSlice[Math.floor(Math.random() * candidateSlice.length)]!;
+          return prev.map((m) => (m.id === target.id ? { ...m, upvotes: m.upvotes + 1 } : m));
+        });
+        scheduleNextCommunityLike();
+      }, interval);
+    };
+
+    scheduleNextCommunityLike();
+
+    return () => {
+      clearTimeout(chatTimer);
+      clearTimeout(likeTimer);
+    };
+  }, [isOnline, scrollToBottom]);
+
+  // 4. Send message handler
+  const handleSend = async (e?: React.FormEvent, customText?: string) => {
+    if (e) e.preventDefault();
+    const messageContent = (customText || inputText).trim();
+    if (!messageContent || isSending) return;
+
+    setIsSending(true);
+    setShowEmojiPicker(false);
+    setShowGifMenu(false);
+
+    const displayName = isAuthenticated && user?.username
+      ? getMaskedUsername(user.username)
+      : 'You';
+
+    const avatar = (user as any)?.avatarUrl || 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-1.png';
+    const color = getUserColor(displayName);
+    const tempId = `temp-${Date.now()}`;
+
+    // Optimistic UI append
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      user: displayName,
+      userId: user?.id,
+      avatarUrl: avatar,
+      avatarColor: color,
+      text: messageContent,
+      upvotes: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
     setInputText('');
+    setHasNewBelow(false);
+    setTimeout(() => scrollToBottom('smooth'), 50);
+
+    try {
+      const res = await apiClient.post('/api/v1/chat/messages', {
+        userId: user?.id,
+        username: displayName,
+        avatarUrl: avatar,
+        avatarColor: color,
+        text: messageContent,
+      });
+
+      if (res.data?.id) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, id: String(res.data.id) } : m)),
+        );
+      }
+    } catch {
+      // Keep optimistic message displayed so user experience is smooth
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleUpvote = (id: string) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, upvotes: m.upvotes + 1 } : m)),
-    );
+  // 5. Single-like per comment enforcement: toggle like / unlike
+  const handleUpvote = async (id: string) => {
+    const isAlreadyLiked = likedMessageIds.has(id);
+    const nextLiked = new Set(likedMessageIds);
+
+    if (isAlreadyLiked) {
+      // Unlike (toggle off)
+      nextLiked.delete(id);
+      setLikedMessageIds(nextLiked);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_LIKES_KEY, JSON.stringify(Array.from(nextLiked)));
+      } catch {}
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, upvotes: Math.max(0, m.upvotes - 1) } : m)),
+      );
+
+      try {
+        socketService.likeChatMessage(id, 'unlike');
+        await apiClient.post(`/api/v1/chat/messages/${id}/like`, { action: 'unlike' });
+      } catch {
+        // Silently tolerate network hiccups
+      }
+    } else {
+      // Like (single like per comment)
+      nextLiked.add(id);
+      setLikedMessageIds(nextLiked);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_LIKES_KEY, JSON.stringify(Array.from(nextLiked)));
+      } catch {}
+
+      // Pop animation
+      setRecentLikedId(id);
+      setTimeout(() => setRecentLikedId(null), 500);
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, upvotes: m.upvotes + 1 } : m)),
+      );
+
+      try {
+        socketService.likeChatMessage(id, 'like');
+        await apiClient.post(`/api/v1/chat/messages/${id}/like`, { action: 'like' });
+      } catch {
+        // Silently tolerate
+      }
+    }
   };
+
+  const handleEmojiClick = (emoji: string) => {
+    setInputText((prev) => `${prev}${emoji}`);
+  };
+
+  const handleRainClick = () => {
+    handleSend(undefined, '🌧️ Rain! Good luck everyone!');
+  };
+
+  const handleGifChipClick = (chip: string) => {
+    handleSend(undefined, chip);
+  };
+
+  const charsLeft = 160 - inputText.length;
 
   return (
     <div
@@ -58,42 +416,101 @@ export const ChatPanel: React.FC = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: 'rgba(27, 30, 31, 0.94)',
-        borderLeft: '1px solid rgba(81, 181, 121, 0.2)',
-        borderRadius: 16,
+        background: isMobile ? 'rgba(20, 24, 26, 0.98)' : 'rgba(27, 30, 31, 0.94)',
+        border: isMobile ? 'none' : '1px solid rgba(81, 181, 121, 0.2)',
+        borderRadius: isMobile ? 0 : 16,
         overflow: 'hidden',
         boxSizing: 'border-box',
         userSelect: 'none',
         fontFamily: KENO_FONTS.ui,
+        position: 'relative',
       }}
     >
-      {/* Top Header: Live Online Users indicator matching mock_web .active-users */}
+      {/* Top Header: Live Online Users indicator with breathing pulse dot */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
+          justifyContent: 'space-between',
           padding: '10px 14px',
           borderBottom: '1px solid rgba(81, 181, 121, 0.2)',
           fontSize: 12,
           fontWeight: 700,
           color: '#E2E8F0',
+          background: isMobile ? 'rgba(27, 32, 35, 0.95)' : 'transparent',
         }}
       >
-        <span
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            backgroundColor: '#71ce96',
-            boxShadow: '0 0 6px #71ce96',
-          }}
-        />
-        <span style={{ color: '#71ce96', fontWeight: 800 }}>3,557</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span
+            className={isOnline ? 'fast-keno-live-dot-pulsing' : ''}
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              backgroundColor: isOnline ? '#71ce96' : '#64748b',
+              boxShadow: isOnline ? '0 0 6px #71ce96' : 'none',
+              transition: 'background-color 0.3s ease',
+            }}
+          />
+          <span
+            style={{
+              color: isOnline ? '#71ce96' : '#94a3b8',
+              fontWeight: 800,
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '0.2px',
+            }}
+          >
+            {isOnline ? onlineCount.toLocaleString() : 'Offline'}
+          </span>
+          <span style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)' }}>online</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: '2px 8px',
+              borderRadius: 10,
+              background: 'rgba(113, 206, 150, 0.15)',
+              color: '#71ce96',
+              fontWeight: 700,
+              border: '1px solid rgba(113, 206, 150, 0.25)',
+              letterSpacing: '0.3px',
+            }}
+          >
+            Live Room
+          </span>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                borderRadius: '50%',
+                width: 26,
+                height: 26,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#CBD5E1',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
+              }}
+              title="Close Chat"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages Stream */}
       <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="fast-keno-chat-scroll"
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -101,108 +518,277 @@ export const ChatPanel: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
+          scrollBehavior: 'smooth',
         }}
       >
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
+        {messages.map((msg) => {
+          const isLikedByMe = likedMessageIds.has(msg.id);
+          const isPopping = recentLikedId === msg.id;
+
+          return (
             <div
+              key={msg.id}
+              className="fast-keno-chat-msg-enter"
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 6,
+                flexDirection: 'column',
+                gap: 2,
               }}
             >
-              {msg.avatarUrl ? (
-                <img
-                  src={msg.avatarUrl}
-                  alt={msg.user}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    backgroundColor: '#333f46',
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    background: msg.avatarColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    color: '#000',
-                  }}
-                >
-                  {msg.user[0]?.toUpperCase()}
-                </div>
-              )}
-
-              <span
-                className="fast-keno-player-name"
+              <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: msg.avatarColor,
-                  cursor: 'pointer',
-                }}
-              >
-                {msg.user}
-              </span>
-
-              <div style={{ flex: 1 }} />
-
-              <button
-                type="button"
-                onClick={() => handleUpvote(msg.id)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: msg.upvotes > 0 ? '#71ce96' : '#64748B',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 3,
-                  fontSize: 10,
-                  cursor: 'pointer',
-                  padding: 2,
+                  gap: 6,
                 }}
               >
-                {msg.upvotes > 0 && <span>{msg.upvotes}</span>}
-                <ThumbsUp size={11} />
-              </button>
-            </div>
+                {msg.avatarUrl ? (
+                  <img
+                    src={msg.avatarUrl}
+                    alt={msg.user}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      backgroundColor: '#333f46',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: msg.avatarColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 900,
+                      color: '#000',
+                    }}
+                  >
+                    {msg.user[0]?.toUpperCase()}
+                  </div>
+                )}
 
-            <div
-              style={{
-                fontSize: 12,
-                color: '#E2E8F0',
-                lineHeight: 1.35,
-                paddingLeft: 26,
-                wordBreak: 'break-word',
-              }}
-            >
-              {msg.text}
+                <span
+                  className="fast-keno-player-name"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: msg.avatarColor,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {msg.user}
+                </span>
+
+                <div style={{ flex: 1 }} />
+
+                {/* Single Like per User per Comment Button */}
+                <button
+                  type="button"
+                  onClick={() => handleUpvote(msg.id)}
+                  title={isLikedByMe ? 'You liked this comment (click to unlike)' : 'Like comment'}
+                  className={isPopping ? 'fast-keno-like-popping' : ''}
+                  style={{
+                    background: isLikedByMe ? 'rgba(113, 206, 150, 0.15)' : 'transparent',
+                    border: isLikedByMe ? '1px solid rgba(113, 206, 150, 0.35)' : '1px solid transparent',
+                    borderRadius: 12,
+                    color: isLikedByMe || msg.upvotes > 0 ? '#71ce96' : '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    fontSize: 10,
+                    fontWeight: isLikedByMe ? 700 : 500,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  {msg.upvotes > 0 && (
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{msg.upvotes}</span>
+                  )}
+                  <ThumbsUp
+                    size={11}
+                    fill={isLikedByMe ? '#71ce96' : 'none'}
+                    color={isLikedByMe || msg.upvotes > 0 ? '#71ce96' : '#64748B'}
+                  />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: '#E2E8F0',
+                  lineHeight: 1.35,
+                  paddingLeft: 26,
+                  wordBreak: 'break-word',
+                }}
+              >
+                {msg.text}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Bottom Input Area matching mock_web .fast-keno-chat-input-area */}
+      {/* Floating "New messages below" indicator when scrolled up */}
+      {hasNewBelow && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom('smooth')}
+          style={{
+            position: 'absolute',
+            bottom: 74,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(180deg, #2a3e32, #1b2820)',
+            border: '1px solid #51b579',
+            borderRadius: 20,
+            padding: '4px 12px',
+            color: '#71ce96',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 6px 18px rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            zIndex: 40,
+            animation: 'chatMsgSlideIn 0.2s ease-out',
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: '#71ce96',
+              boxShadow: '0 0 6px #71ce96',
+            }}
+          />
+          <span>New messages</span>
+          <ChevronDown size={13} />
+        </button>
+      )}
+
+      {/* Floating Emoji Picker Popover */}
+      {showEmojiPicker && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 80,
+            left: 10,
+            right: 10,
+            background: 'linear-gradient(180deg, #242b31, #1b2124)',
+            border: '1px solid rgba(81, 181, 121, 0.35)',
+            borderRadius: 8,
+            padding: 8,
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.8)',
+            zIndex: 50,
+            animation: 'chatMsgSlideIn 0.15s ease-out',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#71ce96' }}>Pick an Emoji</span>
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(false)}
+              style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 2 }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4 }}>
+            {EMOJI_LIST.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleEmojiClick(emoji)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontSize: 16,
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.1s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Quick GIF / Reaction Chips Popover */}
+      {showGifMenu && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 80,
+            left: 10,
+            right: 10,
+            background: 'linear-gradient(180deg, #242b31, #1b2124)',
+            border: '1px solid rgba(81, 181, 121, 0.35)',
+            borderRadius: 8,
+            padding: 8,
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.8)',
+            zIndex: 50,
+            animation: 'chatMsgSlideIn 0.15s ease-out',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#71ce96' }}>Quick Reactions</span>
+            <button
+              type="button"
+              onClick={() => setShowGifMenu(false)}
+              style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 2 }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {QUICK_GIF_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => handleGifChipClick(chip)}
+                style={{
+                  background: 'linear-gradient(180deg, #333f46, #242b31)',
+                  border: '1px solid rgba(81, 181, 121, 0.2)',
+                  borderRadius: 4,
+                  color: '#FFFFFF',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '6px 8px',
+                  textAlign: 'left',
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Input Area */}
       <form
         onSubmit={handleSend}
         style={{
@@ -216,10 +802,12 @@ export const ChatPanel: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             background: 'linear-gradient(180deg, #242b31, #333f46)',
-            border: '1px solid rgba(81, 181, 121, 0.2)',
-            borderRadius: 3,
+            border: isInputFocused ? '1px solid rgba(113, 206, 150, 0.6)' : '1px solid rgba(81, 181, 121, 0.2)',
+            borderRadius: 4,
             padding: '4px 6px',
             marginBottom: 6,
+            boxShadow: isInputFocused ? '0 0 8px rgba(113, 206, 150, 0.2)' : 'none',
+            transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           }}
         >
           <input
@@ -227,7 +815,15 @@ export const ChatPanel: React.FC = () => {
             placeholder="Send message"
             value={inputText}
             maxLength={160}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
             onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             style={{
               flex: 1,
               background: 'transparent',
@@ -240,16 +836,20 @@ export const ChatPanel: React.FC = () => {
           />
           <button
             type="submit"
+            disabled={!inputText.trim() || isSending}
             style={{
-              background: 'linear-gradient(180deg, #4c8b65, #254632)',
+              background: inputText.trim()
+                ? 'linear-gradient(180deg, #4c8b65, #254632)'
+                : 'rgba(255, 255, 255, 0.1)',
               border: 'none',
               borderRadius: 3,
               color: '#FFFFFF',
-              cursor: 'pointer',
+              cursor: inputText.trim() ? 'pointer' : 'default',
               padding: '4px 8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'background 0.15s ease, transform 0.1s ease',
             }}
           >
             <Send size={13} />
@@ -266,17 +866,64 @@ export const ChatPanel: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', color: '#71ce96' }}>
+            <span
+              onClick={() => {
+                setShowEmojiPicker((prev) => !prev);
+                setShowGifMenu(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                cursor: 'pointer',
+                color: showEmojiPicker ? '#51b579' : '#71ce96',
+                fontWeight: 600,
+                transition: 'color 0.15s ease',
+              }}
+            >
               <Smile size={12} color="#71ce96" /> Emoji
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', color: '#71ce96' }}>
-              GIF
+            <span
+              onClick={() => {
+                setShowGifMenu((prev) => !prev);
+                setShowEmojiPicker(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                cursor: 'pointer',
+                color: showGifMenu ? '#51b579' : '#71ce96',
+                fontWeight: 600,
+                transition: 'color 0.15s ease',
+              }}
+            >
+              <Sparkles size={11} color="#71ce96" /> GIF
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', color: '#71ce96' }}>
+            <span
+              onClick={handleRainClick}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                cursor: 'pointer',
+                color: '#71ce96',
+                fontWeight: 600,
+                transition: 'color 0.15s ease',
+              }}
+            >
               <CloudRain size={12} color="#71ce96" /> Rain
             </span>
           </div>
-          <span>160</span>
+
+          <span
+            style={{
+              color: charsLeft < 20 ? '#f59e0b' : charsLeft === 0 ? '#ff5c5c' : '#a0a0a0',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {charsLeft}
+          </span>
         </div>
       </form>
     </div>

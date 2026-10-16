@@ -86,4 +86,17 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`user_${userId}`).emit(WebSocketEvents.WALLET_BALANCE_UPDATED, payload);
     this.server.emit(WebSocketEvents.WALLET_BALANCE_UPDATED, payload);
   }
+
+  broadcastChatMessage(message: any) {
+    if (this.server) {
+      this.server.emit(WebSocketEvents.CHAT_MESSAGE_CREATED, message);
+    }
+  }
+
+  broadcastChatLiked(messageId: string, upvotes: number) {
+    if (this.server) {
+      this.server.emit(WebSocketEvents.CHAT_MESSAGE_LIKED, { messageId, upvotes });
+    }
+  }
 }
+

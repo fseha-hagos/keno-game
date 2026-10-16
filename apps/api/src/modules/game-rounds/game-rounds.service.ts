@@ -37,34 +37,33 @@ export class GameRoundsService implements OnModuleInit {
   }
 
   async getCurrentRound(): Promise<GameRound> {
-    // 1. Check for active OPEN round
+    // 1. If currently drawing in-memory, THAT is the live active round!
+    if (this.activeDraws.size > 0) {
+      const activeRoundId = Array.from(this.activeDraws.keys())[0];
+      if (activeRoundId) {
+        const round = await this.roundRepo.findOne({
+          where: { id: activeRoundId },
+        });
+        if (round) {
+          const active = this.activeDraws.get(round.id);
+          return {
+            ...round,
+            status: RoundStatus.DRAWN,
+            drawResult: active ? [...active.revealed] : [],
+          } as GameRound;
+        }
+      }
+    }
+
+    // 2. Check for active OPEN round
     let round = await this.roundRepo.findOne({
       where: { status: RoundStatus.OPEN },
       order: { roundNumber: 'DESC' },
     });
 
-    // 2. If no OPEN round, check if currently drawing in-memory
-    if (!round && this.activeDraws.size > 0) {
-      const activeRoundId = Array.from(this.activeDraws.keys())[0];
-      if (activeRoundId) {
-        round = await this.roundRepo.findOne({
-          where: { id: activeRoundId },
-        });
-      }
-    }
-
     // 3. If still no active round, immediately ensure a live round is open
     if (!round) {
       round = await this.ensureActiveRound();
-    }
-
-    // SECURITY & LIVE SYNC: If round is currently drawing, return ONLY revealed numbers so far
-    if (round && this.activeDraws.has(round.id)) {
-      const active = this.activeDraws.get(round.id)!;
-      return {
-        ...round,
-        drawResult: [...active.revealed],
-      } as GameRound;
     }
 
     return round;

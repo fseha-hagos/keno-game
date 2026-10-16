@@ -142,6 +142,39 @@ class SocketService {
         }
       }
     );
+
+    this.socket.on(WebSocketEvents.CHAT_MESSAGE_CREATED, (data) => {
+      this.chatListeners.forEach((fn) => fn(data));
+    });
+
+    this.socket.on(WebSocketEvents.CHAT_MESSAGE_LIKED, (data) => {
+      this.chatLikeListeners.forEach((fn) => fn(data));
+    });
+  }
+
+  private chatListeners = new Set<(msg: any) => void>();
+  private chatLikeListeners = new Set<(likeData: { messageId: string; upvotes: number }) => void>();
+
+  onChatMessage(callback: (msg: any) => void) {
+    this.chatListeners.add(callback);
+    return () => this.chatListeners.delete(callback);
+  }
+
+  onChatLiked(callback: (data: { messageId: string; upvotes: number }) => void) {
+    this.chatLikeListeners.add(callback);
+    return () => this.chatLikeListeners.delete(callback);
+  }
+
+  sendChatMessage(data: any) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('chat:send', data);
+    }
+  }
+
+  likeChatMessage(messageId: string, action: 'like' | 'unlike' = 'like') {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('chat:like', { messageId, action });
+    }
   }
 
   authenticateUser(userId: string) {
@@ -166,5 +199,6 @@ class SocketService {
     }
   }
 }
+
 
 export const socketService = new SocketService();

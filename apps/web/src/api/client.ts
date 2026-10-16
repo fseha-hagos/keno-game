@@ -5,8 +5,11 @@ const getBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL;
   }
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    // If running in development with default Vite port, target backend port 3000
-    if (window.location.port === '5174' || window.location.port === '5173') {
+    // In local development, if frontend is not on port 3000, target backend port 3000
+    if (
+      window.location.port !== '3000' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ) {
       return `http://${window.location.hostname}:3000`;
     }
     // In production or custom WebView setup, use origin
