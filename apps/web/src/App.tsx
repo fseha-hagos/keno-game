@@ -21,7 +21,7 @@ import { toastSuccess, toastError, toastInfo } from './services/toast';
 
 export const App: React.FC = () => {
   const queryClient = useQueryClient();
-  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, checkAuth } = useAuthStore();
   const {
     betSlips,
     currency,
@@ -84,6 +84,13 @@ export const App: React.FC = () => {
       socketService.disconnect();
     };
   }, []);
+
+  // Sync user authentication with websocket
+  useEffect(() => {
+    if (user?.id) {
+      socketService.authenticateUser(user.id);
+    }
+  }, [user?.id]);
 
   // Fetch active game round
   const { data: round } = useQuery({
