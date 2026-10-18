@@ -1328,33 +1328,73 @@ x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026`}
                       </pre>
                     </div>
 
-                    {/* MacroDroid Trigger Configuration */}
+                    {/* Recommended Setup: Single URL (GET Method - Easiest & Zero Errors) */}
+                    <div style={{ backgroundColor: '#064E3B', padding: '16px', borderRadius: '10px', border: '1px solid #10B981' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 900, color: '#A7F3D0' }}>
+                          ⚡ METHOD 1 (RECOMMENDED): SUPER EASY 1-LINE GET URL
+                        </span>
+                        <button
+                          onClick={() => copyText('getUrl', 'http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid?secret=keno_macrodroid_secure_webhook_secret_2026&sender=[sms_number]&message=[sms_body]')}
+                          style={{
+                            background: '#059669', border: 'none', color: '#F8FAFC',
+                            padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          {copiedKey === 'getUrl' ? <Check size={12} color="#fff" /> : <Copy size={12} />}
+                          {copiedKey === 'getUrl' ? 'Copied GET URL!' : 'Copy 1-Line URL'}
+                        </button>
+                      </div>
+                      <code style={{ color: '#D1FAE5', fontSize: '12px', wordBreak: 'break-all', display: 'block', backgroundColor: '#022C22', padding: '10px', borderRadius: '6px', margin: '8px 0' }}>
+                        http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid?secret=keno_macrodroid_secure_webhook_secret_2026&sender=[sms_number]&message=[sms_body]
+                      </code>
+                      <p style={{ color: '#A7F3D0', fontSize: '11px', margin: 0, lineHeight: 1.5 }}>
+                        <strong>Why this is best:</strong> In MacroDroid, just set <strong>HTTP Request Method: GET</strong> and paste this URL. No headers to add, no JSON quotes to worry about! MacroDroid will automatically replace <code>[sms_number]</code> and <code>[sms_body]</code> with the actual Telebirr SMS.
+                      </p>
+                    </div>
+
+                    {/* Method 2: POST with JSON Body (Notice Square Brackets) */}
                     <div style={{ backgroundColor: '#0B1320', padding: '16px', borderRadius: '10px', border: '1px solid #1E293B' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, color: '#FBBF24', display: 'block', marginBottom: '8px' }}>
-                        TRIGGER 1: INCOMING SMS
+                        METHOD 2: HTTP POST (JSON BODY)
                       </span>
                       <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12px', color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <li>Trigger: <strong>SMS Received</strong></li>
-                        <li>Sender: <code>telebirr, 127, M-PESA, CBEBirr, 847, CBE</code> (or Any)</li>
-                        <li>Action: <strong>HTTP Request</strong> (POST)</li>
+                        <li>Request Method: <strong>POST</strong></li>
+                        <li>URL: <code>http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid</code></li>
+                        <li>Header: <code>x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026</code></li>
+                        <li>Content Type: <code>application/json</code></li>
                       </ul>
 
                       <div style={{ marginTop: '12px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#94A3B8', display: 'block', marginBottom: '4px' }}>
-                          ACTION JSON BODY:
-                        </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#94A3B8' }}>
+                            POST JSON BODY (Must use square brackets <code>[...]</code>):
+                          </span>
+                          <button
+                            onClick={() => copyText('postBody', '{\n  "sender": "[sms_number]",\n  "message": "[sms_body]",\n  "deviceId": "primary_phone",\n  "type": "sms"\n}')}
+                            style={{
+                              background: '#1E293B', border: 'none', color: '#F8FAFC',
+                              padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px'
+                            }}
+                          >
+                            {copiedKey === 'postBody' ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                            {copiedKey === 'postBody' ? 'Copied Body' : 'Copy JSON'}
+                          </button>
+                        </div>
                         <pre style={{
                           backgroundColor: '#030712', padding: '12px', borderRadius: '8px',
                           border: '1px solid #1E293B', color: '#A7F3D0', fontSize: '11px', margin: 0
                         }}>
 {`{
-  "sender": "{sms_number}",
-  "message": "{sms_body}",
-  "timestamp": "{system_time_ms}",
+  "sender": "[sms_number]",
+  "message": "[sms_body]",
   "deviceId": "primary_phone",
   "type": "sms"
 }`}
                         </pre>
+                        <span style={{ color: '#F87171', fontSize: '11px', display: 'block', marginTop: '6px' }}>
+                          ⚠️ Note: Use square brackets <code>[sms_body]</code> (MacroDroid magic text). Do NOT use curly braces <code>{`{sms_body}`}</code> as MacroDroid will send them as literal text.
+                        </span>
                       </div>
                     </div>
 

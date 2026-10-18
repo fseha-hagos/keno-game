@@ -154,26 +154,32 @@ export class PaymentsController {
   /**
    * Secure Webhook for MacroDroid Android Device.
    * MacroDroid catches incoming SMS or app notifications and sends them here.
+   * Supports both POST (JSON body or query params) and GET (query params) for effortless MacroDroid setup.
    */
   @Post('webhook/macrodroid')
   @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
-  @ApiOperation({ summary: 'Secured webhook to receive MacroDroid SMS/notification data' })
+  @ApiOperation({ summary: 'Secured POST webhook to receive MacroDroid SMS/notification data' })
   @ApiHeader({
     name: 'x-macrodroid-secret',
     required: false,
     description: 'Webhook authorization secret',
   })
   async receiveMacroDroidNotification(
-    @Headers('x-macrodroid-secret') secretHeader: string,
-    @Headers('authorization') authHeader: string,
-    @Body() payload: MacroDroidWebhookDto,
+    @Headers('x-macrodroid-secret') secretHeader?: string,
+    @Headers('authorization') authHeader?: string,
+    @Query('secret') secretQuery?: string,
+    @Query() query?: any,
+    @Body() payload: MacroDroidWebhookDto = {},
   ) {
     const configuredSecret =
       this.configService.get<string>('MACRODROID_WEBHOOK_SECRET') ||
       'keno_macrodroid_secure_webhook_secret_2026';
 
     const providedSecret =
-      secretHeader || (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : '');
+      secretHeader ||
+      secretQuery ||
+      (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : '') ||
+      query?.secret;
 
     if (!providedSecret || providedSecret !== configuredSecret) {
       this.logger.warn(`Unauthorized MacroDroid webhook attempt from secret: "${providedSecret}"`);
@@ -186,16 +192,29 @@ export class PaymentsController {
       payload.text ||
       payload.body ||
       payload.not_text ||
+      query?.sms_body ||
+      query?.message ||
+      query?.text ||
+      query?.body ||
       '';
     const senderHeader =
       payload.sms_number ||
       payload.sender ||
       payload.not_app_name ||
       payload.not_title ||
+      query?.sms_number ||
+      query?.sender ||
+      query?.from ||
       '';
 
     if (!messageText.trim()) {
       throw new BadRequestException('Empty notification/message content');
+    }
+
+    if (messageText.trim() === '{sms_body}' || messageText.trim() === '[sms_body]') {
+      this.logger.warn(
+        `Received literal template variable "${messageText}" from phone. MacroDroid magic text was not evaluated.`,
+      );
     }
 
     // 1. Calculate SHA-256 payload hash for deduplication
