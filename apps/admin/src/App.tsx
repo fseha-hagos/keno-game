@@ -1335,7 +1335,7 @@ x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026`}
                           ⚡ METHOD 1 (RECOMMENDED): SUPER EASY 1-LINE GET URL
                         </span>
                         <button
-                          onClick={() => copyText('getUrl', 'http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid?secret=keno_macrodroid_secure_webhook_secret_2026&sender=[sms_number]&message=[sms_body]')}
+                          onClick={() => copyText('getUrl', 'http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid?secret=keno_macrodroid_secure_webhook_secret_2026&sender=[sms_number]&message=[sms_message]')}
                           style={{
                             background: '#059669', border: 'none', color: '#F8FAFC',
                             padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px'
@@ -1346,10 +1346,10 @@ x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026`}
                         </button>
                       </div>
                       <code style={{ color: '#D1FAE5', fontSize: '12px', wordBreak: 'break-all', display: 'block', backgroundColor: '#022C22', padding: '10px', borderRadius: '6px', margin: '8px 0' }}>
-                        http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid?secret=keno_macrodroid_secure_webhook_secret_2026&sender=[sms_number]&message=[sms_body]
+                        http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid?secret=keno_macrodroid_secure_webhook_secret_2026&sender=[sms_number]&message=[sms_message]
                       </code>
                       <p style={{ color: '#A7F3D0', fontSize: '11px', margin: 0, lineHeight: 1.5 }}>
-                        <strong>Why this is best:</strong> In MacroDroid, just set <strong>HTTP Request Method: GET</strong> and paste this URL. No headers to add, no JSON quotes to worry about! MacroDroid will automatically replace <code>[sms_number]</code> and <code>[sms_body]</code> with the actual Telebirr SMS.
+                        <strong>Why this is best:</strong> In MacroDroid, just set <strong>HTTP Request Method: GET</strong> and paste this URL. No headers to add, no JSON quotes to worry about! MacroDroid will automatically replace <code>[sms_number]</code> and <code>[sms_message]</code> with the actual Telebirr SMS.
                       </p>
                     </div>
 
@@ -1371,7 +1371,7 @@ x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026`}
                             POST JSON BODY (Must use square brackets <code>[...]</code>):
                           </span>
                           <button
-                            onClick={() => copyText('postBody', '{\n  "sender": "[sms_number]",\n  "message": "[sms_body]",\n  "deviceId": "primary_phone",\n  "type": "sms"\n}')}
+                            onClick={() => copyText('postBody', '{\n  "sender": "[sms_number]",\n  "message": "[sms_message]",\n  "deviceId": "primary_phone",\n  "type": "sms"\n}')}
                             style={{
                               background: '#1E293B', border: 'none', color: '#F8FAFC',
                               padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px'
@@ -1387,13 +1387,13 @@ x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026`}
                         }}>
 {`{
   "sender": "[sms_number]",
-  "message": "[sms_body]",
+  "message": "[sms_message]",
   "deviceId": "primary_phone",
   "type": "sms"
 }`}
                         </pre>
                         <span style={{ color: '#F87171', fontSize: '11px', display: 'block', marginTop: '6px' }}>
-                          ⚠️ Note: Use square brackets <code>[sms_body]</code> (MacroDroid magic text). Do NOT use curly braces <code>{`{sms_body}`}</code> as MacroDroid will send them as literal text.
+                          💡 Tip: In your version of MacroDroid, the SMS message variable is <code>[sms_message]</code> (or <code>[sms_body]</code>). The backend accepts either!
                         </span>
                       </div>
                     </div>

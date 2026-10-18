@@ -70,6 +70,10 @@ export class MacroDroidWebhookDto {
 
   @IsOptional()
   @IsString()
+  sms_message?: string;
+
+  @IsOptional()
+  @IsString()
   sms_body?: string;
 
   @IsOptional()
@@ -187,11 +191,13 @@ export class PaymentsController {
     }
 
     const messageText =
+      payload.sms_message ||
       payload.sms_body ||
       payload.message ||
       payload.text ||
       payload.body ||
       payload.not_text ||
+      query?.sms_message ||
       query?.sms_body ||
       query?.message ||
       query?.text ||
