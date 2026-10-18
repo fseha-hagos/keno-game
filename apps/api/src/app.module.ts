@@ -16,6 +16,7 @@ import { ReportingModule } from './modules/reporting/reporting.module';
 import { EventsModule } from './modules/websocket/events.module';
 import { HealthModule } from './modules/health/health.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ChatModule } from './modules/chat/chat.module';
     AuditModule,
     EventsModule,
     ChatModule,
+    PaymentsModule,
     RngModule,
     LedgerModule,
     WalletModule,

@@ -58,6 +58,16 @@ export class PaymentRequest {
   @Column({ type: 'varchar', length: 255, nullable: true })
   adminNote?: string;
 
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  matchedEvidenceId?: string;
+
+  @Column({ type: 'int', nullable: true })
+  matchConfidence?: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  matchReason?: string;
+
   @Column({ type: 'uuid', nullable: true })
   approvedBy?: string;
 

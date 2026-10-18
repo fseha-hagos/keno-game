@@ -15,8 +15,14 @@ import {
 } from '../../database/entities/payment-request.entity';
 import { LedgerService } from '../ledger/ledger.service';
 import { LedgerTransaction } from '../../database/entities/ledger-transaction.entity';
+import {
+  PaymentEvidence,
+  PaymentEvidenceStatus,
+} from '../../database/entities/payment-evidence.entity';
 import { TransactionType, LedgerReferenceType } from '@keno/shared-types';
 import { GAME_CONFIG } from '@keno/config';
+import { AuditService } from '../audit/audit.service';
+import { DepositMatchingService } from '../payments/deposit-matching.service';
 
 export interface CreateDepositRequestInput {
   amountMinor: string;
@@ -46,7 +52,11 @@ export class WalletService {
     private readonly walletRepo: Repository<WalletAccount>,
     @InjectRepository(PaymentRequest)
     private readonly paymentRepo: Repository<PaymentRequest>,
+    @InjectRepository(PaymentEvidence)
+    private readonly evidenceRepo: Repository<PaymentEvidence>,
     private readonly ledgerService: LedgerService,
+    private readonly auditService: AuditService,
+    private readonly matchingService: DepositMatchingService,
   ) {}
 
   async getOrCreateWallet(
@@ -143,8 +153,8 @@ export class WalletService {
       amountMinor: input.amountMinor,
       currency,
       paymentMethod: input.paymentMethod || 'telebirr',
-      accountNumber: input.accountNumber || '0978614151',
-      accountName: input.accountName || 'Amdom desta',
+      accountNumber: input.accountNumber || '0948491265',
+      accountName: input.accountName || 'Fseha Hagos',
       transactionReference: input.transactionReference || undefined,
       proofImageUrl: input.proofImageUrl || undefined,
       status: PaymentRequestStatus.PENDING,
@@ -157,7 +167,8 @@ export class WalletService {
       `Deposit Request #${saved.id} created (PENDING approval) for User ${userId}, Amount: ${saved.amountMinor} ${saved.currency}`,
     );
 
-    return saved;
+    // Run matching against existing unmatched evidence
+    return this.matchingService.matchPendingDeposit(saved);
   }
 
   /**
@@ -289,10 +300,46 @@ export class WalletService {
       request.approvedAt = new Date();
       if (adminNote) request.adminNote = adminNote;
 
+      // 5. Update linked payment evidence if present
+      if (request.matchedEvidenceId) {
+        await manager.update(
+          PaymentEvidence,
+          { id: request.matchedEvidenceId },
+          {
+            status: PaymentEvidenceStatus.PROCESSED,
+            matchedPaymentRequestId: request.id,
+          },
+        );
+      }
+
       const saved = await manager.save(request);
       this.logger.log(
         `ADMIN APPROVED Deposit #${saved.id} for User ${request.userId}. Credited: ${request.amountMinor} ${request.currency}`,
       );
+
+      // 6. Record immutable audit log
+      try {
+        await this.auditService.log({
+          actorId: adminUserId,
+          actorRole: 'SUPER_ADMIN',
+          action: 'DEPOSIT_APPROVED',
+          entity: 'PaymentRequest',
+          entityId: request.id,
+          metadata: {
+            decision: 'APPROVED',
+            amountMinor: request.amountMinor,
+            currency: request.currency,
+            transactionReference: request.transactionReference,
+            paymentMethod: request.paymentMethod,
+            matchedEvidenceId: request.matchedEvidenceId,
+            customerId: request.userId,
+            adminNote: request.adminNote,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (auditErr: any) {
+        this.logger.warn(`Failed writing audit log for deposit #${request.id}: ${auditErr.message}`);
+      }
 
       return saved;
     });
@@ -327,10 +374,43 @@ export class WalletService {
       request.approvedAt = new Date();
       request.adminNote = adminNote || 'Rejected by Admin';
 
+      // If linked to evidence, unlink evidence so it can be re-evaluated
+      if (request.matchedEvidenceId) {
+        await manager.update(
+          PaymentEvidence,
+          { id: request.matchedEvidenceId },
+          {
+            status: PaymentEvidenceStatus.UNMATCHED,
+            matchedPaymentRequestId: undefined,
+          },
+        );
+      }
+
       const saved = await manager.save(request);
       this.logger.log(
         `ADMIN REJECTED Deposit #${saved.id} for User ${request.userId}. Reason: ${request.adminNote}`,
       );
+
+      try {
+        await this.auditService.log({
+          actorId: adminUserId,
+          actorRole: 'SUPER_ADMIN',
+          action: 'DEPOSIT_REJECTED',
+          entity: 'PaymentRequest',
+          entityId: request.id,
+          metadata: {
+            decision: 'REJECTED',
+            reason: request.adminNote,
+            amountMinor: request.amountMinor,
+            currency: request.currency,
+            transactionReference: request.transactionReference,
+            customerId: request.userId,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (auditErr: any) {
+        this.logger.warn(`Failed writing audit log for reject deposit #${request.id}: ${auditErr.message}`);
+      }
 
       return saved;
     });
@@ -508,13 +588,33 @@ export class WalletService {
       `Deposit #${saved.id} proof updated by User ${userId}. Ref: ${saved.transactionReference}`,
     );
 
-    return saved;
+    // Auto-match after user provides or updates reference code
+    return this.matchingService.matchPendingDeposit(saved);
   }
 
-  async getAllPendingRequests(): Promise<PaymentRequest[]> {
-    return this.paymentRepo.find({
+  async getAllPendingRequests(): Promise<any[]> {
+    const requests = await this.paymentRepo.find({
       order: { createdAt: 'DESC' },
     });
+
+    // Enrich requests with matched evidence if present
+    const evidenceIds = requests
+      .map((r) => r.matchedEvidenceId)
+      .filter((id): id is string => Boolean(id));
+
+    if (evidenceIds.length === 0) {
+      return requests;
+    }
+
+    const evidences = await this.evidenceRepo.find({
+      where: evidenceIds.map((id) => ({ id })),
+    });
+    const evidenceMap = new Map(evidences.map((e) => [e.id, e]));
+
+    return requests.map((req) => ({
+      ...req,
+      matchedEvidence: req.matchedEvidenceId ? evidenceMap.get(req.matchedEvidenceId) || null : null,
+    }));
   }
 
   async getTransactions(userId: string, currency = GAME_CONFIG.DEFAULT_CURRENCY) {

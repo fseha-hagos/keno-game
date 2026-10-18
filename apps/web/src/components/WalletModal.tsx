@@ -10,10 +10,80 @@ interface WalletModalProps {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'telebirr', name: 'Telebirr', icon: '📱', accountNumber: '0978614151', accountName: 'Amdom desta' },
-  { id: 'cbe_birr', name: 'CBE Birr', icon: '🏦', accountNumber: '1000234567891', accountName: 'Amdom desta' },
-  { id: 'mobile_money', name: 'Mobile Money', icon: '💸', accountNumber: '0911000123', accountName: 'Amdom desta' },
-  { id: 'card', name: 'Bank Card', icon: '💳', accountNumber: '1000234567890000', accountName: 'Amdom desta' },
+  {
+    id: 'telebirr',
+    name: 'Telebirr',
+    icon: '📱',
+    badge: 'Auto Match',
+    accountNumber: '0948491265',
+    accountName: 'Fseha Hagos',
+    hint: 'e.g. CI94719082',
+    instructions: [
+      'Open your Telebirr app or dial *127#',
+      'Select "Send Money" to 0948491265 (Fseha Hagos)',
+      'Enter the EXACT deposit amount',
+      'Confirm the transaction with your PIN',
+      'Our Android MacroDroid system automatically detects the incoming SMS!',
+    ],
+  },
+  {
+    id: 'mpesa',
+    name: 'M-Pesa (Safaricom)',
+    icon: '📲',
+    badge: 'Auto Match',
+    accountNumber: '0700000000',
+    accountName: 'Amdom desta',
+    hint: 'e.g. NL47JK890',
+    instructions: [
+      'Open your M-Pesa app or dial *777#',
+      'Select "Send Money" to 0700000000 (Amdom desta)',
+      'Enter the EXACT deposit amount and confirm',
+      'M-Pesa confirmation SMS will be captured and matched automatically',
+    ],
+  },
+  {
+    id: 'cbe_birr',
+    name: 'CBE Birr',
+    icon: '🏦',
+    badge: 'Auto Match',
+    accountNumber: '0978614151',
+    accountName: 'Amdom desta',
+    hint: 'e.g. CB987654321',
+    instructions: [
+      'Open CBE Birr app or dial *847#',
+      'Transfer to CBE Birr mobile: 0978614151 (Amdom desta)',
+      'Enter the EXACT amount and confirm',
+      'Incoming SMS notification is detected and matched automatically',
+    ],
+  },
+  {
+    id: 'cbe_bank',
+    name: 'Commercial Bank of Ethiopia (CBE)',
+    icon: '🏛️',
+    badge: 'FT Code',
+    accountNumber: '1000234567891',
+    accountName: 'Amdom desta',
+    hint: 'e.g. FT262920XXXX',
+    instructions: [
+      'Transfer via CBE Mobile Banking or branch to Account: 1000234567891',
+      'Recipient: Amdom desta',
+      'Enter the FT transaction reference code for instant verification',
+    ],
+  },
+  {
+    id: 'other_bank',
+    name: 'Other Bank Transfer',
+    icon: '💳',
+    badge: 'Awash/Dashen/BOA',
+    accountNumber: '1000234567891',
+    accountName: 'Amdom desta',
+    hint: 'e.g. Bank Ref / Slip No',
+    instructions: [
+      'Transfer from Awash, Dashen, Bank of Abyssinia, Nib, etc.',
+      'Send to CBE Account: 1000234567891 (Amdom desta)',
+      'Enter your transaction reference for admin review',
+    ],
+  },
 ];
 
 const DEPOSIT_PRESETS = ['50', '100', '200', '500', '1000'];
@@ -47,6 +117,36 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
 
     return () => clearInterval(interval);
   }, [pendingDeposit]);
+
+  // Live polling for pending deposit status (detects SMS matching & admin approval in real-time)
+  useQuery({
+    queryKey: ['activePendingDeposit', pendingDeposit?.id],
+    queryFn: async () => {
+      if (!pendingDeposit?.id) return null;
+      try {
+        const res = await apiClient.get('/api/v1/wallet/payment-requests');
+        const found = res.data?.find((r: any) => r.id === pendingDeposit.id);
+        if (found) {
+          if (found.status === 'APPROVED') {
+            toastSuccess('Deposit Approved!', 'Your payment was approved and your balance has been credited!');
+            setPendingDeposit(null);
+            queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+            queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+          } else if (found.status === 'REJECTED') {
+            toastError('Deposit Rejected', found.adminNote || 'Deposit was rejected');
+            setPendingDeposit(null);
+          } else if (found.matchedEvidenceId && !pendingDeposit.matchedEvidenceId) {
+            setPendingDeposit(found);
+          }
+        }
+        return found;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!pendingDeposit?.id,
+    refetchInterval: 3000,
+  });
 
   // Balance query
   const { data: wallet } = useQuery({
@@ -273,12 +373,12 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     border: '1px solid rgba(16, 185, 129, 0.3)',
                     borderRadius: 12,
                     padding: '12px 14px',
-                    marginBottom: 16,
+                    marginBottom: 14,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: '#10B981' }}>
-                      Deposit Request Initiated
+                      Deposit Request #{pendingDeposit?.id ? pendingDeposit.id.slice(0, 8) : ''}
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={12} />
@@ -286,9 +386,47 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: '#94A3B8' }}>
-                    Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}:
+                    Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}
                   </div>
                 </div>
+
+                {/* Automated Detection Status Banner */}
+                {pendingDeposit?.matchedEvidenceId ? (
+                  <div
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid #3B82F6',
+                      borderRadius: 12,
+                      padding: '10px 14px',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#60A5FA', fontSize: 12, fontWeight: 800 }}>
+                      <span>⚡ PAYMENT DETECTED BY AUTOMATION</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#93C5FD', marginTop: 4 }}>
+                      Incoming SMS notification matched with {pendingDeposit.matchConfidence || 100}% confidence. Balance will credit automatically upon admin review.
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: 12,
+                      padding: '8px 12px',
+                      marginBottom: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 11,
+                      color: '#FCD34D',
+                    }}
+                  >
+                    <span>🤖</span>
+                    <span>MacroDroid automated SMS detection active. You can submit ref code or wait for auto-detection.</span>
+                  </div>
+                )}
 
                 {/* Account Details Box */}
                 <div
@@ -297,7 +435,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     border: '1px solid #334155',
                     borderRadius: 12,
                     padding: 14,
-                    marginBottom: 16,
+                    marginBottom: 14,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -336,14 +474,36 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                   </div>
                 </div>
 
+                {/* Step-by-step instructions */}
+                {currentMethod.instructions && (
+                  <div
+                    style={{
+                      background: '#0B1320',
+                      border: '1px solid #1E293B',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#FBBF24', marginBottom: 6, textTransform: 'uppercase' }}>
+                      Payment Instructions:
+                    </div>
+                    <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {currentMethod.instructions.map((step: string, idx: number) => (
+                        <li key={idx}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
                 {/* Reference Code Input */}
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                    Transaction Reference Code / SMS ID
+                    Transaction Reference Code ({currentMethod.hint || 'from SMS'})
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. CI94719082 or TR12345"
+                    placeholder={`e.g. ${currentMethod.hint || 'CI94719082'}`}
                     value={txRef}
                     onChange={(e) => setTxRef(e.target.value)}
                     style={{
