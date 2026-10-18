@@ -305,6 +305,22 @@ export class PaymentsController {
   }
 
   /**
+   * Secure GET Webhook for MacroDroid Android Device.
+   * Allows passing parameters directly in the URL query string:
+   * ?secret=...&sender=[sms_number]&message=[sms_body]
+   */
+  @Get('webhook/macrodroid')
+  @ApiOperation({ summary: 'Secured GET webhook to receive MacroDroid SMS data via query parameters' })
+  async receiveMacroDroidGetWebhook(
+    @Headers('x-macrodroid-secret') secretHeader?: string,
+    @Headers('authorization') authHeader?: string,
+    @Query('secret') secretQuery?: string,
+    @Query() query?: any,
+  ) {
+    return this.receiveMacroDroidNotification(secretHeader, authHeader, secretQuery, query, {});
+  }
+
+  /**
    * Admin-Only: Simulate an incoming notification for testing detection & matching.
    */
   @Post('admin/simulate')
@@ -362,13 +378,19 @@ export class PaymentsController {
       this.configService.get<string>('MACRODROID_WEBHOOK_SECRET') ||
       'keno_macrodroid_secure_webhook_secret_2026';
 
-    return this.receiveMacroDroidNotification(secret, '', {
-      sender,
-      message: text,
-      timestamp: Date.now(),
-      deviceId: dto.deviceId || 'admin_simulator_01',
-      type: 'sms',
-    });
+    return this.receiveMacroDroidNotification(
+      secret,
+      '',
+      undefined,
+      undefined,
+      {
+        sender,
+        message: text,
+        timestamp: Date.now(),
+        deviceId: dto.deviceId || 'admin_simulator_01',
+        type: 'sms',
+      },
+    );
   }
 
   /**
