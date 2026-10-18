@@ -1262,10 +1262,35 @@ export default function App() {
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* LAN URL Box for Real Phone */}
+                    <div style={{ backgroundColor: '#1E1B4B', padding: '16px', borderRadius: '10px', border: '1px solid #6366F1' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#C7D2FE' }}>
+                          PHONE WEBHOOK URL (USE THIS IN MACRODROID ON YOUR PHONE):
+                        </span>
+                        <button
+                          onClick={() => copyText('lanUrl', 'http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid')}
+                          style={{
+                            background: '#4F46E5', border: 'none', color: '#F8FAFC',
+                            padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          {copiedKey === 'lanUrl' ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                          {copiedKey === 'lanUrl' ? 'Copied' : 'Copy Phone URL'}
+                        </button>
+                      </div>
+                      <code style={{ color: '#A5B4FC', fontSize: '13px', fontWeight: 700, wordBreak: 'break-all' }}>
+                        http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid
+                      </code>
+                      <p style={{ color: '#CBD5E1', fontSize: '12px', marginTop: '8px', margin: 0 }}>
+                        <strong style={{ color: '#FBBF24' }}>Important:</strong> A physical Android phone cannot reach <code>localhost:3000</code>. Connect your phone to the same Wi-Fi or computer hotspot, and enter the IP URL above in MacroDroid.
+                      </p>
+                    </div>
+
                     {/* Endpoint URL Box */}
                     <div style={{ backgroundColor: '#0B1320', padding: '16px', borderRadius: '10px', border: '1px solid #1E293B' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#94A3B8' }}>HTTP POST WEBHOOK URL:</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#94A3B8' }}>LOCAL / PROXY WEBHOOK URL:</span>
                         <button
                           onClick={() => copyText('url', `${API_URL}/api/v1/payments/webhook/macrodroid`)}
                           style={{

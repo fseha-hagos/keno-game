@@ -12,12 +12,16 @@ import {
   Request,
   ForbiddenException,
   Logger,
+  ValidationPipe,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { IsString, IsNumber, IsOptional, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
   PaymentEvidence,
   PaymentEvidenceSource,
@@ -32,23 +36,97 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 export class MacroDroidWebhookDto {
+  @IsOptional()
+  @IsString()
   sender?: string;
+
+  @IsOptional()
+  @IsString()
   message?: string;
+
+  @IsOptional()
+  @IsString()
   text?: string;
+
+  @IsOptional()
+  @IsString()
   body?: string;
+
+  @IsOptional()
   timestamp?: number | string;
+
+  @IsOptional()
+  @IsString()
   deviceId?: string;
+
+  @IsOptional()
+  @IsString()
   type?: string;
+
+  // Direct MacroDroid magic variables support
+  @IsOptional()
+  @IsString()
+  sms_number?: string;
+
+  @IsOptional()
+  @IsString()
+  sms_body?: string;
+
+  @IsOptional()
+  sms_time?: number | string;
+
+  @IsOptional()
+  @IsString()
+  not_app_name?: string;
+
+  @IsOptional()
+  @IsString()
+  not_text?: string;
+
+  @IsOptional()
+  @IsString()
+  not_title?: string;
 }
 
 export class SimulateNotificationDto {
+  @IsNotEmpty()
+  @IsString()
   providerId!: 'telebirr' | 'mpesa' | 'cbe_birr' | 'cbe_bank' | 'other_bank';
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Type(() => Number)
   amount!: number;
+
+  @IsOptional()
+  @IsString()
   transactionReference?: string;
+
+  @IsOptional()
+  @IsString()
   senderPhone?: string;
+
+  @IsOptional()
+  @IsString()
   senderName?: string;
+
+  @IsOptional()
+  @IsString()
   customText?: string;
+
+  @IsOptional()
+  @IsString()
   deviceId?: string;
+}
+
+export class ManualLinkDto {
+  @IsNotEmpty()
+  @IsString()
+  depositId!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  evidenceId!: string;
 }
 
 @ApiTags('Payments & Ingestion')
@@ -78,6 +156,7 @@ export class PaymentsController {
    * MacroDroid catches incoming SMS or app notifications and sends them here.
    */
   @Post('webhook/macrodroid')
+  @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
   @ApiOperation({ summary: 'Secured webhook to receive MacroDroid SMS/notification data' })
   @ApiHeader({
     name: 'x-macrodroid-secret',
@@ -101,8 +180,19 @@ export class PaymentsController {
       throw new UnauthorizedException('Invalid or missing MacroDroid webhook secret');
     }
 
-    const messageText = payload.message || payload.text || payload.body || '';
-    const senderHeader = payload.sender || '';
+    const messageText =
+      payload.sms_body ||
+      payload.message ||
+      payload.text ||
+      payload.body ||
+      payload.not_text ||
+      '';
+    const senderHeader =
+      payload.sms_number ||
+      payload.sender ||
+      payload.not_app_name ||
+      payload.not_title ||
+      '';
 
     if (!messageText.trim()) {
       throw new BadRequestException('Empty notification/message content');
@@ -200,6 +290,7 @@ export class PaymentsController {
    */
   @Post('admin/simulate')
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
   @ApiBearerAuth()
   @ApiOperation({ summary: '[Admin Only] Simulate MacroDroid payment notification for testing' })
   async simulateNotification(@Request() req: any, @Body() dto: SimulateNotificationDto) {
@@ -288,11 +379,12 @@ export class PaymentsController {
    */
   @Post('admin/link')
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
   @ApiBearerAuth()
   @ApiOperation({ summary: '[Admin Only] Manually link evidence to a deposit request' })
   async manualLink(
     @Request() req: any,
-    @Body() body: { depositId: string; evidenceId: string },
+    @Body() body: ManualLinkDto,
   ) {
     if (
       !req.user.roles?.some((r: string) =>
@@ -335,6 +427,7 @@ export class PaymentsController {
     return {
       title: 'MacroDroid Android Automation Setup Guide',
       targetEndpoint: '/api/v1/payments/webhook/macrodroid',
+      phoneLanWebhookUrl: 'http://192.168.43.149:3000/api/v1/payments/webhook/macrodroid',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
