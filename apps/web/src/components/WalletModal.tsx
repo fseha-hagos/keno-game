@@ -206,10 +206,14 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
       });
       return res.data;
     },
-    onSuccess: () => {
-      toastSuccess('Proof Submitted!', 'Reference received. Funds will reflect immediately upon verification.');
-      setPendingDeposit(null);
-      setTxRef('');
+    onSuccess: (updated) => {
+      toastSuccess('Reference Recorded!', 'Transaction reference received. Awaiting admin approval.');
+      setPendingDeposit((prev: any) => ({
+        ...prev,
+        ...updated,
+        proofSubmitted: true,
+        transactionReference: txRef.trim(),
+      }));
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
     },
@@ -496,68 +500,106 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                   </div>
                 )}
 
-                {/* Reference Code Input */}
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                    Transaction Reference Code ({currentMethod.hint || 'from SMS'})
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={`e.g. ${currentMethod.hint || 'CI94719082'}`}
-                    value={txRef}
-                    onChange={(e) => setTxRef(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: 10,
-                      background: '#0B1320',
-                      border: '1px solid #334155',
-                      color: '#F8FAFC',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
+                {/* Reference Code Input or Awaiting Approval Status */}
+                {pendingDeposit?.proofSubmitted ? (
+                  <div style={{ background: '#0B1320', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+                    <div style={{ display: 'inline-flex', padding: 10, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', marginBottom: 10 }}>
+                      <Check size={24} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#F8FAFC', marginBottom: 4 }}>
+                      Reference Submitted & Awaiting Admin Approval
+                    </div>
+                    <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 12 }}>
+                      Ref: <strong style={{ color: '#10B981' }}>{pendingDeposit.transactionReference}</strong> • Amount: <strong>{depositAmount} ETB</strong>
+                    </div>
+                    <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 8, padding: 10, fontSize: 11, color: '#93C5FD', textAlign: 'left', lineHeight: 1.5 }}>
+                      ⏳ Real-money deposits require administrator confirmation in the <strong>Admin Console</strong> before balances are credited. This window is live-monitoring every 3s and will update your balance automatically once approved.
+                    </div>
 
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDeposit(null)}
-                    style={{
-                      flex: 1,
-                      padding: '12px 0',
-                      borderRadius: 10,
-                      background: '#1E293B',
-                      border: '1px solid #334155',
-                      color: '#94A3B8',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitProofMutation.isPending}
-                    onClick={() => submitProofMutation.mutate()}
-                    style={{
-                      flex: 2,
-                      padding: '12px 0',
-                      borderRadius: 10,
-                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                      border: 'none',
-                      color: '#FFFFFF',
-                      fontSize: 13,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {submitProofMutation.isPending ? 'Verifying...' : 'Submit Reference'}
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => { setPendingDeposit(null); onClose(); }}
+                      style={{
+                        marginTop: 14,
+                        width: '100%',
+                        padding: '10px 0',
+                        borderRadius: 8,
+                        background: '#1E293B',
+                        border: '1px solid #334155',
+                        color: '#94A3B8',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Close Window (Will credit automatically upon admin approval)
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
+                        Transaction Reference Code ({currentMethod.hint || 'from SMS'})
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={`e.g. ${currentMethod.hint || 'CI94719082'}`}
+                        value={txRef}
+                        onChange={(e) => setTxRef(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          borderRadius: 10,
+                          background: '#0B1320',
+                          border: '1px solid #334155',
+                          color: '#F8FAFC',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeposit(null)}
+                        style={{
+                          flex: 1,
+                          padding: '12px 0',
+                          borderRadius: 10,
+                          background: '#1E293B',
+                          border: '1px solid #334155',
+                          color: '#94A3B8',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitProofMutation.isPending}
+                        onClick={() => submitProofMutation.mutate()}
+                        style={{
+                          flex: 2,
+                          padding: '12px 0',
+                          borderRadius: 10,
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                          border: 'none',
+                          color: '#FFFFFF',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {submitProofMutation.isPending ? 'Verifying...' : 'Submit Reference'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               /* Step 1: Deposit Method & Amount Selection */

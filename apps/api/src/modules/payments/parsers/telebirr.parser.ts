@@ -19,14 +19,16 @@ export class TelebirrParser implements PaymentParser {
     const cleanText = text.replace(/[\r\n]+/g, ' ').trim();
 
     // 1. Extract Amount
-    // Matches "received ETB 100.00", "received ETB 100", "received 100.00 ETB", "ETB 100.00 has been received"
+    // Matches English: "received ETB 100.00", "ETB 100.00", "100.00 Birr"
+    // Matches Amharic: "100.00 ብር", "ብር 100.00", "100 ብር ገቢ ሆኗል", "ከ ... 100.00 ብር"
     let amountMinor: string | undefined;
     let amountDisplay: number | undefined;
 
     const amountRegexes = [
-      /(?:received|credited with|transferred|amount of|deposit of)\s*(?:ETB|Birr)?\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr)?/i,
-      /(?:ETB|Birr)\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:from|has been received|received)/i,
-      /(?:ETB|Birr)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+      /(?:received|credited with|transferred|amount of|deposit of|ገቢ ሆኗል|ደርሶዎታል)\s*(?:ETB|Birr|ብር)?\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)?/i,
+      /(?:ETB|Birr|ብር)\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:from|has been received|received|ገቢ ሆኗል)?/i,
+      /([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:ETB|Birr|ብር)/i,
+      /(?:ETB|Birr|ብር)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
     ];
 
     for (const reg of amountRegexes) {
@@ -43,13 +45,15 @@ export class TelebirrParser implements PaymentParser {
     }
 
     // 2. Extract Transaction Reference
-    // Telebirr references typically look like CI94719082, DA12345678, or after "Transaction number:", "txn:", "Txn ID:"
+    // Telebirr references: "Transaction number: ...", "የግብይት ቁጥር: ...", "የግብይት መለያ: ...", "txn: ...", "CI...", "DA...", "TB..."
     let transactionReference: string | undefined;
     const refRegexes = [
-      /(?:Transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref)[:\s]*([A-Z0-9]{6,16})/i,
-      /\b(CI[0-9A-Z]{6,12})\b/i,
-      /\b(DA[0-9A-Z]{6,12})\b/i,
-      /\b(TB[0-9A-Z]{6,12})\b/i,
+      /(?:Transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር|የግብይት\s*መለያ|መለያ\s*ቁጥር|ግብይት\s*ቁጥር)[:\s]*([A-Z0-9]{6,18})/i,
+      /\b(CI[0-9A-Z]{6,14})\b/i,
+      /\b(DA[0-9A-Z]{6,14})\b/i,
+      /\b(TB[0-9A-Z]{6,14})\b/i,
+      /\b(CW[0-9A-Z]{6,14})\b/i,
+      /\b(NW[0-9A-Z]{6,14})\b/i,
     ];
 
     for (const reg of refRegexes) {
@@ -65,9 +69,9 @@ export class TelebirrParser implements PaymentParser {
     let senderPhone: string | undefined;
     let senderName: string | undefined;
 
-    const fromNameAndPhone = cleanText.match(/from\s+([A-Za-z\s]+)\s*\((09\d{8}|07\d{8}|251\d{9}|\+251\d{9})\)/i);
-    const fromPhoneAndName = cleanText.match(/from\s*(09\d{8}|07\d{8}|251\d{9}|\+251\d{9})\s*\(([A-Za-z\s]+)\)/i);
-    const fromPhoneOnly = cleanText.match(/from\s*(09\d{8}|07\d{8}|251\d{9}|\+251\d{9})/i);
+    const fromNameAndPhone = cleanText.match(/(?:from|ከ)\s+([A-Za-z\u1200-\u137F\s]+)\s*\((09\d{8}|07\d{8}|251\d{9}|\+251\d{9})\)/i);
+    const fromPhoneAndName = cleanText.match(/(?:from|ከ)\s*(09\d{8}|07\d{8}|251\d{9}|\+251\d{9})\s*(?:[\/\(])\s*([A-Za-z\u1200-\u137F\s]+)\)?/i);
+    const fromPhoneOnly = cleanText.match(/(?:from|ከ)\s*(09\d{8}|07\d{8}|251\d{9}|\+251\d{9})/i);
     const genericPhone = cleanText.match(/\b(09\d{8}|07\d{8}|2519\d{8}|\+2519\d{8})\b/);
 
     if (fromNameAndPhone && fromNameAndPhone[1] && fromNameAndPhone[2]) {
