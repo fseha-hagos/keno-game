@@ -195,7 +195,7 @@ export class DepositMatchingService {
       } else if (evidencePhone.includes('*') || evidencePhone.toLowerCase().includes('x')) {
         // Handle masked phone numbers like 2519****5316 or 09****5316
         const maskedMatch = evidencePhone.match(/^([0-9]+)[*xX]+([0-9]+)$/);
-        if (maskedMatch) {
+        if (maskedMatch && maskedMatch[1] && maskedMatch[2]) {
           const prefix = maskedMatch[1];
           const suffix = maskedMatch[2];
           const normPrefix = prefix.startsWith('251') ? '0' + prefix.slice(3) : prefix;
