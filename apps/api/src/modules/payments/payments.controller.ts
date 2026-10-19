@@ -168,22 +168,53 @@ export class PaymentsController {
    * MacroDroid catches incoming SMS or app notifications and sends them here.
    * Supports both POST (JSON body or query params) and GET (query params) for effortless MacroDroid setup.
    */
-  @Get('webhook/macrodroid')
   @Post('webhook/macrodroid')
   @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
-  @ApiOperation({ summary: 'Secured GET/POST webhook to receive MacroDroid SMS/notification data' })
+  @ApiOperation({ summary: 'Secured POST webhook to receive MacroDroid SMS/notification data' })
   @ApiHeader({
     name: 'x-macrodroid-secret',
     required: false,
     description: 'Webhook authorization secret',
   })
-  async receiveMacroDroidNotification(
+  async receiveMacroDroidPostNotification(
     @Request() req: any,
     @Headers('x-macrodroid-secret') secretHeader?: string,
     @Headers('authorization') authHeader?: string,
     @Query('secret') secretQuery?: string,
     @Query() query?: any,
     @Body() payload: MacroDroidWebhookDto = {},
+  ) {
+    return this.handleMacroDroidWebhook(req, secretHeader, authHeader, secretQuery, query, payload);
+  }
+
+  @Get('webhook/macrodroid')
+  @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
+  @ApiOperation({ summary: 'Secured GET webhook to receive MacroDroid SMS/notification data via query params' })
+  @ApiHeader({
+    name: 'x-macrodroid-secret',
+    required: false,
+    description: 'Webhook authorization secret',
+  })
+  async receiveMacroDroidGetNotification(
+    @Request() req: any,
+    @Headers('x-macrodroid-secret') secretHeader?: string,
+    @Headers('authorization') authHeader?: string,
+    @Query('secret') secretQuery?: string,
+    @Query() query?: any,
+  ) {
+    return this.handleMacroDroidWebhook(req, secretHeader, authHeader, secretQuery, query, {});
+  }
+
+  /**
+   * Internal webhook handler that processes both POST and GET MacroDroid payloads.
+   */
+  async handleMacroDroidWebhook(
+    req: any,
+    secretHeader?: string,
+    authHeader?: string,
+    secretQuery?: string,
+    query?: any,
+    payload: MacroDroidWebhookDto = {},
   ) {
     this.logger.log(
       `MacroDroid Webhook Received: Method=${req?.method}, URL=${req?.url}, ContentType=${req?.headers?.['content-type']}`,
@@ -347,22 +378,6 @@ export class PaymentsController {
   }
 
   /**
-   * Secure GET Webhook for MacroDroid Android Device.
-   * Allows passing parameters directly in the URL query string:
-   * ?secret=...&sender=[sms_number]&message=[sms_body]
-   */
-  @Get('webhook/macrodroid')
-  @ApiOperation({ summary: 'Secured GET webhook to receive MacroDroid SMS data via query parameters' })
-  async receiveMacroDroidGetWebhook(
-    @Headers('x-macrodroid-secret') secretHeader?: string,
-    @Headers('authorization') authHeader?: string,
-    @Query('secret') secretQuery?: string,
-    @Query() query?: any,
-  ) {
-    return this.receiveMacroDroidNotification(secretHeader, authHeader, secretQuery, query, {});
-  }
-
-  /**
    * Admin-Only: Simulate an incoming notification for testing detection & matching.
    */
   @Post('admin/simulate')
@@ -420,7 +435,8 @@ export class PaymentsController {
       this.configService.get<string>('MACRODROID_WEBHOOK_SECRET') ||
       'keno_macrodroid_secure_webhook_secret_2026';
 
-    return this.receiveMacroDroidNotification(
+    return this.handleMacroDroidWebhook(
+      req,
       secret,
       '',
       undefined,
