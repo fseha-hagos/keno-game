@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import * as express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -12,12 +13,16 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors({ origin: '*', credentials: true });
 
+  // Support plain text & URL-encoded bodies for MacroDroid & SMS webhooks
+  app.use(express.text({ type: ['text/*', 'application/text'] }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
   // Global DTO Validation Pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
     }),
   );
 

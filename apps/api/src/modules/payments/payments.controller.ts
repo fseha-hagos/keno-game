@@ -38,6 +38,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class MacroDroidWebhookDto {
   @IsOptional()
   @IsString()
+  secret?: string;
+
+  @IsOptional()
+  @IsString()
+  from?: string;
+
+  @IsOptional()
+  @IsString()
   sender?: string;
 
   @IsOptional()
@@ -170,12 +178,17 @@ export class PaymentsController {
     description: 'Webhook authorization secret',
   })
   async receiveMacroDroidNotification(
+    @Request() req: any,
     @Headers('x-macrodroid-secret') secretHeader?: string,
     @Headers('authorization') authHeader?: string,
     @Query('secret') secretQuery?: string,
     @Query() query?: any,
     @Body() payload: MacroDroidWebhookDto = {},
   ) {
+    this.logger.log(
+      `MacroDroid Webhook Received: Method=${req?.method}, URL=${req?.url}, ContentType=${req?.headers?.['content-type']}`,
+    );
+
     const configuredSecret =
       this.configService.get<string>('MACRODROID_WEBHOOK_SECRET') ||
       'keno_macrodroid_secure_webhook_secret_2026';
@@ -184,11 +197,29 @@ export class PaymentsController {
       secretHeader ||
       secretQuery ||
       (authHeader ? authHeader.replace(/^Bearer\s+/i, '') : '') ||
-      query?.secret;
+      query?.secret ||
+      payload?.secret ||
+      req?.body?.secret;
 
     if (!providedSecret || providedSecret !== configuredSecret) {
       this.logger.warn(`Unauthorized MacroDroid webhook attempt from secret: "${providedSecret}"`);
       throw new UnauthorizedException('Invalid or missing MacroDroid webhook secret');
+    }
+
+    // Handle raw string or JSON with unescaped newlines in body
+    if (typeof req?.body === 'string') {
+      const trimmed = req.body.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const sanitized = trimmed.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/gs, (m: string) =>
+            m.replace(/\r?\n/g, '\\n'),
+          );
+          const parsed = JSON.parse(sanitized);
+          payload = { ...payload, ...parsed };
+        } catch {
+          // If JSON parse still fails, treat it as the raw message
+        }
+      }
     }
 
     const messageText =
@@ -203,16 +234,20 @@ export class PaymentsController {
       query?.message ||
       query?.text ||
       query?.body ||
+      (typeof req?.body === 'string' && !req.body.trim().startsWith('{') ? req.body.trim() : '') ||
       '';
     const senderHeader =
       payload.sms_number ||
       payload.sender ||
+      payload.from ||
       payload.not_app_name ||
       payload.not_title ||
       query?.sms_number ||
       query?.sender ||
       query?.from ||
-      '';
+      '127';
+
+    this.logger.log(`Extracted MacroDroid notification: Sender=${senderHeader}, Length=${messageText.length} chars`);
 
     if (!messageText.trim()) {
       throw new BadRequestException('Empty notification/message content');
