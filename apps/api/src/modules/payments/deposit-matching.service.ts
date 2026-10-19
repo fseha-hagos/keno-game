@@ -188,8 +188,26 @@ export class DepositMatchingService {
       ? evidence.parsedSenderPhone.replace(/[\s\+]/g, '')
       : null;
 
-    const phoneMatches =
-      userPhone && evidencePhone && (userPhone.includes(evidencePhone) || evidencePhone.includes(userPhone));
+    let phoneMatches = false;
+    if (userPhone && evidencePhone) {
+      if (userPhone === evidencePhone || userPhone.includes(evidencePhone) || evidencePhone.includes(userPhone)) {
+        phoneMatches = true;
+      } else if (evidencePhone.includes('*') || evidencePhone.toLowerCase().includes('x')) {
+        // Handle masked phone numbers like 2519****5316 or 09****5316
+        const maskedMatch = evidencePhone.match(/^([0-9]+)[*xX]+([0-9]+)$/);
+        if (maskedMatch) {
+          const prefix = maskedMatch[1];
+          const suffix = maskedMatch[2];
+          const normPrefix = prefix.startsWith('251') ? '0' + prefix.slice(3) : prefix;
+          const normUser = userPhone.startsWith('251') ? '0' + userPhone.slice(3) : userPhone;
+          const userEndsWith = userPhone.endsWith(suffix);
+          const userStartsWith = normUser.startsWith(normPrefix) || userPhone.startsWith(prefix);
+          if (userEndsWith && userStartsWith) {
+            phoneMatches = true;
+          }
+        }
+      }
+    }
 
     if (sameProvider && phoneMatches) {
       return {

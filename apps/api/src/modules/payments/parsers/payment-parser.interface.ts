@@ -9,6 +9,8 @@ export interface ParsedPaymentData {
   senderPhone?: string;
   senderName?: string;
   senderAccount?: string;
+  receiverName?: string;
+  balanceDisplay?: number;
   transactionTime?: Date;
   confidence: number; // 0 to 100 based on extraction completeness
   rawSnippet?: string;
@@ -18,4 +20,5 @@ export interface PaymentParser {
   readonly provider: PaymentProviderName;
   canParse(senderHeader: string, text: string): boolean;
   parse(text: string, senderHeader?: string): ParsedPaymentData | null;
+  parseMultiple?(text: string, senderHeader?: string): ParsedPaymentData[];
 }

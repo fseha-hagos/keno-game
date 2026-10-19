@@ -44,13 +44,76 @@ describe('Payment Parsers Suite', () => {
       expect(res?.confidence).toBeGreaterThanOrEqual(80);
     });
 
-    it('should parse compact Telebirr notification', () => {
-      const text = 'Transaction CI12345678: You received 500 ETB from 0911223344 (Tadesse Alemu). Balance: ETB 2000.00.';
-      const res = telebirrParser.parse(text, '127');
+    it('should parse real production Telebirr SMS with masked phone and DJ reference', () => {
+      const sms = `Dear Hagos 
+You have received ETB 200.00 from Samrawit Hagos(2519****5316)  on 19/10/2026 19:09:17. Your transaction number is DJJ52J9YGF. Your current E-Money Account balance is ETB 206.82.
+Thank you for using telebirr
+Ethio telecom`;
 
-      expect(res?.amountMinor).toBe('50000');
-      expect(res?.transactionReference).toBe('CI12345678');
-      expect(res?.senderPhone).toBe('0911223344');
+      const res = telebirrParser.parse(sms, 'telebirr');
+
+      expect(res).not.toBeNull();
+      expect(res?.provider).toBe(PaymentProviderName.TELEBIRR);
+      expect(res?.amountMinor).toBe('20000');
+      expect(res?.amountDisplay).toBe(200.0);
+      expect(res?.transactionReference).toBe('DJJ52J9YGF');
+      expect(res?.senderName).toBe('Samrawit Hagos');
+      expect(res?.senderPhone).toBe('2519****5316');
+      expect(res?.receiverName).toBe('Hagos');
+      expect(res?.balanceDisplay).toBe(206.82);
+      expect(res?.transactionTime).toBeDefined();
+      expect(res?.transactionTime?.getDate()).toBe(19);
+      expect(res?.transactionTime?.getMonth()).toBe(9); // October
+      expect(res?.transactionTime?.getFullYear()).toBe(2026);
+      expect(res?.confidence).toBe(100);
+    });
+
+    it('should parse real production Telebirr SMS with second transaction format', () => {
+      const sms = `Dear Fseha 
+You have received ETB 375.00 from Hagos Gerekidan(2519****1265)  on 19/10/2026 14:27:45. Your transaction number is DJJ424C9T8. Your current E-Money Account balance is ETB 646.81.
+Thank you for using telebirr
+Ethio telecom`;
+
+      const res = telebirrParser.parse(sms, '127');
+
+      expect(res).not.toBeNull();
+      expect(res?.provider).toBe(PaymentProviderName.TELEBIRR);
+      expect(res?.amountMinor).toBe('37500');
+      expect(res?.amountDisplay).toBe(375.0);
+      expect(res?.transactionReference).toBe('DJJ424C9T8');
+      expect(res?.senderName).toBe('Hagos Gerekidan');
+      expect(res?.senderPhone).toBe('2519****1265');
+      expect(res?.receiverName).toBe('Fseha');
+      expect(res?.balanceDisplay).toBe(646.81);
+      expect(res?.transactionTime).toBeDefined();
+      expect(res?.confidence).toBe(100);
+    });
+
+    it('should parse multiple concatenated Telebirr SMS notifications', () => {
+      const combined = `Dear Hagos 
+You have received ETB 200.00 from Samrawit Hagos(2519****5316)  on 19/10/2026 19:09:17. Your transaction number is DJJ52J9YGF. Your current E-Money Account balance is ETB 206.82.
+Thank you for using telebirr
+Ethio telecom, Dear Hagos 
+You have received ETB 200.00 from Samrawit Hagos(2519****5316)  on 19/10/2026 19:09:17. Your transaction number is DJJ52J9YGF. Your current E-Money Account balance is ETB 206.82.
+Thank you for using telebirr
+Ethio telecom, Dear Fseha 
+You have received ETB 375.00 from Hagos Gerekidan(2519****1265)  on 19/10/2026 14:27:45. Your transaction number is DJJ424C9T8. Your current E-Money Account balance is ETB 646.81.
+Thank you for using telebirr
+Ethio telecom`;
+
+      const list = telebirrParser.parseMultiple(combined, 'telebirr');
+
+      expect(list.length).toBe(3);
+      expect(list[0]?.transactionReference).toBe('DJJ52J9YGF');
+      expect(list[0]?.amountMinor).toBe('20000');
+      expect(list[0]?.senderName).toBe('Samrawit Hagos');
+
+      expect(list[1]?.transactionReference).toBe('DJJ52J9YGF');
+      expect(list[1]?.amountMinor).toBe('20000');
+
+      expect(list[2]?.transactionReference).toBe('DJJ424C9T8');
+      expect(list[2]?.amountMinor).toBe('37500');
+      expect(list[2]?.senderName).toBe('Hagos Gerekidan');
     });
   });
 

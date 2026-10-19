@@ -76,4 +76,32 @@ export class PaymentParserRegistry {
 
     return bestResult;
   }
+
+  /**
+   * Parses multiple notifications if text contains batch/concatenated payment messages.
+   */
+  parseMultipleNotifications(senderHeader: string, text: string): ParsedPaymentData[] {
+    if (!text) return [];
+
+    // Find the right parser
+    for (const parser of this.parsers) {
+      if (parser.canParse(senderHeader, text)) {
+        if (parser.parseMultiple) {
+          const results = parser.parseMultiple(text, senderHeader);
+          if (results.length > 0) return results;
+        }
+        const single = parser.parse(text, senderHeader);
+        return single ? [single] : [];
+      }
+    }
+
+    // Default to telebirr or single fallback
+    if (this.telebirrParser.parseMultiple) {
+      const results = this.telebirrParser.parseMultiple(text, senderHeader);
+      if (results.length > 0) return results;
+    }
+
+    const single = this.parseNotification(senderHeader, text);
+    return single ? [single] : [];
+  }
 }

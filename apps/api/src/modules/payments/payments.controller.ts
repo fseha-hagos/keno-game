@@ -359,7 +359,7 @@ export class PaymentsController {
       switch (dto.providerId) {
         case 'telebirr':
           sender = 'telebirr';
-          text = `You have received ETB ${amountStr} from ${name} (${phone}) on ${dateFormatted}. Transaction number: ${ref}. Your new balance is ETB 10,500.00.`;
+          text = `Dear Customer\nYou have received ETB ${amountStr} from ${name}(${phone})  on ${dateFormatted}. Your transaction number is ${ref}. Your current E-Money Account balance is ETB 10,500.00.\nThank you for using telebirr\nEthio telecom`;
           break;
         case 'mpesa':
           sender = 'M-PESA';
