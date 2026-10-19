@@ -252,18 +252,23 @@ export class DepositMatchingService {
     );
     const isWithin3Hours = timeDiffMs <= 3 * 3600 * 1000;
 
+    // If sender phone does not match and no transaction reference was provided:
+    // This is AMBIGUOUS because multiple players could request the exact same deposit amount.
+    // We cap confidence at 50% so it NEVER auto-approves without:
+    // 1) Exact Transaction Reference (100% confidence), OR
+    // 2) Matching Registered Customer Phone Number (95% confidence).
     if (sameProvider && isWithin3Hours) {
       const mins = Math.round(timeDiffMs / 60000);
       return {
-        confidence: 85,
-        reason: `Exact amount, matching provider (${evidenceProvider}), within ${mins} min(s) of request`,
+        confidence: 50,
+        reason: `Exact amount and provider match (${evidenceProvider}) within ${mins}m, but customer phone did not match and no transaction reference provided (awaiting ref code or admin review)`,
       };
     }
 
     if (sameProvider) {
       return {
-        confidence: 60,
-        reason: `Exact amount and provider match (${evidenceProvider}), but time offset > 3h`,
+        confidence: 40,
+        reason: `Exact amount and provider match (${evidenceProvider}), but time offset > 3h and phone did not match`,
       };
     }
 
