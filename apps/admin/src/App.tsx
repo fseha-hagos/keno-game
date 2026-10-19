@@ -1406,7 +1406,7 @@ x-macrodroid-secret: keno_macrodroid_secure_webhook_secret_2026`}
                       <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12px', color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <li>Trigger: <strong>Notification Received</strong></li>
                         <li>Select Applications: <code>telebirr, M-PESA, CBE Mobile</code></li>
-                        <li>Body: <code>{`{ "sender": "{not_app_name}", "message": "{not_text}", "type": "notification" }`}</code></li>
+                        <li>Body: <code>{`{ "sender": "[not_app_name]", "message": "[not_text]", "type": "notification" }`}</code></li>
                       </ul>
                     </div>
                   </div>

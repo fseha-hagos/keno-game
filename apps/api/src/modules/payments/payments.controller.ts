@@ -160,9 +160,10 @@ export class PaymentsController {
    * MacroDroid catches incoming SMS or app notifications and sends them here.
    * Supports both POST (JSON body or query params) and GET (query params) for effortless MacroDroid setup.
    */
+  @Get('webhook/macrodroid')
   @Post('webhook/macrodroid')
   @UsePipes(new ValidationPipe({ whitelist: false, transform: true }))
-  @ApiOperation({ summary: 'Secured POST webhook to receive MacroDroid SMS/notification data' })
+  @ApiOperation({ summary: 'Secured GET/POST webhook to receive MacroDroid SMS/notification data' })
   @ApiHeader({
     name: 'x-macrodroid-secret',
     required: false,
