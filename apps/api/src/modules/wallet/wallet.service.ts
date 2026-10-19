@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
@@ -23,6 +25,7 @@ import { TransactionType, LedgerReferenceType } from '@keno/shared-types';
 import { GAME_CONFIG } from '@keno/config';
 import { AuditService } from '../audit/audit.service';
 import { DepositMatchingService } from '../payments/deposit-matching.service';
+import { PaymentParserRegistry } from '../payments/parsers/payment-parser.registry';
 
 export interface CreateDepositRequestInput {
   amountMinor: string;
@@ -56,8 +59,66 @@ export class WalletService {
     private readonly evidenceRepo: Repository<PaymentEvidence>,
     private readonly ledgerService: LedgerService,
     private readonly auditService: AuditService,
+    @Inject(forwardRef(() => DepositMatchingService))
     private readonly matchingService: DepositMatchingService,
+    private readonly parserRegistry: PaymentParserRegistry,
   ) {}
+
+  /**
+   * Helper to extract clean transaction reference from user input (either direct code or full confirmation SMS)
+   */
+  extractTransactionReference(rawInput: string): { reference: string; rawSnippet?: string } {
+    if (!rawInput) return { reference: '' };
+    const trimmed = rawInput.trim();
+
+    // 1. If it's already a short clean alphanumeric token (e.g. DJJ82SWP4M or CI94719082)
+    if (/^[A-Za-z0-9_-]{6,30}$/.test(trimmed)) {
+      return { reference: trimmed.toUpperCase() };
+    }
+
+    // 2. Try parsing via Parser Registry
+    try {
+      const parsed = this.parserRegistry.parseNotification('', trimmed);
+      if (parsed && parsed.transactionReference) {
+        return {
+          reference: parsed.transactionReference.toUpperCase(),
+          rawSnippet: trimmed.length > 50 ? trimmed.substring(0, 300) : undefined,
+        };
+      }
+    } catch {
+      // Continue to regex fallback
+    }
+
+    // 3. Fallback regexes for various formats (Telebirr, CBE, M-Pesa, receipt URLs)
+    const fallbackRegexes = [
+      /(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Za-z0-9]{6,25})/i,
+      /(?:receipt\/|receipt\?id=)([A-Za-z0-9]{6,25})/i,
+      /\b(DJ[0-9A-Za-z]{6,16})\b/i,
+      /\b(CI[0-9A-Za-z]{6,16})\b/i,
+      /\b(DA[0-9A-Za-z]{6,16})\b/i,
+      /\b(TB[0-9A-Za-z]{6,16})\b/i,
+      /\b(CW[0-9A-Za-z]{6,16})\b/i,
+      /\b(NW[0-9A-Za-z]{6,16})\b/i,
+      /\b(NL[0-9A-Za-z]{6,16})\b/i,
+      /\b(FT[0-9A-Za-z]{6,16})\b/i,
+    ];
+
+    for (const reg of fallbackRegexes) {
+      const m = trimmed.match(reg);
+      if (m && m[1]) {
+        return {
+          reference: m[1].toUpperCase(),
+          rawSnippet: trimmed.length > 50 ? trimmed.substring(0, 300) : undefined,
+        };
+      }
+    }
+
+    // 4. Default fallback: take first word or truncate to 50 chars
+    return {
+      reference: trimmed.split(/\s+/)[0]?.substring(0, 50).toUpperCase() || trimmed.substring(0, 50),
+      rawSnippet: trimmed.length > 50 ? trimmed.substring(0, 300) : undefined,
+    };
+  }
 
   async getOrCreateWallet(
     userId: string,
@@ -147,6 +208,14 @@ export class WalletService {
 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiration
 
+    let initialRef: string | undefined;
+    let initialSnippet: string | undefined;
+    if (input.transactionReference) {
+      const extracted = this.extractTransactionReference(input.transactionReference);
+      initialRef = extracted.reference;
+      initialSnippet = extracted.rawSnippet;
+    }
+
     const request = this.paymentRepo.create({
       userId,
       requestType: PaymentRequestType.DEPOSIT,
@@ -155,7 +224,8 @@ export class WalletService {
       paymentMethod: input.paymentMethod || 'telebirr',
       accountNumber: input.accountNumber || '0948491265',
       accountName: input.accountName || 'Fseha Hagos',
-      transactionReference: input.transactionReference || undefined,
+      transactionReference: initialRef,
+      adminNote: initialSnippet ? `SMS: ${initialSnippet}` : undefined,
       proofImageUrl: input.proofImageUrl || undefined,
       status: PaymentRequestStatus.PENDING,
       expiresAt,
@@ -168,7 +238,28 @@ export class WalletService {
     );
 
     // Run matching against existing unmatched evidence
-    return this.matchingService.matchPendingDeposit(saved);
+    const matched = await this.matchingService.matchPendingDeposit(saved);
+    const depositMinor = matched.amountMinor ? BigInt(matched.amountMinor) : 0n;
+    const autoApproveLimit = BigInt(process.env.AUTO_APPROVE_MAX_MINOR || '20000');
+
+    if (
+      matched.status === PaymentRequestStatus.PENDING &&
+      matched.matchedEvidenceId &&
+      (matched.matchConfidence || 0) >= 80 &&
+      depositMinor > 0n &&
+      depositMinor <= autoApproveLimit
+    ) {
+      this.logger.log(
+        `AUTO-APPROVING Deposit #${matched.id} upon creation (Amount: ${matched.amountMinor} minor <= ${autoApproveLimit}, Confidence: ${matched.matchConfidence}%)`,
+      );
+      return this.approveDeposit(
+        matched.id,
+        '00000000-0000-0000-0000-000000000000',
+        `Auto-approved: Confirmed via SMS evidence #${matched.matchedEvidenceId} under 200 ETB limit`,
+      );
+    }
+
+    return matched;
   }
 
   /**
@@ -577,7 +668,11 @@ export class WalletService {
     }
 
     if (proof.transactionReference) {
-      request.transactionReference = proof.transactionReference;
+      const extracted = this.extractTransactionReference(proof.transactionReference);
+      request.transactionReference = extracted.reference;
+      if (extracted.rawSnippet && !request.adminNote) {
+        request.adminNote = `SMS: ${extracted.rawSnippet}`;
+      }
     }
     if (proof.proofImageUrl) {
       request.proofImageUrl = proof.proofImageUrl;
@@ -589,7 +684,28 @@ export class WalletService {
     );
 
     // Auto-match after user provides or updates reference code
-    return this.matchingService.matchPendingDeposit(saved);
+    const matched = await this.matchingService.matchPendingDeposit(saved);
+    const depositMinor = matched.amountMinor ? BigInt(matched.amountMinor) : 0n;
+    const autoApproveLimit = BigInt(process.env.AUTO_APPROVE_MAX_MINOR || '20000');
+
+    if (
+      matched.status === PaymentRequestStatus.PENDING &&
+      matched.matchedEvidenceId &&
+      (matched.matchConfidence || 0) >= 80 &&
+      depositMinor > 0n &&
+      depositMinor <= autoApproveLimit
+    ) {
+      this.logger.log(
+        `AUTO-APPROVING Deposit #${matched.id} upon proof submission (Amount: ${matched.amountMinor} minor <= ${autoApproveLimit}, Confidence: ${matched.matchConfidence}%)`,
+      );
+      return this.approveDeposit(
+        matched.id,
+        '00000000-0000-0000-0000-000000000000',
+        `Auto-approved: Confirmed via SMS evidence #${matched.matchedEvidenceId} under 200 ETB limit`,
+      );
+    }
+
+    return matched;
   }
 
   async getAllPendingRequests(): Promise<any[]> {

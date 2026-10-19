@@ -23,7 +23,7 @@ const PAYMENT_METHODS = [
       'Select "Send Money" to 0948491265 (Fseha Hagos)',
       'Enter the EXACT deposit amount',
       'Confirm the transaction with your PIN',
-      'Our Android MacroDroid system automatically detects the incoming SMS!',
+      'Our automated instant verification system automatically detects your payment!',
     ],
   },
   {
@@ -88,6 +88,21 @@ const PAYMENT_METHODS = [
 
 const DEPOSIT_PRESETS = ['50', '100', '200', '500', '1000'];
 const WITHDRAW_PRESETS = ['20', '50', '100', '250', '500'];
+
+const extractRefPreview = (text: string): string => {
+  if (!text) return '';
+  const t = text.trim();
+  const match =
+    t.match(/(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Za-z0-9]{6,25})/i) ||
+    t.match(/(?:receipt\/|receipt\?id=)([A-Za-z0-9]{6,25})/i) ||
+    t.match(/\b(DJ[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(CI[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(DA[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(TB[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(NL[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(FT[0-9A-Za-z]{6,16})\b/i);
+  return match && match[1] ? match[1].toUpperCase() : '';
+};
 
 export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
   const queryClient = useQueryClient();
@@ -200,20 +215,27 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
   // Step 2: Submit proof mutation
   const submitProofMutation = useMutation({
     mutationFn: async () => {
-      if (!txRef.trim()) throw new Error('Please enter the transaction reference code');
+      if (!txRef.trim()) throw new Error('Please enter the transaction reference code or paste SMS text');
       const res = await apiClient.patch(`/api/v1/wallet/deposit/${pendingDeposit?.id}/proof`, {
         transactionReference: txRef.trim(),
       });
       return res.data;
     },
     onSuccess: (updated) => {
-      toastSuccess('Reference Recorded!', 'Transaction reference received. Awaiting admin approval.');
-      setPendingDeposit((prev: any) => ({
-        ...prev,
-        ...updated,
-        proofSubmitted: true,
-        transactionReference: txRef.trim(),
-      }));
+      if (updated.status === 'APPROVED') {
+        toastSuccess('Deposit Auto-Approved! 🎉', 'Your payment was instantly verified and credited to your wallet!');
+        setPendingDeposit(null);
+        queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+        queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+      } else {
+        toastSuccess('Reference Recorded!', 'Transaction received. Awaiting admin review.');
+        setPendingDeposit((prev: any) => ({
+          ...prev,
+          ...updated,
+          proofSubmitted: true,
+          transactionReference: updated.transactionReference || txRef.trim(),
+        }));
+      }
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
     },
@@ -427,8 +449,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                       color: '#FCD34D',
                     }}
                   >
-                    <span>🤖</span>
-                    <span>MacroDroid automated SMS detection active. You can submit ref code or wait for auto-detection.</span>
+                    <span>⚡</span>
+                    <span>Automated instant verification active. You can paste your SMS or transaction code below.</span>
                   </div>
                 )}
 
@@ -538,27 +560,40 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                 ) : (
                   <>
                     <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                        Transaction Reference Code ({currentMethod.hint || 'from SMS'})
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={`e.g. ${currentMethod.hint || 'CI94719082'}`}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                          Transaction Reference Code or Full SMS Text
+                        </label>
+                        {extractRefPreview(txRef) && (
+                          <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            ✨ Detected Ref: {extractRefPreview(txRef)}
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        rows={txRef.length > 40 || txRef.includes('\n') ? 4 : 2}
+                        placeholder={`Paste full SMS (e.g. 'You have transferred ETB ... Your transaction number is DJJ82SWP4M') or enter reference (e.g. ${currentMethod.hint || 'DJJ82SWP4M'})`}
                         value={txRef}
                         onChange={(e) => setTxRef(e.target.value)}
                         style={{
                           width: '100%',
-                          padding: '12px 14px',
+                          padding: '10px 12px',
                           borderRadius: 10,
                           background: '#0B1320',
-                          border: '1px solid #334155',
+                          border: extractRefPreview(txRef) ? '1px solid #10B981' : '1px solid #334155',
                           color: '#F8FAFC',
-                          fontSize: 14,
-                          fontWeight: 600,
+                          fontSize: 13,
+                          fontWeight: 500,
                           outline: 'none',
                           boxSizing: 'border-box',
+                          resize: 'vertical',
+                          fontFamily: 'inherit',
+                          lineHeight: 1.4,
                         }}
                       />
+                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                        💡 Tip: You can paste the whole SMS from Telebirr, CBE, or M-Pesa. Our system will extract the reference number automatically. Deposits under 200 ETB are approved instantly!
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: 10 }}>

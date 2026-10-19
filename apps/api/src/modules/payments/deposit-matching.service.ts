@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../../database/entities/payment-request.entity';
 import { User } from '../../database/entities/user.entity';
 import { mapMethodToProviderName } from './providers/payment-providers.config';
+import { WalletService } from '../wallet/wallet.service';
 
 export interface MatchCandidate {
   deposit: PaymentRequest;
@@ -30,6 +31,8 @@ export class DepositMatchingService {
     private readonly requestRepo: Repository<PaymentRequest>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @Inject(forwardRef(() => WalletService))
+    private readonly walletService: WalletService,
   ) {}
 
   /**
@@ -92,6 +95,33 @@ export class DepositMatchingService {
       this.logger.log(
         `AUTO-MATCHED: Evidence #${evidence.id} linked to Deposit #${best.deposit.id} (Confidence: ${best.confidence}%, Reason: ${best.reason})`,
       );
+
+      // Auto-approve if deposit is <= 200 ETB (20,000 minor units)
+      const depositMinor = best.deposit.amountMinor ? BigInt(best.deposit.amountMinor) : 0n;
+      const autoApproveLimit = BigInt(process.env.AUTO_APPROVE_MAX_MINOR || '20000');
+      if (
+        depositMinor > 0n &&
+        depositMinor <= autoApproveLimit &&
+        best.deposit.status === PaymentRequestStatus.PENDING
+      ) {
+        try {
+          this.logger.log(
+            `AUTO-APPROVING Deposit #${best.deposit.id} (Amount: ${best.deposit.amountMinor} minor <= ${autoApproveLimit}, Confidence: ${best.confidence}%)`,
+          );
+          await this.walletService.approveDeposit(
+            best.deposit.id,
+            '00000000-0000-0000-0000-000000000000',
+            `Auto-approved: Confirmed via SMS matching (${best.reason}) under 200 ETB limit`,
+          );
+          evidence.status = PaymentEvidenceStatus.PROCESSED;
+          await this.evidenceRepo.save(evidence);
+        } catch (err: any) {
+          this.logger.error(
+            `Auto-approval failed for deposit #${best.deposit.id}: ${err.message}`,
+            err.stack,
+          );
+        }
+      }
     } else {
       this.logger.log(
         `Evidence #${evidence.id} evaluated. No candidate reached >= 80% confidence threshold (Best: ${best?.confidence || 0}%). Stored as UNMATCHED.`,

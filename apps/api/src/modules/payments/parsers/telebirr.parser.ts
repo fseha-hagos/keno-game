@@ -67,6 +67,7 @@ export class TelebirrParser implements PaymentParser {
     let transactionReference: string | undefined;
     const refRegexes = [
       /(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር|የግብይት\s*መለያ|መለያ\s*ቁጥር|ግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Z0-9]{6,20})/i,
+      /(?:receipt\/|receipt\?id=)([A-Z0-9]{6,20})/i,
       /\b(DJ[0-9A-Z]{6,16})\b/i,
       /\b(CI[0-9A-Z]{6,16})\b/i,
       /\b(DA[0-9A-Z]{6,16})\b/i,
@@ -85,6 +86,7 @@ export class TelebirrParser implements PaymentParser {
 
     // 3. Extract Sender Phone & Name
     // Pattern: "from Samrawit Hagos(2519****5316)" or "from ABEBE KEBEDE (0912345678)"
+    // Or transfer pattern: "to Hagos Gerekidan (2519****1265)"
     // Phone numbers can be masked (e.g. 2519****5316, 09****5316) or unmasked
     let senderPhone: string | undefined;
     let senderName: string | undefined;
@@ -93,6 +95,9 @@ export class TelebirrParser implements PaymentParser {
 
     const fromNameAndPhone = cleanText.match(
       new RegExp(`(?:from|ከ)\\s+([A-Za-z\\u1200-\\u137F\\s'.-]+?)\\s*\\(\\s*(${phonePattern})\\s*\\)`, 'i'),
+    );
+    const toNameAndPhone = cleanText.match(
+      new RegExp(`(?:to|ወደ)\\s+([A-Za-z\\u1200-\\u137F\\s'.-]+?)\\s*\\(\\s*(${phonePattern})\\s*\\)`, 'i'),
     );
     const fromPhoneAndName = cleanText.match(
       new RegExp(`(?:from|ከ)\\s*(${phonePattern})\\s*(?:[\\/\\(])\\s*([A-Za-z\\u1200-\\u137F\\s'.-]+?)\\)?`, 'i'),
@@ -110,6 +115,9 @@ export class TelebirrParser implements PaymentParser {
     if (fromNameAndPhone && fromNameAndPhone[1] && fromNameAndPhone[2]) {
       senderName = fromNameAndPhone[1].trim();
       senderPhone = fromNameAndPhone[2].trim();
+    } else if (toNameAndPhone && toNameAndPhone[1] && toNameAndPhone[2]) {
+      // Transfer out message: "to Receiver (Phone)"
+      senderPhone = toNameAndPhone[2].trim();
     } else if (fromPhoneAndName && fromPhoneAndName[1] && fromPhoneAndName[2]) {
       senderPhone = fromPhoneAndName[1].trim();
       senderName = fromPhoneAndName[2].trim();
@@ -127,6 +135,10 @@ export class TelebirrParser implements PaymentParser {
     const receiverMatch = cleanText.match(/(?:Dear|ክቡር|ክቡርት)\s+([A-Za-z\u1200-\u137F]+)/i);
     if (receiverMatch && receiverMatch[1]) {
       receiverName = receiverMatch[1].trim();
+      if (!senderName && cleanText.toLowerCase().includes('transferred')) {
+        // In "Dear Fseha You have transferred...", the sender is Fseha
+        senderName = receiverName;
+      }
     }
 
     // 5. Extract Balance

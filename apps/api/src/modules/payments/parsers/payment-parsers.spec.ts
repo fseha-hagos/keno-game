@@ -89,6 +89,25 @@ Ethio telecom`;
       expect(res?.confidence).toBe(100);
     });
 
+    it('should parse real production Telebirr transfer confirmation SMS pasted by user', () => {
+      const sms = `Dear Fseha 
+You have transferred ETB 1.00 to Hagos Gerekidan (2519****1265) on 19/10/2026 22:26:26. Your transaction number is DJJ82SWP4M. The service fee is  ETB 0.87 and  15% VAT on the service fee is ETB 0.13. Your current E-Money Account  balance is ETB 317.81. To download your payment information please click this link: https://transactioninfo.ethiotelecom.et/receipt/DJJ82SWP4M.
+
+Thank you for using telebirr
+Ethio telecom.`;
+
+      const res = telebirrParser.parse(sms, 'telebirr');
+
+      expect(res).not.toBeNull();
+      expect(res?.provider).toBe(PaymentProviderName.TELEBIRR);
+      expect(res?.amountMinor).toBe('100'); // 1.00 ETB = 100 minor units
+      expect(res?.amountDisplay).toBe(1.0);
+      expect(res?.transactionReference).toBe('DJJ82SWP4M');
+      expect(res?.senderName).toBe('Fseha');
+      expect(res?.senderPhone).toBe('2519****1265');
+      expect(res?.confidence).toBeGreaterThanOrEqual(80);
+    });
+
     it('should parse multiple concatenated Telebirr SMS notifications', () => {
       const combined = `Dear Hagos 
 You have received ETB 200.00 from Samrawit Hagos(2519****5316)  on 19/10/2026 19:09:17. Your transaction number is DJJ52J9YGF. Your current E-Money Account balance is ETB 206.82.
