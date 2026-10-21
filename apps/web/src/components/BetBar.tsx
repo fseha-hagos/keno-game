@@ -279,9 +279,9 @@ export const BetBar: React.FC<BetBarProps> = ({
           width: '100%',
           height: 48,
           borderRadius: 4,
-          background: canBet ? 'rgba(50, 77, 56, 1)' : 'rgba(29, 44, 33, 1)',
-          border: canBet ? '1px solid rgba(81, 181, 121, 0.4)' : '1px solid #1f2e23',
-          color: canBet ? '#c8dece' : '#3f5345ff',
+          background: canBet ? 'rgba(72, 118, 82, 1)' : 'rgba(50, 77, 56, 1)',
+          border: canBet ? '1px solid rgba(82, 134, 93, 1)' : '1px solid rgba(58, 88, 65, 1)',
+          color: canBet ? '#ffffff' : '#9ec0a6',
           fontFamily: KENO_FONTS.ui,
           fontSize: 19,
           fontWeight: 800,
@@ -292,7 +292,7 @@ export const BetBar: React.FC<BetBarProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           transition: 'all 0.15s ease',
-          boxShadow: canBet ? '0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+          boxShadow: canBet ? '0 2px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12)' : 'none',
         }}
       >
         {isLoading ? (
