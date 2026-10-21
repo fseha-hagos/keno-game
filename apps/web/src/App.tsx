@@ -75,6 +75,7 @@ export const App: React.FC = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [limitsModalOpen, setLimitsModalOpen] = useState(false);
   const [paytableModalOpen, setPaytableModalOpen] = useState(false);
+  const [rulesModalTab, setRulesModalTab] = useState<'rules' | 'fairness' | 'freebet'>('rules');
 
   // Initialize Auth & Socket
   useEffect(() => {
@@ -283,6 +284,10 @@ export const App: React.FC = () => {
             setAuthModalOpen(true);
           }}
           onOpenProfile={() => setProfileModalOpen(true)}
+          onOpenFairness={() => {
+            setRulesModalTab('fairness');
+            setPaytableModalOpen(true);
+          }}
           onToggleChat={handleToggleChat}
           chatOpen={isMobile ? mobileChatOpen : chatOpen}
         />
@@ -357,7 +362,10 @@ export const App: React.FC = () => {
               roundNumber={round?.roundNumber}
               timeLeft={timeLeft}
               bettingOpen={bettingOpen}
-              onOpenPaytable={() => setPaytableModalOpen(true)}
+              onOpenPaytable={() => {
+                setRulesModalTab('rules');
+                setPaytableModalOpen(true);
+              }}
             />
 
             {/* 80-Grid: Always visible on desktop; on mobile hidden when the game starts/draws */}
@@ -467,6 +475,10 @@ export const App: React.FC = () => {
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
         onOpenLimits={() => setLimitsModalOpen(true)}
+        onOpenFairness={() => {
+          setRulesModalTab('fairness');
+          setPaytableModalOpen(true);
+        }}
       />
 
       <ResponsibleGamblingModal
@@ -477,6 +489,7 @@ export const App: React.FC = () => {
       <PaytableModal
         isOpen={paytableModalOpen}
         onClose={() => setPaytableModalOpen(false)}
+        initialTab={rulesModalTab}
       />
     </div>
   );

@@ -10,6 +10,7 @@ interface HeaderProps {
   onOpenWallet: () => void;
   onOpenAuth: (mode: 'login' | 'register') => void;
   onOpenProfile: () => void;
+  onOpenFairness?: () => void;
   onToggleChat?: () => void;
   chatOpen?: boolean;
 }
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWallet,
   onOpenAuth,
   onOpenProfile,
+  onOpenFairness,
   onToggleChat,
   chatOpen = true,
 }) => {
@@ -182,8 +184,9 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* Round ID side */}
+          {/* Round ID side - Clickable to open Fairness modal */}
           <div
+            onClick={onOpenFairness}
             style={{
               padding: '2px 10px',
               display: 'flex',
@@ -197,7 +200,9 @@ export const Header: React.FC<HeaderProps> = ({
               border: '1px solid rgba(31, 85, 54, 0.6)',
               borderRadius: 50,
               height: 28,
+              cursor: onOpenFairness ? 'pointer' : 'default',
             }}
+            title="Provably Fair Cryptographic Verification"
           >
             <span style={{ color: '#71ce96', fontWeight: 600 }}>ID:</span>
             <span style={{ color: '#FFFFFF' }}>{displayRoundNumber}</span>
