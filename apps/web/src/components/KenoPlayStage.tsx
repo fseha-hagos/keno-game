@@ -249,8 +249,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       style={{
         width: '100%',
         maxWidth: 450,
-        margin: '0 auto',
-        padding: '0 2px',
+        margin: '0 0',
+        padding: '0 0',
         boxSizing: 'border-box',
         userSelect: 'none',
       }}
@@ -619,9 +619,9 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               maxWidth: 430,
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 4,
               zIndex: 5,
-              padding: '0 8px',
+              padding: '0',
               boxSizing: 'border-box',
             }}
           >
@@ -630,7 +630,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-                gap: 'clamp(4px, 1.2vw, 6px)',
+                gap: 'clamp(5px, 1.5vw, 8px)',
                 width: '100%',
               }}
             >
@@ -648,12 +648,13 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     }}
                     style={{
                       width: '100%',
-                      maxWidth: 37,
+                      maxWidth: 26,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       margin: '0 auto',
+                      padding: 0,
                     }}
                   >
                     {ballNum !== undefined ? (
@@ -670,18 +671,14 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                           background: isHit
                             ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                             : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
-                          boxShadow: isJustLanded
-                            ? '0 0 16px rgba(112, 247, 166, 0.9), 0 0 6px rgba(112, 247, 166, 0.6)'
-                            : isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
-                          border: isJustLanded
-                            ? '1.5px solid #70f7a6'
-                            : isHit
+                          boxShadow: isHit
+                              ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                              : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                          border: isHit
                             ? '1px solid #86EFAC'
                             : '1px solid rgba(255, 255, 255, 0.12)',
-                          transform: isJustLanded ? 'scale(1.06)' : 'scale(1)',
-                          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                          transform: 'scale(1)',
+                          transition: 'none',
                           overflow: 'hidden',
                         }}
                       >
@@ -744,7 +741,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-                gap: 'clamp(4px, 1.2vw, 6px)',
+                gap: 'clamp(5px, 1.5vw, 8px)',
                 width: '100%',
               }}
             >
@@ -762,12 +759,13 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     }}
                     style={{
                       width: '100%',
-                      maxWidth: 37,
+                      maxWidth: 26,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       margin: '0 auto',
+                      padding: 0,
                     }}
                   >
                     {ballNum !== undefined ? (
@@ -787,13 +785,13 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                           boxShadow: isJustLanded
                             ? '0 0 16px rgba(112, 247, 166, 0.9), 0 0 6px rgba(112, 247, 166, 0.6)'
                             : isHit
-                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                              ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                              : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
                           border: isJustLanded
                             ? '1.5px solid #70f7a6'
                             : isHit
-                            ? '1px solid #86EFAC'
-                            : '1px solid rgba(255, 255, 255, 0.12)',
+                              ? '1px solid #86EFAC'
+                              : '1px solid rgba(255, 255, 255, 0.12)',
                           transform: isJustLanded ? 'scale(1.06)' : 'scale(1)',
                           transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                           overflow: 'hidden',

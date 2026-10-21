@@ -342,7 +342,7 @@ export const App: React.FC = () => {
               flexDirection: 'column',
               alignItems: 'center',
               overflowY: 'auto',
-              padding: '6px 10px 24px',
+              padding: '1px 4px 5px',
               boxSizing: 'border-box',
               width: '100%',
               maxWidth: 500,

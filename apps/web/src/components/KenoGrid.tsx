@@ -84,7 +84,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 background: bg,
                 color: textColor,
                 fontFamily: KENO_FONTS.numbers,
-                fontSize: 'clamp(15px, 3.6vw, 20px)',
+                fontSize: 'clamp(19px, 4.8vw, 27px)',
                 fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',

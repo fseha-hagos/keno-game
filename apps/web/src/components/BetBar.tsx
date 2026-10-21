@@ -271,7 +271,6 @@ export const BetBar: React.FC<BetBarProps> = ({
         </button>
       </div>
 
-      {/* Bottom Row: Full-Width Primary BET Button */}
       <button
         type="button"
         disabled={!canBet}
@@ -280,20 +279,20 @@ export const BetBar: React.FC<BetBarProps> = ({
           width: '100%',
           height: 48,
           borderRadius: 4,
-          background: canBet ? '#2d4a34' : '#223226',
-          border: 'none',
-          color: canBet ? '#a8bdae' : '#596e60',
+          background: canBet ? 'rgba(50, 77, 56, 1)' : 'rgba(29, 44, 33, 1)',
+          border: canBet ? '1px solid rgba(81, 181, 121, 0.4)' : '1px solid #1f2e23',
+          color: canBet ? '#c8dece' : '#3f5345ff',
           fontFamily: KENO_FONTS.ui,
           fontSize: 19,
           fontWeight: 800,
-          letterSpacing: '0.04em',
+          letterSpacing: '0.05em',
           textTransform: 'uppercase',
           cursor: canBet ? 'pointer' : 'default',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           transition: 'all 0.15s ease',
-          boxShadow: canBet ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none',
+          boxShadow: canBet ? '0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
         }}
       >
         {isLoading ? (
@@ -301,8 +300,8 @@ export const BetBar: React.FC<BetBarProps> = ({
             style={{
               width: 20,
               height: 20,
-              border: '2px solid rgba(168, 189, 174, 0.3)',
-              borderTopColor: '#a8bdae',
+              border: '2px solid rgba(255, 255, 255, 0.35)',
+              borderTopColor: '#FFFFFF',
               borderRadius: '50%',
               animation: 'spin 0.6s linear infinite',
             }}
