@@ -45,7 +45,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
   const settledBallsRef = useRef<number[]>([]);
   const [settledBalls, setSettledBalls] = useState<number[]>([]);
   const [callingBall, setCallingBall] = useState<CallingBallInfo | null>(null);
-  const [justLandedNum, setJustLandedNum] = useState<number | null>(null);
   const [completedHoldActive, setCompletedHoldActive] = useState(false);
 
   const queueRef = useRef<number[]>([]);
@@ -78,7 +77,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       settledBallsRef.current = [];
       setSettledBalls([]);
       setCallingBall(null);
-      setJustLandedNum(null);
       setCompletedHoldActive(false);
     }
   }, [roundNumber]);
@@ -93,7 +91,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         settledBallsRef.current = [];
         setSettledBalls([]);
         setCallingBall(null);
-        setJustLandedNum(null);
       }
       return;
     }
@@ -195,12 +192,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         settledBallsRef.current = updated;
         setSettledBalls(updated);
         setCallingBall(null);
-        setJustLandedNum(num);
-
-        const t3 = setTimeout(() => {
-          setJustLandedNum(null);
-        }, 800);
-        timersRef.current.push(t3);
 
         isAnimatingRef.current = false;
 
@@ -211,10 +202,10 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         }
 
         if (queueRef.current.length > 0) {
-          const t5 = setTimeout(triggerNextBall, 150);
+          const t5 = setTimeout(triggerNextBall, 120);
           timersRef.current.push(t5);
         }
-      }, 500);
+      }, 480);
       timersRef.current.push(t2);
     }, 650);
     timersRef.current.push(t1);
@@ -491,8 +482,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               position: 'absolute',
               top: 34,
               left: '50%',
-              width: 50,
-              height: 50,
+              width: 58,
+              height: 58,
               transform: 'translate(-50%, -50%)',
               pointerEvents: 'none',
               visibility: 'hidden',
@@ -508,35 +499,39 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 left: '50%',
                 transform:
                   callingBall.phase === 'flying'
-                    ? `translate(calc(-50% + ${callingBall.deltaX}px), calc(-50% + ${callingBall.deltaY}px)) scale(0.68)`
+                    ? `translate(calc(-50% + ${callingBall.deltaX}px), calc(-50% + ${callingBall.deltaY}px)) scale(0.448)`
                     : 'translate(-50%, -50%) scale(1)',
                 transition:
                   callingBall.phase === 'flying'
-                    ? 'transform 500ms cubic-bezier(0.25, 0.9, 0.32, 1)'
+                    ? 'transform 480ms cubic-bezier(0.22, 1, 0.36, 1)'
                     : 'none',
                 zIndex: 25,
                 pointerEvents: 'none',
+                willChange: 'transform',
               }}
             >
               {/* Green ambient halo directly behind calling ball */}
               <div
                 style={{
                   position: 'absolute',
-                  top: -16,
-                  left: -16,
-                  width: 82,
-                  height: 82,
+                  top: -19,
+                  left: -19,
+                  width: 96,
+                  height: 96,
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(52, 211, 153, 0.55) 0%, rgba(34, 197, 94, 0.15) 45%, transparent 72%)',
+                  background:
+                    'radial-gradient(circle, rgba(52, 211, 153, 0.55) 0%, rgba(34, 197, 94, 0.15) 45%, transparent 72%)',
                   pointerEvents: 'none',
+                  opacity: callingBall.phase === 'flying' ? 0 : 1,
+                  transition: 'opacity 200ms ease-out',
                 }}
               />
 
-              {/* 3D Glossy Ball (50px diameter matching smallest circle) */}
+              {/* 3D Glossy Ball (58px diameter, visibly larger when picked at first) */}
               <div
                 style={{
-                  width: 50,
-                  height: 50,
+                  width: 58,
+                  height: 58,
                   borderRadius: '50%',
                   position: 'relative',
                   overflow: 'hidden',
@@ -547,14 +542,14 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                     : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
                   boxShadow: selectedNumbers.includes(callingBall.num)
-                    ? '0 0 20px rgba(34, 197, 94, 0.95), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
+                    ? '0 0 22px rgba(34, 197, 94, 0.95), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
                     : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
                   border: selectedNumbers.includes(callingBall.num)
                     ? '1.5px solid #86EFAC'
                     : '1px solid rgba(255, 255, 255, 0.2)',
                   animation:
                     callingBall.phase === 'bounce'
-                      ? 'callBallBounce 650ms cubic-bezier(0.2, 0.9, 0.3, 1)'
+                      ? 'callBallBounce 480ms cubic-bezier(0.16, 1, 0.3, 1)'
                       : 'none',
                 }}
               >
@@ -593,7 +588,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     position: 'relative',
                     zIndex: 3,
                     fontFamily: KENO_FONTS.numbers,
-                    fontSize: 32,
+                    fontSize: 38,
                     fontWeight: 800,
                     color: '#FFFFFF',
                     lineHeight: 1,
@@ -638,7 +633,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 const slotIdx = 10 + col;
                 const ballNum = settledBalls[slotIdx];
                 const isHit = ballNum !== undefined && selectedNumbers.includes(ballNum);
-                const isJustLanded = ballNum !== undefined && ballNum === justLandedNum;
 
                 return (
                   <div
@@ -749,7 +743,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 const slotIdx = col;
                 const ballNum = settledBalls[slotIdx];
                 const isHit = ballNum !== undefined && selectedNumbers.includes(ballNum);
-                const isJustLanded = ballNum !== undefined && ballNum === justLandedNum;
 
                 return (
                   <div
@@ -782,18 +775,14 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                           background: isHit
                             ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                             : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
-                          boxShadow: isJustLanded
-                            ? '0 0 16px rgba(112, 247, 166, 0.9), 0 0 6px rgba(112, 247, 166, 0.6)'
-                            : isHit
-                              ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                              : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
-                          border: isJustLanded
-                            ? '1.5px solid #70f7a6'
-                            : isHit
-                              ? '1px solid #86EFAC'
-                              : '1px solid rgba(255, 255, 255, 0.12)',
-                          transform: isJustLanded ? 'scale(1.06)' : 'scale(1)',
-                          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                          boxShadow: isHit
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                          border: isHit
+                            ? '1px solid #86EFAC'
+                            : '1px solid rgba(255, 255, 255, 0.12)',
+                          transform: 'scale(1)',
+                          transition: 'none',
                           overflow: 'hidden',
                         }}
                       >
