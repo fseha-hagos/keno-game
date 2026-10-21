@@ -10,14 +10,99 @@ interface WalletModalProps {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'telebirr', name: 'Telebirr', icon: '📱', accountNumber: '0978614151', accountName: 'Amdom desta' },
-  { id: 'cbe_birr', name: 'CBE Birr', icon: '🏦', accountNumber: '1000234567891', accountName: 'Amdom desta' },
-  { id: 'mobile_money', name: 'Mobile Money', icon: '💸', accountNumber: '0911000123', accountName: 'Amdom desta' },
-  { id: 'card', name: 'Bank Card', icon: '💳', accountNumber: '1000234567890000', accountName: 'Amdom desta' },
+  {
+    id: 'telebirr',
+    name: 'Telebirr',
+    icon: '📱',
+    badge: 'Auto Match',
+    accountNumber: '0948491265',
+    accountName: 'Fseha Hagos',
+    hint: 'e.g. CI94719082',
+    instructions: [
+      'Open your Telebirr app or dial *127#',
+      'Select "Send Money" to 0948491265 (Fseha Hagos)',
+      'Enter the EXACT deposit amount',
+      'Confirm the transaction with your PIN',
+      'Our automated instant verification system automatically detects your payment!',
+    ],
+  },
+  {
+    id: 'mpesa',
+    name: 'M-Pesa (Safaricom)',
+    icon: '📲',
+    badge: 'Auto Match',
+    accountNumber: '0700000000',
+    accountName: 'Amdom desta',
+    hint: 'e.g. NL47JK890',
+    instructions: [
+      'Open your M-Pesa app or dial *777#',
+      'Select "Send Money" to 0700000000 (Amdom desta)',
+      'Enter the EXACT deposit amount and confirm',
+      'M-Pesa confirmation SMS will be captured and matched automatically',
+    ],
+  },
+  {
+    id: 'cbe_birr',
+    name: 'CBE Birr',
+    icon: '🏦',
+    badge: 'Auto Match',
+    accountNumber: '0978614151',
+    accountName: 'Amdom desta',
+    hint: 'e.g. CB987654321',
+    instructions: [
+      'Open CBE Birr app or dial *847#',
+      'Transfer to CBE Birr mobile: 0978614151 (Amdom desta)',
+      'Enter the EXACT amount and confirm',
+      'Incoming SMS notification is detected and matched automatically',
+    ],
+  },
+  {
+    id: 'cbe_bank',
+    name: 'Commercial Bank of Ethiopia (CBE)',
+    icon: '🏛️',
+    badge: 'FT Code',
+    accountNumber: '1000234567891',
+    accountName: 'Amdom desta',
+    hint: 'e.g. FT262920XXXX',
+    instructions: [
+      'Transfer via CBE Mobile Banking or branch to Account: 1000234567891',
+      'Recipient: Amdom desta',
+      'Enter the FT transaction reference code for instant verification',
+    ],
+  },
+  {
+    id: 'other_bank',
+    name: 'Other Bank Transfer',
+    icon: '💳',
+    badge: 'Awash/Dashen/BOA',
+    accountNumber: '1000234567891',
+    accountName: 'Amdom desta',
+    hint: 'e.g. Bank Ref / Slip No',
+    instructions: [
+      'Transfer from Awash, Dashen, Bank of Abyssinia, Nib, etc.',
+      'Send to CBE Account: 1000234567891 (Amdom desta)',
+      'Enter your transaction reference for admin review',
+    ],
+  },
 ];
 
 const DEPOSIT_PRESETS = ['50', '100', '200', '500', '1000'];
 const WITHDRAW_PRESETS = ['20', '50', '100', '250', '500'];
+
+const extractRefPreview = (text: string): string => {
+  if (!text) return '';
+  const t = text.trim();
+  const match =
+    t.match(/(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Za-z0-9]{6,25})/i) ||
+    t.match(/(?:receipt\/|receipt\?id=)([A-Za-z0-9]{6,25})/i) ||
+    t.match(/\b(DJ[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(CI[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(DA[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(TB[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(NL[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(FT[0-9A-Za-z]{6,16})\b/i);
+  return match && match[1] ? match[1].toUpperCase() : '';
+};
 
 export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
   const queryClient = useQueryClient();
@@ -47,6 +132,36 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
 
     return () => clearInterval(interval);
   }, [pendingDeposit]);
+
+  // Live polling for pending deposit status (detects SMS matching & admin approval in real-time)
+  useQuery({
+    queryKey: ['activePendingDeposit', pendingDeposit?.id],
+    queryFn: async () => {
+      if (!pendingDeposit?.id) return null;
+      try {
+        const res = await apiClient.get('/api/v1/wallet/payment-requests');
+        const found = res.data?.find((r: any) => r.id === pendingDeposit.id);
+        if (found) {
+          if (found.status === 'APPROVED') {
+            toastSuccess('Deposit Approved!', 'Your payment was approved and your balance has been credited!');
+            setPendingDeposit(null);
+            queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+            queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+          } else if (found.status === 'REJECTED') {
+            toastError('Deposit Rejected', found.adminNote || 'Deposit was rejected');
+            setPendingDeposit(null);
+          } else if (found.matchedEvidenceId && !pendingDeposit.matchedEvidenceId) {
+            setPendingDeposit(found);
+          }
+        }
+        return found;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!pendingDeposit?.id,
+    refetchInterval: 3000,
+  });
 
   // Balance query
   const { data: wallet } = useQuery({
@@ -100,16 +215,27 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
   // Step 2: Submit proof mutation
   const submitProofMutation = useMutation({
     mutationFn: async () => {
-      if (!txRef.trim()) throw new Error('Please enter the transaction reference code');
+      if (!txRef.trim()) throw new Error('Please enter the transaction reference code or paste SMS text');
       const res = await apiClient.patch(`/api/v1/wallet/deposit/${pendingDeposit?.id}/proof`, {
         transactionReference: txRef.trim(),
       });
       return res.data;
     },
-    onSuccess: () => {
-      toastSuccess('Proof Submitted!', 'Reference received. Funds will reflect immediately upon verification.');
-      setPendingDeposit(null);
-      setTxRef('');
+    onSuccess: (updated) => {
+      if (updated.status === 'APPROVED') {
+        toastSuccess('Deposit Auto-Approved! 🎉', 'Your payment was instantly verified and credited to your wallet!');
+        setPendingDeposit(null);
+        queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+        queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+      } else {
+        toastSuccess('Reference Recorded!', 'Transaction received. Awaiting admin review.');
+        setPendingDeposit((prev: any) => ({
+          ...prev,
+          ...updated,
+          proofSubmitted: true,
+          transactionReference: updated.transactionReference || txRef.trim(),
+        }));
+      }
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
     },
@@ -273,12 +399,12 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     border: '1px solid rgba(16, 185, 129, 0.3)',
                     borderRadius: 12,
                     padding: '12px 14px',
-                    marginBottom: 16,
+                    marginBottom: 14,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: '#10B981' }}>
-                      Deposit Request Initiated
+                      Deposit Request #{pendingDeposit?.id ? pendingDeposit.id.slice(0, 8) : ''}
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={12} />
@@ -286,9 +412,47 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: '#94A3B8' }}>
-                    Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}:
+                    Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}
                   </div>
                 </div>
+
+                {/* Automated Detection Status Banner */}
+                {pendingDeposit?.matchedEvidenceId ? (
+                  <div
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid #3B82F6',
+                      borderRadius: 12,
+                      padding: '10px 14px',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#60A5FA', fontSize: 12, fontWeight: 800 }}>
+                      <span>⚡ PAYMENT DETECTED BY AUTOMATION</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#93C5FD', marginTop: 4 }}>
+                      Incoming SMS notification matched with {pendingDeposit.matchConfidence || 100}% confidence. Balance will credit automatically upon admin review.
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: 12,
+                      padding: '8px 12px',
+                      marginBottom: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 11,
+                      color: '#FCD34D',
+                    }}
+                  >
+                    <span>⚡</span>
+                    <span>Automated instant verification active. You can paste your SMS or transaction code below.</span>
+                  </div>
+                )}
 
                 {/* Account Details Box */}
                 <div
@@ -297,7 +461,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     border: '1px solid #334155',
                     borderRadius: 12,
                     padding: 14,
-                    marginBottom: 16,
+                    marginBottom: 14,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -336,68 +500,141 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                   </div>
                 </div>
 
-                {/* Reference Code Input */}
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                    Transaction Reference Code / SMS ID
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. CI94719082 or TR12345"
-                    value={txRef}
-                    onChange={(e) => setTxRef(e.target.value)}
+                {/* Step-by-step instructions */}
+                {currentMethod.instructions && (
+                  <div
                     style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: 10,
                       background: '#0B1320',
-                      border: '1px solid #334155',
-                      color: '#F8FAFC',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      outline: 'none',
-                      boxSizing: 'border-box',
+                      border: '1px solid #1E293B',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 14,
                     }}
-                  />
-                </div>
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#FBBF24', marginBottom: 6, textTransform: 'uppercase' }}>
+                      Payment Instructions:
+                    </div>
+                    <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {currentMethod.instructions.map((step: string, idx: number) => (
+                        <li key={idx}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
 
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDeposit(null)}
-                    style={{
-                      flex: 1,
-                      padding: '12px 0',
-                      borderRadius: 10,
-                      background: '#1E293B',
-                      border: '1px solid #334155',
-                      color: '#94A3B8',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitProofMutation.isPending}
-                    onClick={() => submitProofMutation.mutate()}
-                    style={{
-                      flex: 2,
-                      padding: '12px 0',
-                      borderRadius: 10,
-                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                      border: 'none',
-                      color: '#FFFFFF',
-                      fontSize: 13,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {submitProofMutation.isPending ? 'Verifying...' : 'Submit Reference'}
-                  </button>
-                </div>
+                {/* Reference Code Input or Awaiting Approval Status */}
+                {pendingDeposit?.proofSubmitted ? (
+                  <div style={{ background: '#0B1320', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+                    <div style={{ display: 'inline-flex', padding: 10, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', marginBottom: 10 }}>
+                      <Check size={24} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#F8FAFC', marginBottom: 4 }}>
+                      Reference Submitted & Awaiting Admin Approval
+                    </div>
+                    <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 12 }}>
+                      Ref: <strong style={{ color: '#10B981' }}>{pendingDeposit.transactionReference}</strong> • Amount: <strong>{depositAmount} ETB</strong>
+                    </div>
+                    <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 8, padding: 10, fontSize: 11, color: '#93C5FD', textAlign: 'left', lineHeight: 1.5 }}>
+                      ⏳ Real-money deposits require administrator confirmation in the <strong>Admin Console</strong> before balances are credited. This window is live-monitoring every 3s and will update your balance automatically once approved.
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => { setPendingDeposit(null); onClose(); }}
+                      style={{
+                        marginTop: 14,
+                        width: '100%',
+                        padding: '10px 0',
+                        borderRadius: 8,
+                        background: '#1E293B',
+                        border: '1px solid #334155',
+                        color: '#94A3B8',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Close Window (Will credit automatically upon admin approval)
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                          Transaction Reference Code or Full SMS Text
+                        </label>
+                        {extractRefPreview(txRef) && (
+                          <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            ✨ Detected Ref: {extractRefPreview(txRef)}
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        rows={txRef.length > 40 || txRef.includes('\n') ? 4 : 2}
+                        placeholder={`Paste full SMS (e.g. 'You have transferred ETB ... Your transaction number is DJJ82SWP4M') or enter reference (e.g. ${currentMethod.hint || 'DJJ82SWP4M'})`}
+                        value={txRef}
+                        onChange={(e) => setTxRef(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          background: '#0B1320',
+                          border: extractRefPreview(txRef) ? '1px solid #10B981' : '1px solid #334155',
+                          color: '#F8FAFC',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          resize: 'vertical',
+                          fontFamily: 'inherit',
+                          lineHeight: 1.4,
+                        }}
+                      />
+                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                        💡 Tip: You can paste the whole SMS from Telebirr, CBE, or M-Pesa. Our system will extract the reference number automatically. Deposits under 200 ETB are approved instantly!
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeposit(null)}
+                        style={{
+                          flex: 1,
+                          padding: '12px 0',
+                          borderRadius: 10,
+                          background: '#1E293B',
+                          border: '1px solid #334155',
+                          color: '#94A3B8',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitProofMutation.isPending}
+                        onClick={() => submitProofMutation.mutate()}
+                        style={{
+                          flex: 2,
+                          padding: '12px 0',
+                          borderRadius: 10,
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                          border: 'none',
+                          color: '#FFFFFF',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {submitProofMutation.isPending ? 'Verifying...' : 'Submit Reference'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               /* Step 1: Deposit Method & Amount Selection */

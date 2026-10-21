@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
-import { ShieldCheck, Menu, MessageSquare, X } from 'lucide-react';
+import { ShieldCheck, Menu, MessageSquare, X, Wallet, Plus } from 'lucide-react';
 import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 interface HeaderProps {
@@ -114,47 +114,72 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
-        {/* Center: Split Pill (Balance on left if authenticated, ID on right) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: 'rgba(30, 43, 34, 0.5)',
-            border: '1px solid rgba(31, 85, 54, 0.7)',
-            borderRadius: 50,
-            overflow: 'hidden',
-            height: 28,
-          }}
-        >
-          {/* Balance side: ONLY shown when authenticated */}
+        {/* Center: Money & Deposit Pill (when authenticated) + Round ID */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Money & Easy Deposit Pill: ONLY visible when authenticated */}
           {isAuthenticated && (
-            <button
-              type="button"
-              onClick={onOpenWallet}
+            <div
               style={{
-                background: 'transparent',
-                border: 'none',
-                padding: '2px 10px',
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 4,
-                cursor: 'pointer',
-                borderRight: '1px solid rgba(31, 85, 54, 0.5)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: 'rgba(30, 43, 34, 0.5)',
+                border: '1px solid rgba(31, 85, 54, 0.7)',
+                borderRadius: 50,
+                overflow: 'hidden',
+                height: 28,
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
               }}
-              title="Open Wallet"
             >
-              <span
+              {/* Left: Wallet icon and balance */}
+              <button
+                type="button"
+                onClick={onOpenWallet}
                 style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: '#e6b529',
-                  fontFamily: KENO_FONTS.ui,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '2px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
                 }}
+                title="Open Wallet"
               >
-                {formattedBalance}
-              </span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
-            </button>
+                <Wallet size={14} color="#71ce96" strokeWidth={2.2} />
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: '#e6b529',
+                    fontFamily: KENO_FONTS.ui,
+                  }}
+                >
+                  {formattedBalance}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
+              </button>
+
+              {/* Right: Action green deposit '+' button */}
+              <button
+                type="button"
+                onClick={onOpenWallet}
+                style={{
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  border: 'none',
+                  height: '100%',
+                  padding: '0 9px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  borderLeft: '1px solid rgba(31, 85, 54, 0.7)',
+                  transition: 'filter 0.15s ease',
+                }}
+                title="Deposit Funds"
+              >
+                <Plus size={14} color="#FFFFFF" strokeWidth={3} />
+              </button>
+            </div>
           )}
 
           {/* Round ID side */}
@@ -168,6 +193,10 @@ export const Header: React.FC<HeaderProps> = ({
               fontWeight: 400,
               color: '#FFFFFF',
               fontFamily: KENO_FONTS.ui,
+              background: 'rgba(30, 43, 34, 0.45)',
+              border: '1px solid rgba(31, 85, 54, 0.6)',
+              borderRadius: 50,
+              height: 28,
             }}
           >
             <span style={{ color: '#71ce96', fontWeight: 600 }}>ID:</span>

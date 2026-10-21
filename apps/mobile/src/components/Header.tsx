@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { socketService } from '../services/socket';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface HeaderProps {
   roundNumber?: number | string;
@@ -73,23 +74,30 @@ export const Header: React.FC<HeaderProps> = ({ roundNumber: propRoundNumber }) 
         </TouchableOpacity>
       </View>
 
-      {/* Center Capsule Pill: [ 0.00 ETB | ID: 223270 ✔ ] */}
-      <View style={styles.pillContainer}>
-        {/* Balance Part */}
-        <TouchableOpacity
-          onPress={() => (isAuthenticated ? navigation.navigate('Wallet') : navigation.navigate('Login'))}
-          style={styles.pillBalanceSection}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.balanceAmount}>{formattedBalance}</Text>
-          <Text style={styles.balanceCurrency}> ETB</Text>
-        </TouchableOpacity>
+      {/* Center: Authentic Money & Deposit Pill + Round ID */}
+      <View style={styles.centerGroup}>
+        {isAuthenticated && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Wallet')}
+            style={styles.moneyPill}
+            activeOpacity={0.8}
+          >
+            {/* Left: Theme wallet + balance */}
+            <View style={styles.moneyPillLeft}>
+              <Ionicons name="wallet-outline" size={14} color="#71ce96" />
+              <Text style={styles.moneyPillAmount}>{formattedBalance}</Text>
+              <Text style={styles.moneyPillCurrency}>ETB</Text>
+            </View>
 
-        {/* Divider */}
-        <View style={styles.pillDivider} />
+            {/* Right: Green deposit plus button */}
+            <View style={styles.moneyPillPlus}>
+              <Ionicons name="add" size={14} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        )}
 
-        {/* Round ID Part */}
-        <View style={styles.pillIdSection}>
+        {/* Round ID Badge */}
+        <View style={styles.idBadge}>
           <Text style={styles.idLabel}>ID: </Text>
           <Text style={styles.idValue}>{displayRoundNumber}</Text>
         </View>
@@ -176,49 +184,65 @@ const styles = StyleSheet.create({
   statusTextOffline: {
     color: '#F87171',
   },
-  pillContainer: {
+  centerGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#141C28',
-    borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.35)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 8,
   },
-  pillBalanceSection: {
+  moneyPill: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(30, 43, 34, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(31, 85, 54, 0.7)',
   },
-  balanceAmount: {
+  moneyPillLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  moneyPillAmount: {
     color: '#FACC15',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
   },
-  balanceCurrency: {
+  moneyPillCurrency: {
     color: '#FFFFFF',
     fontSize: 9,
     fontWeight: '800',
-    marginLeft: 1,
+    marginLeft: 2,
   },
-  pillDivider: {
-    width: 1,
-    height: 14,
-    backgroundColor: '#2A3A4A',
-    marginHorizontal: 8,
+  moneyPillPlus: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(31, 85, 54, 0.7)',
   },
-  pillIdSection: {
+  idBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(30, 43, 34, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(31, 85, 54, 0.6)',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   idLabel: {
-    color: '#94A3B8',
+    color: '#71ce96',
     fontSize: 11,
     fontWeight: '700',
   },
   idValue: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
   },
   iconBtn: {
