@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { toastSuccess, toastError } from '../services/toast';
-import { X, Copy, Check, ArrowDownLeft, ArrowUpRight, Clock, ShieldCheck } from 'lucide-react';
+import { X, Copy, Check, ArrowDownLeft, ArrowUpRight, Clock, ShieldCheck, HelpCircle } from 'lucide-react';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -125,6 +125,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
   const [pendingDeposit, setPendingDeposit] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState({ mins: 15, secs: 0 });
+  const [showHelp, setShowHelp] = useState(false);
 
   // 15-minute countdown timer for pending deposit
   useEffect(() => {
@@ -403,102 +404,104 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
             pendingDeposit ? (
               /* Step 2: Deposit Payment Instructions & Proof Reference */
               <div>
+                {/* Header Card: Target Amount & Provider + Timer & Help Button */}
                 <div
                   style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
                     borderRadius: 12,
                     padding: '12px 14px',
-                    marginBottom: 14,
+                    marginBottom: 12,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#10B981' }}>
-                      Deposit Request #{pendingDeposit?.id ? pendingDeposit.id.slice(0, 8) : ''}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Clock size={12} />
-                      {String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                    {currentMethod.image ? (
-                      <div
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {currentMethod.image ? (
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            backgroundColor: '#FFFFFF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            padding: 2,
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                          }}
+                        >
+                          <img
+                            src={currentMethod.image}
+                            alt={currentMethod.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        </div>
+                      ) : null}
+                      <div>
+                        <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>Amount to Send</div>
+                        <div style={{ fontSize: 15, fontWeight: 900, color: '#F8FAFC' }}>
+                          {depositAmount} ETB <span style={{ fontSize: 12, fontWeight: 600, color: '#10B981' }}>via {currentMethod.name}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {/* Countdown */}
+                      <span
                         style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 4,
-                          overflow: 'hidden',
-                          backgroundColor: '#FFFFFF',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: '#EF4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          padding: '3px 7px',
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Clock size={12} />
+                        {String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
+                      </span>
+
+                      {/* Help '?' Button */}
+                      <button
+                        type="button"
+                        onClick={() => setShowHelp(true)}
+                        style={{
+                          background: 'rgba(251, 191, 36, 0.12)',
+                          border: '1px solid rgba(251, 191, 36, 0.4)',
+                          borderRadius: '50%',
+                          width: 28,
+                          height: 28,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          flexShrink: 0,
-                          padding: 1,
+                          color: '#FBBF24',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
                         }}
+                        title="How to pay? View instructions"
                       >
-                        <img
-                          src={currentMethod.image}
-                          alt={currentMethod.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        />
-                      </div>
-                    ) : null}
-                    <span>
-                      Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}
-                    </span>
+                        <HelpCircle size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Automated Detection Status Banner */}
-                {pendingDeposit?.matchedEvidenceId ? (
-                  <div
-                    style={{
-                      background: 'rgba(59, 130, 246, 0.15)',
-                      border: '1px solid #3B82F6',
-                      borderRadius: 12,
-                      padding: '10px 14px',
-                      marginBottom: 14,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#60A5FA', fontSize: 12, fontWeight: 800 }}>
-                      <span>⚡ PAYMENT DETECTED BY AUTOMATION</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#93C5FD', marginTop: 4 }}>
-                      Incoming SMS notification matched with {pendingDeposit.matchConfidence || 100}% confidence. Balance will credit automatically upon admin review.
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      background: 'rgba(245, 158, 11, 0.08)',
-                      border: '1px solid rgba(245, 158, 11, 0.25)',
-                      borderRadius: 12,
-                      padding: '8px 12px',
-                      marginBottom: 14,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontSize: 11,
-                      color: '#FCD34D',
-                    }}
-                  >
-                    <span>⚡</span>
-                    <span>Automated instant verification active. You can paste your SMS or transaction code below.</span>
-                  </div>
-                )}
 
                 {/* Account Details Box */}
                 <div
                   style={{
                     background: '#0B1320',
-                    border: '1px solid #334155',
+                    border: '1px solid #1E293B',
                     borderRadius: 12,
-                    padding: 14,
+                    padding: '12px 14px',
                     marginBottom: 14,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Name:</span>
                     <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
                       {currentMethod.accountName}
@@ -508,7 +511,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Number:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: '#10B981', letterSpacing: '0.05em' }}>
+                      <span style={{ fontSize: 15, fontWeight: 900, color: '#10B981', letterSpacing: '0.04em' }}>
                         {currentMethod.accountNumber}
                       </span>
                       <button
@@ -525,6 +528,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                           alignItems: 'center',
                           gap: 4,
                           fontSize: 11,
+                          fontWeight: 700,
                         }}
                       >
                         {copied ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
@@ -534,25 +538,96 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                   </div>
                 </div>
 
-                {/* Step-by-step instructions */}
-                {currentMethod.instructions && (
+                {/* Help Drawer Modal when user clicks '?' */}
+                {showHelp && (
                   <div
                     style={{
-                      background: '#0B1320',
-                      border: '1px solid #1E293B',
-                      borderRadius: 12,
-                      padding: '12px 14px',
-                      marginBottom: 14,
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(10, 16, 26, 0.96)',
+                      backdropFilter: 'blur(6px)',
+                      zIndex: 30,
+                      padding: '20px 18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      borderRadius: 20,
+                      boxSizing: 'border-box',
                     }}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#FBBF24', marginBottom: 6, textTransform: 'uppercase' }}>
-                      Payment Instructions:
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#FBBF24', fontSize: 13, fontWeight: 800 }}>
+                        <HelpCircle size={16} />
+                        <span>HOW TO PAY ({currentMethod.name.toUpperCase()})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowHelp(false)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#94A3B8',
+                          cursor: 'pointer',
+                          padding: 4,
+                        }}
+                      >
+                        <X size={18} />
+                      </button>
                     </div>
-                    <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {currentMethod.instructions.map((step: string, idx: number) => (
-                        <li key={idx}>{step}</li>
-                      ))}
-                    </ol>
+
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
+                      <ol
+                        style={{
+                          margin: 0,
+                          paddingLeft: 18,
+                          fontSize: 12,
+                          color: '#CBD5E1',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {currentMethod.instructions.map((step: string, idx: number) => (
+                          <li key={idx}>
+                            <span style={{ color: '#F8FAFC' }}>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+
+                      <div
+                        style={{
+                          marginTop: 16,
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          borderRadius: 10,
+                          padding: '10px 12px',
+                          fontSize: 11,
+                          color: '#86EFAC',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        💡 <strong>Tip:</strong> You can paste the entire confirmation SMS from {currentMethod.name}. Our system will automatically detect the reference number!
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowHelp(false)}
+                      style={{
+                        width: '100%',
+                        padding: '11px 0',
+                        borderRadius: 10,
+                        background: '#1E293B',
+                        border: '1px solid #334155',
+                        color: '#F8FAFC',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        marginTop: 14,
+                      }}
+                    >
+                      Got it, Back to Payment
+                    </button>
                   </div>
                 )}
 
@@ -596,7 +671,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
-                          Transaction Reference Code or Full SMS Text
+                          Transaction Reference Code
                         </label>
                         {extractRefPreview(txRef) && (
                           <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
@@ -605,8 +680,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                         )}
                       </div>
                       <textarea
-                        rows={txRef.length > 40 || txRef.includes('\n') ? 4 : 2}
-                        placeholder={`Paste full SMS (e.g. 'You have transferred ETB ... Your transaction number is DJJ82SWP4M') or enter reference (e.g. ${currentMethod.hint || 'DJJ82SWP4M'})`}
+                        rows={2}
+                        placeholder={`e.g. ${currentMethod.hint || 'DJJ82SWP4M'} or paste full SMS`}
                         value={txRef}
                         onChange={(e) => setTxRef(e.target.value)}
                         style={{
@@ -620,14 +695,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                           fontWeight: 500,
                           outline: 'none',
                           boxSizing: 'border-box',
-                          resize: 'vertical',
+                          resize: 'none',
                           fontFamily: 'inherit',
                           lineHeight: 1.4,
                         }}
                       />
-                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
-                        💡 Tip: You can paste the whole SMS from Telebirr, CBE, or M-Pesa. Our system will extract the reference number automatically. Deposits under 200 ETB are approved instantly!
-                      </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: 10 }}>
