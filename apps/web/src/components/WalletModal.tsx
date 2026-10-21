@@ -12,9 +12,11 @@ interface WalletModalProps {
 const PAYMENT_METHODS = [
   {
     id: 'telebirr',
-    name: 'Telebirr',
+    name: 'telebirr',
     icon: '📱',
+    image: '/telebirr.jpg',
     badge: 'Auto Match',
+    isInstant: true,
     accountNumber: '0948491265',
     accountName: 'Fseha Hagos',
     hint: 'e.g. CI94719082',
@@ -27,25 +29,28 @@ const PAYMENT_METHODS = [
     ],
   },
   {
-    id: 'mpesa',
-    name: 'M-Pesa (Safaricom)',
-    icon: '📲',
-    badge: 'Auto Match',
-    accountNumber: '0700000000',
+    id: 'cbe_bank',
+    name: 'Commercial Bank of Ethiopia',
+    icon: '🏛️',
+    image: '/cbe.jpg',
+    badge: 'FT Code',
+    isInstant: false,
+    accountNumber: '1000234567891',
     accountName: 'Amdom desta',
-    hint: 'e.g. NL47JK890',
+    hint: 'e.g. FT262920XXXX',
     instructions: [
-      'Open your M-Pesa app or dial *777#',
-      'Select "Send Money" to 0700000000 (Amdom desta)',
-      'Enter the EXACT deposit amount and confirm',
-      'M-Pesa confirmation SMS will be captured and matched automatically',
+      'Transfer via CBE Mobile Banking or branch to Account: 1000234567891',
+      'Recipient: Amdom desta',
+      'Enter the FT transaction reference code for verification',
     ],
   },
   {
     id: 'cbe_birr',
-    name: 'CBE Birr',
+    name: 'CBEbirr',
     icon: '🏦',
+    image: '/cbe.jpg',
     badge: 'Auto Match',
+    isInstant: false,
     accountNumber: '0978614151',
     accountName: 'Amdom desta',
     hint: 'e.g. CB987654321',
@@ -57,29 +62,34 @@ const PAYMENT_METHODS = [
     ],
   },
   {
-    id: 'cbe_bank',
-    name: 'Commercial Bank of Ethiopia (CBE)',
-    icon: '🏛️',
-    badge: 'FT Code',
-    accountNumber: '1000234567891',
+    id: 'mpesa',
+    name: 'M-Pesa (Safaricom)',
+    icon: '📲',
+    image: '/mpesa.jpg',
+    badge: 'Auto Match',
+    isInstant: false,
+    accountNumber: '0700000000',
     accountName: 'Amdom desta',
-    hint: 'e.g. FT262920XXXX',
+    hint: 'e.g. NL47JK890',
     instructions: [
-      'Transfer via CBE Mobile Banking or branch to Account: 1000234567891',
-      'Recipient: Amdom desta',
-      'Enter the FT transaction reference code for instant verification',
+      'Open your M-Pesa app or dial *777#',
+      'Select "Send Money" to 0700000000 (Amdom desta)',
+      'Enter the EXACT deposit amount and confirm',
+      'M-Pesa confirmation SMS will be captured and matched automatically',
     ],
   },
   {
     id: 'other_bank',
-    name: 'Other Bank Transfer',
+    name: 'Bank of Abyssinia / Other Banks',
     icon: '💳',
+    image: null,
     badge: 'Awash/Dashen/BOA',
+    isInstant: false,
     accountNumber: '1000234567891',
     accountName: 'Amdom desta',
     hint: 'e.g. Bank Ref / Slip No',
     instructions: [
-      'Transfer from Awash, Dashen, Bank of Abyssinia, Nib, etc.',
+      'Transfer from Bank of Abyssinia, Awash, Dashen, Nib, etc.',
       'Send to CBE Account: 1000234567891 (Amdom desta)',
       'Enter your transaction reference for admin review',
     ],
@@ -411,8 +421,32 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                       {String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: '#94A3B8' }}>
-                    Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}
+                  <div style={{ fontSize: 12, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    {currentMethod.image ? (
+                      <div
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                          backgroundColor: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          padding: 1,
+                        }}
+                      >
+                        <img
+                          src={currentMethod.image}
+                          alt={currentMethod.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      </div>
+                    ) : null}
+                    <span>
+                      Send exactly <strong>{depositAmount} ETB</strong> using {currentMethod.name}
+                    </span>
                   </div>
                 </div>
 
@@ -639,8 +673,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
             ) : (
               /* Step 1: Deposit Method & Amount Selection */
               <div>
-                {/* Payment Methods */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
+                {/* Payment Methods - Vertical List layout matching reference */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
                   {PAYMENT_METHODS.map((method) => {
                     const isSelected = selectedMethod === method.id;
                     return (
@@ -649,24 +683,107 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                         type="button"
                         onClick={() => setSelectedMethod(method.id)}
                         style={{
-                          background: isSelected ? 'rgba(16, 185, 129, 0.15)' : '#0B1320',
+                          width: '100%',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#0B1320',
                           border: isSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
-                          borderRadius: 12,
-                          padding: '10px 12px',
+                          borderRadius: 14,
+                          padding: '10px 14px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 10,
+                          gap: 14,
                           cursor: 'pointer',
                           textAlign: 'left',
+                          transition: 'all 0.15s ease',
+                          boxSizing: 'border-box',
                         }}
                       >
-                        <span style={{ fontSize: 20 }}>{method.icon}</span>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 800, color: '#F8FAFC' }}>
-                            {method.name}
+                        {/* Circular Logo Badge */}
+                        {method.image ? (
+                          <div
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              backgroundColor: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              padding: 3,
+                              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
+                              border: isSelected ? '1px solid #10B981' : '1px solid rgba(255, 255, 255, 0.15)',
+                            }}
+                          >
+                            <img
+                              src={method.image}
+                              alt={method.name}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                              }}
+                            />
                           </div>
-                          <div style={{ fontSize: 10, color: '#64748B' }}>Instant</div>
+                        ) : (
+                          <div
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: '50%',
+                              backgroundColor: '#1E293B',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 20,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {method.icon}
+                          </div>
+                        )}
+
+                        {/* Title */}
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: isSelected ? '#10B981' : '#F8FAFC',
+                            flex: 1,
+                          }}
+                        >
+                          {method.name}
                         </div>
+
+                        {/* Instant Badge (only on Telebirr) */}
+                        {method.isInstant && (
+                          <span
+                            style={{
+                              marginLeft: 'auto',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: '#10B981',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              borderRadius: 12,
+                              padding: '3px 8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 5,
+                                height: 5,
+                                borderRadius: '50%',
+                                backgroundColor: '#10B981',
+                                boxShadow: '0 0 5px rgba(16, 185, 129, 0.8)',
+                              }}
+                            />
+                            Instant
+                          </span>
+                        )}
                       </button>
                     );
                   })}
