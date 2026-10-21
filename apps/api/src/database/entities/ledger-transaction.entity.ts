@@ -36,7 +36,7 @@ export class LedgerTransaction {
   @Column({ type: 'simple-enum', enum: LedgerReferenceType, nullable: true })
   referenceType?: LedgerReferenceType;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'varchar', length: 128, nullable: true })
   referenceId?: string;
 
   @Column({ type: 'numeric', precision: 20, scale: 0 })

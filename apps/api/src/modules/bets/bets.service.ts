@@ -9,10 +9,12 @@ import { Repository, EntityManager } from 'typeorm';
 import { Bet } from '../../database/entities/bet.entity';
 import { GameRound } from '../../database/entities/game-round.entity';
 import { WalletAccount } from '../../database/entities/wallet-account.entity';
-import { BetStatus, RoundStatus, TransactionType, LedgerReferenceType } from '@keno/shared-types';
+import { User } from '../../database/entities/user.entity';
+import { BetStatus, RoundStatus, TransactionType, LedgerReferenceType, UserStatus } from '@keno/shared-types';
 import { LedgerService } from '../ledger/ledger.service';
 import { ResponsibleGamblingService } from '../responsible-gambling/responsible-gambling.service';
 import { AuditService } from '../audit/audit.service';
+import { AdminService } from '../admin/admin.service';
 import { PlaceBetInput } from '@keno/validation';
 import { GAME_CONFIG } from '@keno/config';
 
@@ -27,12 +29,28 @@ export class BetsService {
     private readonly roundRepo: Repository<GameRound>,
     @InjectRepository(WalletAccount)
     private readonly walletRepo: Repository<WalletAccount>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly ledgerService: LedgerService,
     private readonly rgService: ResponsibleGamblingService,
     private readonly auditService: AuditService,
+    private readonly adminService: AdminService,
   ) {}
 
   async placeBet(userId: string, input: PlaceBetInput): Promise<Bet> {
+    // 0. Global System Status & Maintenance Check
+    if (!this.adminService.isSystemActive()) {
+      throw new BadRequestException(
+        'The game system is currently undergoing maintenance. Betting is temporarily paused.',
+      );
+    }
+
+    // Check if player account is frozen or suspended
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (user && (user.status === UserStatus.FROZEN || user.status === UserStatus.SUSPENDED)) {
+      throw new BadRequestException('Your account has been frozen or suspended. Please contact support.');
+    }
+
     // 1. Idempotency Check
     const existingBet = await this.betRepo.findOne({
       where: { idempotencyKey: input.idempotencyKey },
