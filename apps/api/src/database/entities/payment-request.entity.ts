@@ -71,10 +71,10 @@ export class PaymentRequest {
   @Column({ type: 'uuid', nullable: true })
   approvedBy?: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   approvedAt?: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   expiresAt?: Date;
 
   @Index({ unique: true, sparse: true })

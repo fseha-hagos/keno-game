@@ -51,7 +51,7 @@ export class PaymentEvidence {
   @Column({ type: 'text' })
   rawText!: string;
 
-  @Column({ type: 'datetime' })
+  @Column()
   receivedAt!: Date;
 
   /**
@@ -90,7 +90,7 @@ export class PaymentEvidence {
   @Column({ type: 'varchar', length: 100, nullable: true })
   parsedSenderAccount?: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   parsedTimestamp?: Date;
 
   @Index()
