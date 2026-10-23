@@ -388,3 +388,17 @@ body {
   background: rgba(113, 206, 150, 0.4);
 }
 
+/* Bright Auth Modal Utilities */
+.auth-modal-input::placeholder {
+  color: #94A3B8;
+  opacity: 1;
+}
+
+.auth-modal-input:-webkit-autofill,
+.auth-modal-input:-webkit-autofill:hover,
+.auth-modal-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #FFFFFF;
+  -webkit-box-shadow: 0 0 0px 1000px #1E293B inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
