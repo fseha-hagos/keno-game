@@ -125,28 +125,30 @@ export const KenoPlayStage = ({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // 2. Pause at top in big size (fast and snappy)
-      const pauseDuration = queueRef.current.length > 2 ? 100 : queueRef.current.length > 0 ? 160 : 220;
+      // 2. Pause at top in big size with clear visibility
+      const pauseDuration = queueRef.current.length > 2 ? 150 : 360;
+      const moveDuration = queueRef.current.length > 2 ? 400 : 640;
+      const smoothEasing = Easing.bezier(0.25, 1, 0.35, 1);
 
       setTimeout(() => {
         // 3. Move smoothly to its EXACT SPECIFIC SPACE in the bottom row!
         Animated.parallel([
           Animated.timing(ballTranslateX, {
             toValue: targetX,
-            duration: 240,
-            easing: Easing.out(Easing.cubic),
+            duration: moveDuration,
+            easing: smoothEasing,
             useNativeDriver: true,
           }),
           Animated.timing(ballTranslateY, {
             toValue: targetY,
-            duration: 240,
-            easing: Easing.out(Easing.cubic),
+            duration: moveDuration,
+            easing: smoothEasing,
             useNativeDriver: true,
           }),
           Animated.timing(ballScaleAnim, {
             toValue: 0.39, // Shrink from 72px to 28px
-            duration: 240,
-            easing: Easing.out(Easing.cubic),
+            duration: moveDuration,
+            easing: smoothEasing,
             useNativeDriver: true,
           }),
         ]).start(() => {
@@ -169,7 +171,7 @@ export const KenoPlayStage = ({
 
           // 5. Next number comes in with big size at top
           if (queueRef.current.length > 0) {
-            setTimeout(processNextBall, 40);
+            setTimeout(processNextBall, 80);
           }
         });
       }, pauseDuration);

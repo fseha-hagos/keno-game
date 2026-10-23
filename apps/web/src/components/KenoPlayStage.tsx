@@ -184,6 +184,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         deltaY: dy,
       });
 
+      const flightDuration = queueRef.current.length > 2 ? 520 : 720;
+
       const t2 = setTimeout(() => {
         // Step 3: Land in slot
         const updated = settledBallsRef.current.includes(num)
@@ -202,12 +204,12 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         }
 
         if (queueRef.current.length > 0) {
-          const t5 = setTimeout(triggerNextBall, 120);
+          const t5 = setTimeout(triggerNextBall, 100);
           timersRef.current.push(t5);
         }
-      }, 480);
+      }, flightDuration);
       timersRef.current.push(t2);
-    }, 650);
+    }, queueRef.current.length > 2 ? 320 : 560);
     timersRef.current.push(t1);
   };
 
@@ -503,7 +505,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     : 'translate(-50%, -50%) scale(1)',
                 transition:
                   callingBall.phase === 'flying'
-                    ? 'transform 480ms cubic-bezier(0.22, 1, 0.36, 1)'
+                    ? 'transform 720ms cubic-bezier(0.25, 1, 0.35, 1)'
                     : 'none',
                 zIndex: 25,
                 pointerEvents: 'none',
