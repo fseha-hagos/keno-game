@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isWebWrapperApp } from './utils/isAppWrapper';
 import { Header } from './components/Header';
 import { KenoPlayStage } from './components/KenoPlayStage';
 import { KenoGrid } from './components/KenoGrid';
@@ -77,6 +78,8 @@ export const App: React.FC = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [showApkBanner, setShowApkBanner] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
+    // Hide install banner completely when running in the Android webwrapper APK or standalone app
+    if (isWebWrapperApp()) return false;
     return localStorage.getItem('fastkeno_apk_banner_dismissed') !== 'true';
   });
 

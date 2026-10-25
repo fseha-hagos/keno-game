@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { X, User, Phone, ShieldCheck, LogOut, CheckCircle2, ArrowDownLeft, ArrowUpRight, Download } from 'lucide-react';
+import { isWebWrapperApp } from '../utils/isAppWrapper';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -278,32 +279,34 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
         </div>
 
-        {/* Download Android APK Button */}
-        <a
-          href="/FastKeno.apk"
-          download="FastKeno.apk"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            width: '100%',
-            padding: '11px 0',
-            borderRadius: 10,
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
-            color: '#10B981',
-            fontSize: 13,
-            fontWeight: 800,
-            textDecoration: 'none',
-            cursor: 'pointer',
-            marginBottom: 10,
-            boxSizing: 'border-box',
-          }}
-        >
-          <Download size={16} strokeWidth={2.5} />
-          <span>Download Android App (APK)</span>
-        </a>
+        {/* Download Android APK Button (only shown in normal browser) */}
+        {!isWebWrapperApp() && (
+          <a
+            href="/FastKeno.apk"
+            download="FastKeno.apk"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '11px 0',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              color: '#10B981',
+              fontSize: 13,
+              fontWeight: 800,
+              textDecoration: 'none',
+              cursor: 'pointer',
+              marginBottom: 10,
+              boxSizing: 'border-box',
+            }}
+          >
+            <Download size={16} strokeWidth={2.5} />
+            <span>Download Android App (APK)</span>
+          </a>
+        )}
 
         {/* Responsible Gaming Button */}
         <button
