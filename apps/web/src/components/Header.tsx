@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header style={{ width: '100%', background: KENO_COLORS.topBarBg, userSelect: 'none' }}>
       {/* 1. Top Window Bar: "Fast Keno" on left, "✕" on right */}
-      <div
+      {/* <div
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <X size={15} />
         </button>
-      </div>
+      </div> */}
 
       {/* 2. In-Game Navigation Bar */}
       <div

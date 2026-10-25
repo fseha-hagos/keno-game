@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   // ── BETTING PHASE: "Choose 10 numbers" card ──
   cardContainer: {
     marginHorizontal: 10,
-    marginTop: 4,
+    marginTop: 2,
     marginBottom: 8,
     backgroundColor: '#141D27',
     borderRadius: 12,

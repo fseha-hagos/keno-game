@@ -869,7 +869,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              padding: '2px 0 6px',
+              padding: 0,
             }}
           >
             <div className="game_timer">
@@ -894,7 +894,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: 16,
+                marginTop: 2,
                 marginBottom: 8,
                 position: 'relative',
                 overflow: 'visible',
@@ -1115,6 +1115,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 backgroundPosition: '0 50%',
                 borderRadius: 6,
                 padding: '12px 14px',
+                marginTop: 2,
                 marginBottom: 8,
                 boxSizing: 'border-box',
               }}

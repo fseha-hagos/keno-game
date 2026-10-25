@@ -93,10 +93,11 @@ body {
 
 @media only screen and (max-width: 810px) {
   .game_timer {
-    margin-top: 10px;
+    margin-top: 6px;
+    margin-bottom: 0px;
     font-size: 1.55rem;
     line-height: 24px;
-    padding: 3px 11px;
+    padding: 2px 11px;
   }
 }
 
