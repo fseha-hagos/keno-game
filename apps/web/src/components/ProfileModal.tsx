@@ -6,12 +6,14 @@ interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenLimits: () => void;
+  onOpenFairness?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
   isOpen,
   onClose,
   onOpenLimits,
+  onOpenFairness,
 }) => {
   const { user, logout } = useAuthStore();
 
@@ -118,22 +120,35 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
         {/* Provably Fair Certificate */}
         <div
+          onClick={() => {
+            if (onOpenFairness) {
+              onClose();
+              onOpenFairness();
+            }
+          }}
           style={{
             background: 'rgba(30, 41, 59, 0.5)',
             border: '1px solid #334155',
             borderRadius: 12,
             padding: '12px 14px',
             marginBottom: 16,
+            cursor: onOpenFairness ? 'pointer' : 'default',
+            transition: 'border-color 0.2s ease',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <ShieldCheck size={16} color="#10B981" />
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#F8FAFC' }}>
-              CSPRNG Cryptographic Integrity
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ShieldCheck size={16} color="#10B981" />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#F8FAFC' }}>
+                CSPRNG Cryptographic Integrity
+              </span>
+            </div>
+            {onOpenFairness && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#10B981' }}>View Proof →</span>
+            )}
           </div>
           <p style={{ margin: 0, fontSize: 11, color: '#94A3B8', lineHeight: 1.4 }}>
-            Game round numbers are drawn in real-time by an authoritative Cryptographically Secure Random Number Generator.
+            Game round numbers are drawn in real-time by an authoritative Cryptographically Secure Random Number Generator. Tap to learn about Provably Fair hash verification.
           </p>
         </div>
 

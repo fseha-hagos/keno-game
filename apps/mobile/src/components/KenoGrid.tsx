@@ -116,12 +116,12 @@ const GridCell: React.FC<GridCellProps> = React.memo(({
             borderColor: cellBorderColor,
             ...(hasGlow
               ? {
-                  shadowColor: '#22C55E',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.85,
-                  shadowRadius: 8,
-                  elevation: 6,
-                }
+                shadowColor: '#22C55E',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.85,
+                shadowRadius: 8,
+                elevation: 6,
+              }
               : {}),
           },
         ]}
@@ -185,7 +185,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ bettingOpen = true }) => {
   }, [containerWidth]);
 
   const numbers = Array.from({ length: 80 }, (_, i) => i + 1);
-  const fontSize = Math.max(10, Math.min(15, cellSize * 0.42));
+  const fontSize = Math.max(13, Math.min(24, cellSize * 0.65));
   const cellRadius = Math.max(4, cellSize * 0.14);
 
   return (
@@ -243,9 +243,9 @@ const styles = StyleSheet.create({
   },
   statDot: {
     position: 'absolute',
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   hotDotPos: {
     top: 2,
