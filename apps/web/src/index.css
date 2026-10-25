@@ -234,9 +234,24 @@ body {
   to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes ballSettle {
+  0% {
+    transform: scale(0.88);
+    opacity: 0.8;
+  }
+  60% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+}
+
 /* Utility classes */
 .animate-pop {
-  /* animation removed: balls appear instantly without bounce */
+  animation: ballSettle 320ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .glow-hit {
@@ -386,5 +401,19 @@ body {
 
 .fast-keno-chat-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(113, 206, 150, 0.4);
+}
+
+/* Bright Auth Modal Utilities */
+.auth-modal-input::placeholder {
+  color: #94A3B8;
+  opacity: 1;
+}
+
+.auth-modal-input:-webkit-autofill,
+.auth-modal-input:-webkit-autofill:hover,
+.auth-modal-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #FFFFFF;
+  -webkit-box-shadow: 0 0 0px 1000px #1E293B inset;
+  transition: background-color 5000s ease-in-out 0s;
 }
 

@@ -17,6 +17,7 @@ import { EventsModule } from './modules/websocket/events.module';
 import { HealthModule } from './modules/health/health.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     KycModule,
     ReportingModule,
     HealthModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

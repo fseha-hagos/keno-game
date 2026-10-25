@@ -27,6 +27,14 @@ export class AuthController {
     return this.authService.refreshToken(body.refreshToken);
   }
 
+  @Post('change-password')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Change current user password' })
+  async changePassword(@Request() req: any, @Body() body: any) {
+    return this.authService.changePassword(req.user.id, body.oldPassword, body.newPassword);
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

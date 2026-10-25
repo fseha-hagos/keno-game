@@ -84,6 +84,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid phone number or password');
     }
 
+    if (user.status === UserStatus.FROZEN || user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException('This account has been frozen or suspended by an administrator. Please contact support.');
+    }
+
     const isMatch = await bcrypt.compare(input.password, user.passwordHash);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid phone number or password');
@@ -101,6 +105,36 @@ export class AuthService {
     });
 
     return { user, tokens };
+  }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Incorrect current password');
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      throw new ConflictException('New password must be at least 6 characters long');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+    await this.userRepo.save(user);
+
+    await this.auditService.log({
+      actorId: user.id,
+      actorRole: user.roles[0] || 'STAFF',
+      action: 'PASSWORD_CHANGED',
+      entity: 'USER',
+      entityId: user.id,
+    });
+
+    return { success: true, message: 'Password changed successfully' };
   }
 
   async refreshToken(token: string): Promise<AuthTokens> {
