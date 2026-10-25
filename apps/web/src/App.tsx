@@ -345,8 +345,9 @@ export const App: React.FC = () => {
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
+              scrollbarWidth: 'none',
             }}
-            className="hide-on-mobile"
+            className="hide-on-mobile no-scrollbar"
           >
             <GameFeedPanel />
           </aside>
@@ -369,7 +370,9 @@ export const App: React.FC = () => {
               background: 'rgba(27, 30, 31, 0.94)',
               border: '1px solid rgba(81, 181, 121, 0.2)',
               borderRadius: 16,
+              scrollbarWidth: 'none',
             }}
+            className="no-scrollbar"
           >
             {/* Central Play Stage (Timer / 3D Spheres in Countdown, or Radar & Calling Ball in Draw) */}
             <KenoPlayStage
