@@ -2,8 +2,32 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { toastSuccess, toastError } from '../services/toast';
-import { X, Copy, Check, ArrowDownLeft, ArrowUpRight, Clock, ShieldCheck, HelpCircle, RotateCcw } from 'lucide-react';
+import {
+  X,
+  Copy,
+  Check,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Clock,
+  ShieldCheck,
+  HelpCircle,
+  RotateCcw,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+
+const formatTxDate = (dateString: string | Date | undefined): string => {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '—';
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Today, ${timeStr}`;
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`;
+};
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -132,6 +156,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [withdrawName, setWithdrawName] = useState('');
   const [isManualAccount, setIsManualAccount] = useState(false);
   const [isManualName, setIsManualName] = useState(false);
+  const [historySegment, setHistorySegment] = useState<'payments' | 'bets'>('payments');
   const [txRef, setTxRef] = useState('');
   const [pendingDeposit, setPendingDeposit] = useState<any>(null);
   const [copied, setCopied] = useState(false);
@@ -208,17 +233,39 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       return res.data;
     },
     enabled: isOpen,
-    refetchInterval: 4000,
+    refetchInterval: 3000,
   });
 
-  // Transactions query
-  const { data: transactions } = useQuery({
+  // Live Payment requests query (Deposits & Withdrawals with PENDING/APPROVED/REJECTED status)
+  const {
+    data: paymentRequests,
+    isLoading: isPaymentRequestsLoading,
+    isFetching: isPaymentRequestsFetching,
+    refetch: refetchPaymentRequests,
+  } = useQuery({
+    queryKey: ['paymentRequests'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/wallet/payment-requests');
+      return res.data;
+    },
+    enabled: isOpen && activeTab === 'history',
+    refetchInterval: 2500, // Live real-time polling
+  });
+
+  // Live Ledger transactions query (Game bets and payouts)
+  const {
+    data: transactions,
+    isLoading: isTransactionsLoading,
+    isFetching: isTransactionsFetching,
+    refetch: refetchTransactions,
+  } = useQuery({
     queryKey: ['walletTransactions'],
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/wallet/transactions?currency=ETB');
       return res.data;
     },
     enabled: isOpen && activeTab === 'history',
+    refetchInterval: 2500, // Live real-time polling
   });
 
   // Step 1: Initiate deposit mutation
@@ -1021,7 +1068,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
                   Payout Method
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
                   {PAYMENT_METHODS.filter((m) => m.id !== 'other_bank').map((method) => {
                     const isSelected = withdrawMethod === method.id;
                     return (
@@ -1325,71 +1372,501 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           )}
 
           {/* ─────────────────────────────────────────────────────────── */}
-          {/* 3. TRANSACTION HISTORY TAB                                  */}
+          {/* 3. TRANSACTION HISTORY TAB (LIVE & SEGMENTED)               */}
           {/* ─────────────────────────────────────────────────────────── */}
-          {activeTab === 'history' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {Array.isArray(transactions) && transactions.length > 0 ? (
-                transactions.map((tx: any) => {
-                  const isCredit = tx.type === 'DEPOSIT' || tx.type === 'BET_PAYOUT';
-                  const amount = (Number(tx.amountMinor) / 100).toFixed(2);
-                  return (
-                    <div
-                      key={tx.id}
-                      style={{
-                        background: '#0B1320',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        padding: '10px 12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: isCredit ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: isCredit ? '#10B981' : '#EF4444',
-                          }}
-                        >
-                          {isCredit ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 800, color: '#F8FAFC' }}>
-                            {tx.type}
-                          </div>
-                          <div style={{ fontSize: 10, color: '#64748B' }}>
-                            {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : '—'}
-                          </div>
-                        </div>
-                      </div>
+          {activeTab === 'history' && (() => {
+            const isPaymentsLoading = isPaymentRequestsLoading && !paymentRequests;
+            const isBetsLoading = isTransactionsLoading && !transactions;
+            const isSyncing = isPaymentRequestsFetching || isTransactionsFetching;
 
-                      <div
+            // Separate game bets from ledger
+            const gameBets = Array.isArray(transactions)
+              ? transactions.filter(
+                (tx: any) =>
+                  tx.transactionType === 'BET_STAKE' ||
+                  tx.transactionType === 'BET_PAYOUT' ||
+                  tx.type === 'BET_STAKE' ||
+                  tx.type === 'BET_PAYOUT'
+              )
+              : [];
+
+            return (
+              <div>
+                {/* Live Activity Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 10,
+                    padding: '0 2px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        backgroundColor: '#10B981',
+                        boxShadow: '0 0 8px #10B981',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981' }}>
+                      Live Real-Time Activity
+                    </span>
+                    {isSyncing && (
+                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600 }}>
+                        (Syncing...)
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      refetchPaymentRequests();
+                      refetchTransactions();
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#64748B',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 11,
+                      padding: 0,
+                      fontWeight: 600,
+                    }}
+                    title="Refresh Now"
+                  >
+                    <RefreshCw size={11} className={isSyncing ? 'spin-animation' : ''} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                {/* Segment Filter: Deposits & Withdrawals is DEFAULT and shown right away */}
+                <div
+                  style={{
+                    display: 'flex',
+                    background: '#0B1320',
+                    borderRadius: 8,
+                    padding: 3,
+                    marginBottom: 14,
+                    border: '1px solid #1E293B',
+                    gap: 3,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setHistorySegment('payments')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 4px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: historySegment === 'payments' ? '#1E293B' : 'transparent',
+                      color: historySegment === 'payments' ? '#10B981' : '#94A3B8',
+                      fontSize: 12,
+                      fontWeight: historySegment === 'payments' ? 800 : 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>Transactions</span>
+                    {Array.isArray(paymentRequests) && paymentRequests.length > 0 && (
+                      <span
                         style={{
-                          fontSize: 13,
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#10B981',
+                          fontSize: 10,
+                          padding: '1px 6px',
+                          borderRadius: 8,
                           fontWeight: 800,
-                          color: isCredit ? '#10B981' : '#F8FAFC',
                         }}
                       >
-                        {isCredit ? `+${amount}` : `-${amount}`} ETB
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div style={{ textAlign: 'center', color: '#64748B', fontSize: 13, padding: '20px 0' }}>
-                  No transaction records yet.
+                        {paymentRequests.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setHistorySegment('bets')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 4px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: historySegment === 'bets' ? '#1E293B' : 'transparent',
+                      color: historySegment === 'bets' ? '#10B981' : '#94A3B8',
+                      fontSize: 12,
+                      fontWeight: historySegment === 'bets' ? 800 : 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>Game Bets</span>
+                    {gameBets.length > 0 && (
+                      <span
+                        style={{
+                          background: 'rgba(100, 116, 139, 0.2)',
+                          color: '#94A3B8',
+                          fontSize: 10,
+                          padding: '1px 6px',
+                          borderRadius: 8,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {gameBets.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* SEGMENT 1: DEPOSITS & WITHDRAWALS (Default) */}
+                {historySegment === 'payments' && (
+                  <div>
+                    {isPaymentsLoading ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '36px 0',
+                          gap: 12,
+                        }}
+                      >
+                        <Loader2 size={26} color="#10B981" className="spin-animation" />
+                        <div style={{ fontSize: 13, color: '#94A3B8', fontWeight: 700 }}>
+                          Loading deposit & withdrawal requests...
+                        </div>
+                        <div style={{ fontSize: 11, color: '#64748B' }}>Fetching live status from server</div>
+                      </div>
+                    ) : Array.isArray(paymentRequests) && paymentRequests.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {paymentRequests.map((req: any) => {
+                          const isDeposit = req.requestType === 'DEPOSIT';
+                          const amount = (Number(req.amountMinor) / 100).toFixed(2);
+                          const status = (req.status || 'PENDING').toUpperCase();
+
+                          return (
+                            <div
+                              key={req.id}
+                              style={{
+                                background: '#0B1320',
+                                border: '1px solid #1E293B',
+                                borderRadius: 10,
+                                padding: '12px 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                transition: 'border-color 0.15s ease',
+                              }}
+                            >
+                              {/* Left icon & details */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div
+                                  style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: '50%',
+                                    background: isDeposit ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: isDeposit ? '#10B981' : '#F59E0B',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {isDeposit ? (
+                                    <ArrowDownLeft size={18} strokeWidth={2.8} />
+                                  ) : (
+                                    <ArrowUpRight size={18} strokeWidth={2.8} />
+                                  )}
+                                </div>
+
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
+                                      {isDeposit ? 'Deposit' : 'Withdrawal'}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: 10.5,
+                                        color: '#94A3B8',
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        textTransform: 'capitalize',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {req.paymentMethod || 'Telebirr'}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ fontSize: 11, color: '#64748B', display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <span>{formatTxDate(req.createdAt)}</span>
+                                    {req.accountNumber && (
+                                      <span>• Acc: {req.accountNumber}</span>
+                                    )}
+                                  </div>
+
+                                  {req.adminNote && status === 'REJECTED' && (
+                                    <div style={{ fontSize: 11, color: '#EF4444', marginTop: 3 }}>
+                                      Note: {req.adminNote}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Right: Amount & Status Badge */}
+                              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                                <div
+                                  style={{
+                                    fontSize: 14,
+                                    fontWeight: 900,
+                                    color: isDeposit ? '#10B981' : '#F8FAFC',
+                                    letterSpacing: '0.02em',
+                                  }}
+                                >
+                                  {isDeposit ? `+${amount}` : `-${amount}`} <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>ETB</span>
+                                </div>
+
+                                {/* Status Badge: PENDING or APPROVED or REJECTED */}
+                                {status === 'PENDING' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      background: 'rgba(245, 158, 11, 0.15)',
+                                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                                      color: '#F59E0B',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 10,
+                                      fontWeight: 800,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                    }}
+                                  >
+                                    <Clock size={10} strokeWidth={2.8} /> Pending
+                                  </span>
+                                )}
+
+                                {status === 'APPROVED' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      background: 'rgba(16, 185, 129, 0.15)',
+                                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                                      color: '#10B981',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 10,
+                                      fontWeight: 800,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                    }}
+                                  >
+                                    <Check size={10} strokeWidth={3} /> Approved
+                                  </span>
+                                )}
+
+                                {status === 'REJECTED' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      background: 'rgba(239, 68, 68, 0.15)',
+                                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                                      color: '#EF4444',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 10,
+                                      fontWeight: 800,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                    }}
+                                  >
+                                    <X size={10} strokeWidth={3} /> Rejected
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#64748B',
+                          fontSize: 13,
+                          padding: '30px 16px',
+                          background: '#0B1320',
+                          borderRadius: 12,
+                          border: '1px solid #1E293B',
+                        }}
+                      >
+                        <div style={{ marginBottom: 8, fontSize: 24 }}>💳</div>
+                        <div style={{ fontWeight: 700, color: '#94A3B8', marginBottom: 4 }}>
+                          No Deposits or Withdrawals Yet
+                        </div>
+                        <div style={{ fontSize: 11, marginBottom: 14 }}>
+                          Your deposit & withdrawal requests with real-time status will show here.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('deposit')}
+                          style={{
+                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 16px',
+                            color: '#FFFFFF',
+                            fontSize: 12,
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Make a Deposit
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SEGMENT 2: GAME BETS */}
+                {historySegment === 'bets' && (
+                  <div>
+                    {isBetsLoading ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '36px 0',
+                          gap: 12,
+                        }}
+                      >
+                        <Loader2 size={26} color="#10B981" className="spin-animation" />
+                        <div style={{ fontSize: 13, color: '#94A3B8', fontWeight: 700 }}>
+                          Loading game bet transactions...
+                        </div>
+                      </div>
+                    ) : gameBets.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {gameBets.map((tx: any) => {
+                          const isWin = tx.transactionType === 'BET_PAYOUT' || tx.type === 'BET_PAYOUT';
+                          const amount = (Math.abs(Number(tx.amountMinor)) / 100).toFixed(2);
+
+                          return (
+                            <div
+                              key={tx.id}
+                              style={{
+                                background: '#0B1320',
+                                border: '1px solid #1E293B',
+                                borderRadius: 10,
+                                padding: '10px 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    background: isWin ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: isWin ? '#10B981' : '#94A3B8',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {isWin ? <Sparkles size={16} /> : <ArrowUpRight size={16} />}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 12.5, fontWeight: 800, color: '#F8FAFC' }}>
+                                    {isWin ? 'Game Payout (Win)' : 'Keno Bet Stake'}
+                                  </div>
+                                  <div style={{ fontSize: 10.5, color: '#64748B' }}>
+                                    {formatTxDate(tx.createdAt)}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: 'right' }}>
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 800,
+                                    color: isWin ? '#10B981' : '#94A3B8',
+                                  }}
+                                >
+                                  {isWin ? `+${amount}` : `-${amount}`} ETB
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: isWin ? '#10B981' : '#64748B',
+                                  }}
+                                >
+                                  {isWin ? '✓ Settled' : '✓ Placed'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#64748B',
+                          fontSize: 13,
+                          padding: '30px 16px',
+                          background: '#0B1320',
+                          borderRadius: 12,
+                          border: '1px solid #1E293B',
+                        }}
+                      >
+                        <div style={{ marginBottom: 6, fontSize: 24 }}>🎲</div>
+                        <div style={{ fontWeight: 700, color: '#94A3B8' }}>No Game Bets Yet</div>
+                        <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                          Place bets on the Keno board to see bet stakes and payouts here.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

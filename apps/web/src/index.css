@@ -468,6 +468,20 @@ body {
   background: rgba(113, 206, 150, 0.4);
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animation {
+  animation: spin 0.9s linear infinite;
+}
+
+
 /* Bright Auth Modal Utilities */
 .auth-modal-input::placeholder {
   color: #94A3B8;
