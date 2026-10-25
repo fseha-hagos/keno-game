@@ -34,21 +34,25 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
   const spots = selectedNumbers.length;
 
   interface CallingBallInfo {
+    id: number;
     num: number;
     index: number;
     phase: 'bounce' | 'flying';
     deltaX: number;
     deltaY: number;
+    duration?: number;
   }
 
   // Synchronous settled balls reference to prevent stale state race conditions during animations & reconnects
   const settledBallsRef = useRef<number[]>([]);
   const [settledBalls, setSettledBalls] = useState<number[]>([]);
-  const [callingBall, setCallingBall] = useState<CallingBallInfo | null>(null);
+  const [activeBalls, setActiveBalls] = useState<CallingBallInfo[]>([]);
+  const activeBallsRef = useRef<CallingBallInfo[]>([]);
   const [completedHoldActive, setCompletedHoldActive] = useState(false);
 
   const queueRef = useRef<number[]>([]);
-  const isAnimatingRef = useRef(false);
+  const nextSlotIdxRef = useRef(0);
+  const centerOccupiedRef = useRef(false);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const callBallAnchorRef = useRef<HTMLDivElement | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -73,10 +77,12 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       lastRoundRef.current = roundNumber;
       clearAllTimers();
       queueRef.current = [];
-      isAnimatingRef.current = false;
+      nextSlotIdxRef.current = 0;
+      centerOccupiedRef.current = false;
       settledBallsRef.current = [];
       setSettledBalls([]);
-      setCallingBall(null);
+      activeBallsRef.current = [];
+      setActiveBalls([]);
       setCompletedHoldActive(false);
     }
   }, [roundNumber]);
@@ -87,18 +93,20 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       if (!completedHoldActive) {
         clearAllTimers();
         queueRef.current = [];
-        isAnimatingRef.current = false;
+        nextSlotIdxRef.current = 0;
+        centerOccupiedRef.current = false;
         settledBallsRef.current = [];
         setSettledBalls([]);
-        setCallingBall(null);
+        activeBallsRef.current = [];
+        setActiveBalls([]);
       }
       return;
     }
 
     // Determine numbers not yet accounted for in settled, currently calling, or in queue
     const accounted = new Set([
-      ...settledBallsRef.current,
-      ...(callingBall ? [callingBall.num] : []),
+      ...settledBallsRef.current.filter((n) => n !== undefined && n !== null),
+      ...activeBallsRef.current.map((b) => b.num),
       ...queueRef.current,
     ]);
     const missing = drawnNumbers.filter((n) => !accounted.has(n));
@@ -108,24 +116,23 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
     if (settledBallsRef.current.length === 0 && drawnNumbers.length >= 20) {
       settledBallsRef.current = [...drawnNumbers];
       setSettledBalls([...drawnNumbers]);
+      nextSlotIdxRef.current = drawnNumbers.length;
       setCompletedHoldActive(true);
       return;
     }
 
     // Case 2: Page refreshed mid-draw or reconnected after drop with multiple balls (> 2) waiting
     if (missing.length > 2) {
-      // Instantly settle all previous balls up to the second-to-last ball
-      const instantList = missing.slice(0, missing.length - 1);
-      const nextToAnimate = missing[missing.length - 1];
+      // Instantly settle all previous balls up to the last 2 balls
+      const instantList = missing.slice(0, missing.length - 2);
+      const toAnimate = missing.slice(missing.length - 2);
 
       const updatedSettled = [...settledBallsRef.current, ...instantList];
       settledBallsRef.current = updatedSettled;
       setSettledBalls(updatedSettled);
+      nextSlotIdxRef.current = updatedSettled.length;
 
-      // Smoothly animate only the newest active ball to its correct target slot
-      if (nextToAnimate !== undefined) {
-        queueRef.current.push(nextToAnimate);
-      }
+      queueRef.current.push(...toAnimate);
       triggerNextBall();
     } else {
       // Case 3: Live single-ball or dual-ball emission - queue smoothly
@@ -135,25 +142,29 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
   }, [drawnNumbers, completedHoldActive]);
 
   const triggerNextBall = () => {
-    if (isAnimatingRef.current || queueRef.current.length === 0) return;
+    if (centerOccupiedRef.current || queueRef.current.length === 0) return;
 
-    const targetIdx = settledBallsRef.current.length;
-    if (targetIdx >= 20) {
-      isAnimatingRef.current = false;
-      return;
-    }
+    const targetIdx = nextSlotIdxRef.current;
+    if (targetIdx >= 20) return;
 
-    isAnimatingRef.current = true;
+    nextSlotIdxRef.current += 1;
+    centerOccupiedRef.current = true;
     const num = queueRef.current.shift()!;
 
     // Step 1: Center bounce
-    setCallingBall({
+    const newBall: CallingBallInfo = {
+      id: num,
       num,
       index: targetIdx,
       phase: 'bounce',
       deltaX: 0,
       deltaY: 0,
-    });
+    };
+
+    activeBallsRef.current = [...activeBallsRef.current, newBall];
+    setActiveBalls([...activeBallsRef.current]);
+
+    const centerDuration = queueRef.current.length > 2 ? 380 : 520;
 
     const t1 = setTimeout(() => {
       // Measure delta from static anchor to target slot
@@ -175,49 +186,56 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
         dy = isBottom ? 95 : 55;
       }
 
-      // Step 2: Smooth flight to target slot
-      setCallingBall({
-        num,
-        index: targetIdx,
-        phase: 'flying',
-        deltaX: dx,
-        deltaY: dy,
-      });
+      const flightDuration = queueRef.current.length > 2 ? 620 : 820;
 
-      const flightDuration = queueRef.current.length > 2 ? 520 : 720;
+      // Step 2: Smooth flight to target slot
+      activeBallsRef.current = activeBallsRef.current.map((b) =>
+        b.index === targetIdx
+          ? { ...b, phase: 'flying', deltaX: dx, deltaY: dy, duration: flightDuration }
+          : b
+      );
+      setActiveBalls([...activeBallsRef.current]);
+
+      // Center is now freed! Next number can pop up while this ball is flying!
+      centerOccupiedRef.current = false;
+
+      // Check if another number is queued, start popping it smoothly while current ball moves
+      if (queueRef.current.length > 0 && nextSlotIdxRef.current < 20) {
+        const tNext = setTimeout(triggerNextBall, 120);
+        timersRef.current.push(tNext);
+      }
 
       const t2 = setTimeout(() => {
         // Step 3: Land in slot
-        const updated = settledBallsRef.current.includes(num)
-          ? settledBallsRef.current
-          : [...settledBallsRef.current, num];
+        const updated = [...settledBallsRef.current];
+        updated[targetIdx] = num;
         settledBallsRef.current = updated;
         setSettledBalls(updated);
-        setCallingBall(null);
 
-        isAnimatingRef.current = false;
+        // Remove from active flying balls
+        activeBallsRef.current = activeBallsRef.current.filter((b) => b.index !== targetIdx);
+        setActiveBalls([...activeBallsRef.current]);
 
-        if (drawnNumbers.length >= 20 && queueRef.current.length === 0) {
+        if (settledBallsRef.current.filter((n) => n !== undefined).length >= 20) {
           setCompletedHoldActive(true);
           const t4 = setTimeout(() => setCompletedHoldActive(false), 3500);
           timersRef.current.push(t4);
         }
 
-        if (queueRef.current.length > 0) {
-          const t5 = setTimeout(triggerNextBall, 100);
-          timersRef.current.push(t5);
+        if (queueRef.current.length > 0 && !centerOccupiedRef.current) {
+          triggerNextBall();
         }
       }, flightDuration);
       timersRef.current.push(t2);
-    }, queueRef.current.length > 2 ? 320 : 560);
+    }, centerDuration);
     timersRef.current.push(t1);
   };
 
-  const countDrawn = settledBalls.length + (callingBall !== null ? 1 : 0);
+  const countDrawn = Math.min(20, settledBalls.filter((n) => n !== undefined).length + activeBalls.length);
   const inDraw =
     isDrawing ||
     drawnNumbers.length > 0 ||
-    callingBall !== null ||
+    activeBalls.length > 0 ||
     queueRef.current.length > 0 ||
     completedHoldActive;
 
@@ -492,27 +510,28 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
             }}
           />
 
-          {/* Calling Ball emerging from the smallest circle with Green Halo & Bounce Animation */}
-          {callingBall && (
+          {/* Calling & Flying Balls with overlapping smooth movement */}
+          {activeBalls.map((b) => (
             <div
+              key={`active-ball-${b.index}-${b.num}`}
               style={{
                 position: 'absolute',
                 top: 34,
                 left: '50%',
                 transform:
-                  callingBall.phase === 'flying'
-                    ? `translate(calc(-50% + ${callingBall.deltaX}px), calc(-50% + ${callingBall.deltaY}px)) scale(0.448)`
+                  b.phase === 'flying'
+                    ? `translate(calc(-50% + ${b.deltaX}px), calc(-50% + ${b.deltaY}px)) scale(0.448)`
                     : 'translate(-50%, -50%) scale(1)',
                 transition:
-                  callingBall.phase === 'flying'
-                    ? 'transform 720ms cubic-bezier(0.25, 1, 0.35, 1)'
+                  b.phase === 'flying'
+                    ? `transform ${b.duration || 820}ms cubic-bezier(0.25, 1, 0.35, 1)`
                     : 'none',
-                zIndex: 25,
+                zIndex: b.phase === 'bounce' ? 30 : 25,
                 pointerEvents: 'none',
                 willChange: 'transform',
               }}
             >
-              {/* Green ambient halo directly behind calling ball */}
+              {/* Green ambient halo directly behind calling ball when emerging */}
               <div
                 style={{
                   position: 'absolute',
@@ -524,8 +543,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   background:
                     'radial-gradient(circle, rgba(52, 211, 153, 0.55) 0%, rgba(34, 197, 94, 0.15) 45%, transparent 72%)',
                   pointerEvents: 'none',
-                  opacity: callingBall.phase === 'flying' ? 0 : 1,
-                  transition: 'opacity 200ms ease-out',
+                  opacity: b.phase === 'flying' ? 0 : 1,
+                  transition: 'opacity 250ms ease-out',
                 }}
               />
 
@@ -540,17 +559,17 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: selectedNumbers.includes(callingBall.num)
+                  background: selectedNumbers.includes(b.num)
                     ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                     : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
-                  boxShadow: selectedNumbers.includes(callingBall.num)
+                  boxShadow: selectedNumbers.includes(b.num)
                     ? '0 0 22px rgba(34, 197, 94, 0.95), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
                     : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
-                  border: selectedNumbers.includes(callingBall.num)
+                  border: selectedNumbers.includes(b.num)
                     ? '1.5px solid #86EFAC'
                     : '1px solid rgba(255, 255, 255, 0.2)',
                   animation:
-                    callingBall.phase === 'bounce'
+                    b.phase === 'bounce'
                       ? 'callBallBounce 480ms cubic-bezier(0.16, 1, 0.3, 1)'
                       : 'none',
                 }}
@@ -598,11 +617,11 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
                   }}
                 >
-                  {callingBall.num}
+                  {b.num}
                 </span>
               </div>
             </div>
-          )}
+          ))}
 
           {/* 2-ROW SETTLED BALLS GRID (Row 1: Balls 11-20, Row 2: Balls 1-10) */}
           <div
@@ -655,7 +674,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   >
                     {ballNum !== undefined ? (
                       <div
-                        className="animate-pop"
                         style={{
                           width: '100%',
                           height: '100%',
@@ -672,9 +690,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                               : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
                           border: isHit
                             ? '1px solid #86EFAC'
-                            : '1px solid rgba(255, 255, 255, 0.12)',
-                          transform: 'scale(1)',
-                          transition: 'none',
+                            : '1px solid rgba(255, 255, 255, 0.2)',
                           overflow: 'hidden',
                         }}
                       >
@@ -713,11 +729,11 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                             position: 'relative',
                             zIndex: 3,
                             fontFamily: KENO_FONTS.numbers,
-                            fontSize: 'clamp(16px, 4.4vw, 20px)',
+                            fontSize: 17,
                             fontWeight: 800,
                             color: '#FFFFFF',
                             lineHeight: 1,
-                            letterSpacing: '-0.03em',
+                            letterSpacing: '-0.02em',
                             textShadow: '0 1px 2px rgba(0, 0, 0, 0.95)',
                             padding: 0,
                             margin: 0,
@@ -765,7 +781,6 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   >
                     {ballNum !== undefined ? (
                       <div
-                        className="animate-pop"
                         style={{
                           width: '100%',
                           height: '100%',
@@ -782,9 +797,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                             : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
                           border: isHit
                             ? '1px solid #86EFAC'
-                            : '1px solid rgba(255, 255, 255, 0.12)',
-                          transform: 'scale(1)',
-                          transition: 'none',
+                            : '1px solid rgba(255, 255, 255, 0.2)',
                           overflow: 'hidden',
                         }}
                       >
@@ -823,11 +836,11 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                             position: 'relative',
                             zIndex: 3,
                             fontFamily: KENO_FONTS.numbers,
-                            fontSize: 'clamp(16px, 4.4vw, 20px)',
+                            fontSize: 17,
                             fontWeight: 800,
                             color: '#FFFFFF',
                             lineHeight: 1,
-                            letterSpacing: '-0.03em',
+                            letterSpacing: '-0.02em',
                             textShadow: '0 1px 2px rgba(0, 0, 0, 0.95)',
                             padding: 0,
                             margin: 0,
