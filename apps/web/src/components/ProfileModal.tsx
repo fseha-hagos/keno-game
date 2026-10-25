@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { X, User, Phone, ShieldCheck, LogOut, CheckCircle2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { X, User, Phone, ShieldCheck, LogOut, CheckCircle2, ArrowDownLeft, ArrowUpRight, Download } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -208,6 +208,102 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             Game round numbers are drawn in real-time by an authoritative Cryptographically Secure Random Number Generator. Tap to learn about Provably Fair hash verification.
           </p>
         </div>
+
+        {/* Customer Support Card */}
+        <div
+          style={{
+            background: '#0B1320',
+            border: '1px solid #1E293B',
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <img src="/telegram.png" alt="Telegram" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>Customer Support</span>
+            </div>
+            <span style={{ fontSize: 10.5, color: '#10B981', fontWeight: 700 }}>● 24/7 Support</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {/* Telegram Link */}
+            <a
+              href="https://t.me/fastkenogames"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(36, 161, 222, 0.12)',
+                border: '1px solid rgba(36, 161, 222, 0.4)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                textDecoration: 'none',
+                color: '#38BDF8',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <img src="/telegram.png" alt="Telegram" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#38BDF8' }}>Telegram</div>
+                <div style={{ fontSize: 10, color: '#94A3B8' }}>@fastkenogames</div>
+              </div>
+            </a>
+
+            {/* Phone Support */}
+            <a
+              href="tel:0948491265"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                textDecoration: 'none',
+                color: '#10B981',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Phone size={16} color="#10B981" />
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#10B981' }}>Call Support</div>
+                <div style={{ fontSize: 10, color: '#94A3B8' }}>0948491265</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        {/* Download Android APK Button */}
+        <a
+          href="/FastKeno.apk"
+          download="FastKeno.apk"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '11px 0',
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            color: '#10B981',
+            fontSize: 13,
+            fontWeight: 800,
+            textDecoration: 'none',
+            cursor: 'pointer',
+            marginBottom: 10,
+            boxSizing: 'border-box',
+          }}
+        >
+          <Download size={16} strokeWidth={2.5} />
+          <span>Download Android App (APK)</span>
+        </a>
 
         {/* Responsible Gaming Button */}
         <button

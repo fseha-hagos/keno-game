@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Download, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Header } from './components/Header';
 import { KenoPlayStage } from './components/KenoPlayStage';
@@ -74,6 +75,10 @@ export const App: React.FC = () => {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [showApkBanner, setShowApkBanner] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('fastkeno_apk_banner_dismissed') !== 'true';
+  });
 
   const handleOpenWallet = (tab: 'deposit' | 'withdraw' | 'history' = 'deposit') => {
     setWalletInitialTab(tab);
@@ -463,6 +468,132 @@ export const App: React.FC = () => {
             <ChatPanel onClose={() => setMobileChatOpen(false)} isMobile />
           </div>
         </div>
+      )}
+
+      {/* Floating APK Download Banner for Browser Users */}
+      {showApkBanner && (
+        <aside
+          role="complementary"
+          aria-label="Download Android App"
+          style={{
+            position: 'fixed',
+            bottom: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'calc(100% - 24px)',
+            maxWidth: 480,
+            zIndex: 900,
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(11, 19, 32, 0.98) 100%)',
+            border: '1.5px solid rgba(16, 185, 129, 0.45)',
+            boxShadow: '0 12px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.15)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderRadius: 14,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            boxSizing: 'border-box',
+            animation: 'fadeIn 0.3s ease-out',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <img
+              src="/logo_keno.png"
+              alt="Fast Keno"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 9,
+                objectFit: 'contain',
+                background: '#0B1320',
+                padding: 2,
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#F8FAFC', whiteSpace: 'nowrap' }}>
+                  Fast Keno Android App
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#10B981',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                  }}
+                >
+                  APK
+                </span>
+              </div>
+              <p
+                style={{
+                  margin: '2px 0 0 0',
+                  fontSize: 11,
+                  color: '#94A3B8',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                Fast gameplay & instant updates
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <a
+              href="/FastKeno.apk"
+              download="FastKeno.apk"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                color: '#FFFFFF',
+                padding: '7px 12px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 800,
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Download size={14} strokeWidth={2.8} />
+              <span>Install</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowApkBanner(false);
+                localStorage.setItem('fastkeno_apk_banner_dismissed', 'true');
+              }}
+              aria-label="Dismiss app install banner"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#94A3B8',
+                cursor: 'pointer',
+                borderRadius: 8,
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </aside>
       )}
 
       {/* Modals */}
