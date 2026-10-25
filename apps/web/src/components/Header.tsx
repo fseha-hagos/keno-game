@@ -2,12 +2,12 @@ import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
-import { ShieldCheck, Menu, MessageSquare, X, Wallet, Plus } from 'lucide-react';
+import { ShieldCheck, Menu, MessageSquare, X, Wallet, Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 interface HeaderProps {
   roundNumber?: number | string;
-  onOpenWallet: () => void;
+  onOpenWallet: (tab?: 'deposit' | 'withdraw' | 'history') => void;
   onOpenAuth: (mode: 'login' | 'register') => void;
   onOpenProfile: () => void;
   onOpenFairness?: () => void;
@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header style={{ width: '100%', background: KENO_COLORS.topBarBg, userSelect: 'none' }}>
       {/* 1. Top Window Bar: "Fast Keno" on left, "✕" on right */}
-      <div
+      {/* <div
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <X size={15} />
         </button>
-      </div>
+      </div> */}
 
       {/* 2. In-Game Navigation Bar */}
       <div
@@ -135,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Left: Wallet icon and balance */}
               <button
                 type="button"
-                onClick={onOpenWallet}
+                onClick={() => onOpenWallet('deposit')}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -161,15 +161,15 @@ export const Header: React.FC<HeaderProps> = ({
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
               </button>
 
-              {/* Right: Action green deposit '+' button */}
+              {/* Action green deposit '+' button */}
               <button
                 type="button"
-                onClick={onOpenWallet}
+                onClick={() => onOpenWallet('deposit')}
                 style={{
                   background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
                   height: '100%',
-                  padding: '0 9px',
+                  padding: '0 8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

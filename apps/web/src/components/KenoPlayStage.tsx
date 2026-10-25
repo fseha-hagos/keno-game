@@ -686,8 +686,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                             ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                             : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
                           boxShadow: isHit
-                              ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                              : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
                           border: isHit
                             ? '1px solid #86EFAC'
                             : '1px solid rgba(255, 255, 255, 0.2)',
@@ -755,6 +755,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
                 gap: 'clamp(5px, 1.5vw, 8px)',
                 width: '100%',
+                marginBottom: 8,
+                marginTop: 6
               }}
             >
               {Array.from({ length: 10 }).map((_, col) => {
@@ -867,7 +869,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              padding: '2px 0 6px',
+              padding: 0,
             }}
           >
             <div className="game_timer">
@@ -882,20 +884,21 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
           {spots === 0 ? (
             <div
               style={{
-                backgroundColor: '#283134',
+                backgroundColor: '#20282b',
                 backgroundImage: 'url(https://cdn-atlas-v.com/games/keno/img/ticket_bg.svg)',
                 backgroundRepeat: 'no-repeat',
                 backgroundSize: 'cover',
                 backgroundPosition: '0 50%',
-                borderRadius: 6,
-                padding: '14px 18px',
+                borderRadius: 8,
+                padding: '16px 22px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                marginTop: 2,
                 marginBottom: 8,
                 position: 'relative',
-                overflow: 'hidden',
-                minHeight: 125,
+                overflow: 'visible',
+                minHeight: 115,
                 boxSizing: 'border-box',
               }}
             >
@@ -903,141 +906,167 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  left: -20,
-                  top: -30,
-                  width: 170,
-                  height: 170,
+                  left: 20,
+                  top: 0,
+                  width: 110,
+                  height: 110,
+
                   borderRadius: '50%',
-                  border: '1px solid rgba(113, 206, 150, 0.15)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  left: -5,
-                  top: -15,
-                  width: 120,
-                  height: 120,
-                  borderRadius: '50%',
-                  border: '1px solid rgba(113, 206, 150, 0.2)',
+                  border: '1px solid rgba(113, 206, 150, 0.18)',
                   pointerEvents: 'none',
                 }}
               />
 
-              {/* 3D Balls Cluster on the left: 80, 10, 1 */}
+              {/* 3D Balls Cluster: big ball out of the box, balls spaced apart */}
               <div
                 style={{
                   position: 'relative',
-                  width: 82,
-                  height: 82,
+                  width: 104,
+                  height: 106,
+                  flexShrink: 0,
+
                   zIndex: 2,
                 }}
               >
-                {/* Ball 80 (top-left, back) */}
+                {/* Ball 80 (top-left, spaced apart from 10) */}
                 <div
                   style={{
                     position: 'absolute',
-                    top: 4,
-                    left: 2,
+                    top: -13,
+                    left: -16,
                     width: 28,
                     height: 28,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle at 35% 28%, #475569 0%, #1E293B 60%, #0F172A 100%)',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                    background: 'radial-gradient(circle at 35% 28%, #4A5C70 0%, #1A2532 60%, #0B1118 100%)',
+                    boxShadow: '0 3px 8px rgba(0,0,0,0.8)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 10,
-                    fontWeight: 700,
+                    fontSize: 10.5,
+                    fontWeight: 900,
                     fontFamily: KENO_FONTS.numbers,
                     color: '#FFFFFF',
+                    zIndex: 1,
                   }}
                 >
                   80
                 </div>
 
-                {/* Ball 10 (top-right, back) */}
+                {/* Ball 10 (top-right, placed farther to the right, tilted 10) */}
                 <div
                   style={{
                     position: 'absolute',
-                    top: 0,
-                    right: 4,
-                    width: 36,
-                    height: 36,
+                    top: -22,
+                    left: 28,
+                    width: 38,
+                    height: 38,
                     borderRadius: '50%',
                     background: 'radial-gradient(circle at 35% 28%, #4A5C70 0%, #1A2532 60%, #0B1118 100%)',
-                    boxShadow: '0 3px 8px rgba(0,0,0,0.7)',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.85)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    fontFamily: KENO_FONTS.numbers,
-                    color: '#FFFFFF',
+                    zIndex: 2,
                   }}
                 >
-                  10
+                  {/* Curved Specular Dome Shine */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 3,
+                      left: '18%',
+                      width: '64%',
+                      height: '38%',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 900,
+                      fontFamily: KENO_FONTS.numbers,
+                      color: '#FFFFFF',
+                      transform: 'rotate(-16deg)',
+                      display: 'inline-block',
+                      lineHeight: 1,
+                    }}
+                  >
+                    10
+                  </span>
                 </div>
 
-                {/* Ball 1 (bottom-left, FRONT, largest with green rim glow & mint numeral) */}
+                {/* Ball 1 (FRONT, large green ball hanging OUT OF THE BOX to the left) */}
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: 52,
-                    height: 52,
+                    top: 24,
+                    left: -25,
+                    width: 62,
+                    height: 62,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle at 35% 28%, #5fdb94 0%, #254632 65%, #1b3826 100%)',
-                    boxShadow: '0 0 16px rgba(113, 206, 150, 0.75), inset 0 2px 4px rgba(255,255,255,0.7)',
-                    border: '1.5px solid #86EFAC',
+                    background: 'radial-gradient(circle at 40% 30%, #173826 0%, #0d2218 55%, #06150e 100%)',
+                    boxShadow: '0 0 18px rgba(81, 181, 121, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.5)',
+                    border: '1.5px solid #51b579',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 24,
-                    fontWeight: 700,
-                    fontFamily: KENO_FONTS.numbers,
-                    color: '#FFFFFF',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+                    zIndex: 3,
                   }}
                 >
                   {/* Glossy specular shine reflection */}
                   <div
                     style={{
                       position: 'absolute',
-                      top: 5,
-                      left: 11,
-                      width: 12,
-                      height: 6,
+                      top: 3,
+                      left: '18%',
+                      width: '64%',
+                      height: '38%',
                       borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.7)',
-                      transform: 'rotate(-25deg)',
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.05) 100%)',
                       pointerEvents: 'none',
+                      zIndex: 2,
                     }}
                   />
-                  <span>1</span>
+                  <span
+                    style={{
+                      position: 'relative',
+                      zIndex: 3,
+                      fontSize: 29,
+                      fontWeight: 900,
+                      fontFamily: KENO_FONTS.numbers,
+                      color: '#51b579',
+                      lineHeight: 1,
+                      transform: 'rotate(-10deg) skewX(-6deg)',
+                      display: 'inline-block',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                    }}
+                  >
+                    1
+                  </span>
                 </div>
               </div>
 
               {/* Card Center Text matching mock_web .ticket_helptext */}
-              <div style={{ textAlign: 'left', zIndex: 2, marginLeft: 14, flex: 1 }}>
+              <div style={{ textAlign: 'left', zIndex: 2, marginLeft: 22, flex: 1 }}>
                 <div
                   style={{
-                    fontSize: 24,
-                    fontWeight: 700,
+                    fontSize: 23,
+                    fontWeight: 900,
                     color: '#FFFFFF',
-                    lineHeight: 1.2,
+                    lineHeight: 1.15,
                     fontFamily: KENO_FONTS.numbers,
+                    letterSpacing: '-0.01em',
                   }}
                 >
                   Choose 10 numbers
                 </div>
                 <div
                   style={{
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: 700,
-                    color: '#5fdb94',
+                    color: '#51b579',
                     marginTop: 4,
                     fontFamily: KENO_FONTS.numbers,
                   }}
@@ -1051,21 +1080,25 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 type="button"
                 onClick={onOpenPaytable}
                 style={{
-                  background: '#35434b',
-                  border: 'none',
+                  position: 'absolute',
+                  top: 14,
+                  right: 16,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
                   color: '#51b579',
-                  width: 32,
-                  height: 32,
+                  width: 28,
+                  height: 28,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  fontSize: 15,
+                  fontWeight: 900,
                   cursor: 'pointer',
                   zIndex: 2,
                   padding: 0,
                   fontFamily: KENO_FONTS.numbers,
-                  fontSize: 20,
-                  fontWeight: 700,
+                  transition: 'background 0.15s ease',
                 }}
               >
                 ?
@@ -1082,6 +1115,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 backgroundPosition: '0 50%',
                 borderRadius: 6,
                 padding: '12px 14px',
+                marginTop: 2,
                 marginBottom: 8,
                 boxSizing: 'border-box',
               }}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Download, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isWebWrapperApp } from './utils/isAppWrapper';
 import { Header } from './components/Header';
 import { KenoPlayStage } from './components/KenoPlayStage';
 import { KenoGrid } from './components/KenoGrid';
@@ -72,7 +74,19 @@ export const App: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [showApkBanner, setShowApkBanner] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    // Hide install banner completely when running in the Android webwrapper APK or standalone app
+    if (isWebWrapperApp()) return false;
+    return localStorage.getItem('fastkeno_apk_banner_dismissed') !== 'true';
+  });
+
+  const handleOpenWallet = (tab: 'deposit' | 'withdraw' | 'history' = 'deposit') => {
+    setWalletInitialTab(tab);
+    setWalletModalOpen(true);
+  };
   const [limitsModalOpen, setLimitsModalOpen] = useState(false);
   const [paytableModalOpen, setPaytableModalOpen] = useState(false);
   const [rulesModalTab, setRulesModalTab] = useState<'rules' | 'fairness' | 'freebet'>('rules');
@@ -260,13 +274,15 @@ export const App: React.FC = () => {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
+        height: isMobile ? '100dvh' : '100%',
         backgroundColor: '#000000',
         color: '#FFFFFF',
         display: 'flex',
         flexDirection: 'column',
         fontFamily: "var(--font-ui)",
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* Background wallpaper matching mock_web */}
@@ -275,10 +291,10 @@ export const App: React.FC = () => {
       <ToastContainer />
 
       {/* Top Header */}
-      <div style={{ position: 'relative', zIndex: 10 }}>
+      <div style={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
         <Header
           roundNumber={round?.roundNumber}
-          onOpenWallet={() => setWalletModalOpen(true)}
+          onOpenWallet={handleOpenWallet}
           onOpenAuth={(mode) => {
             setAuthMode(mode);
             setAuthModalOpen(true);
@@ -303,6 +319,7 @@ export const App: React.FC = () => {
           overflow: 'hidden',
           position: 'relative',
           zIndex: 2,
+          minHeight: 0,
         }}
       >
         <div
@@ -310,10 +327,11 @@ export const App: React.FC = () => {
             display: 'flex',
             width: '100%',
             maxWidth: 1240,
-            height: 'calc(100vh - 84px)',
+            height: '100%',
             boxSizing: 'border-box',
-            padding: '4px',
+            padding: isMobile ? 0 : '4px',
             gap: 8,
+            minHeight: 0,
           }}
         >
           {/* ═════════════════════════════════════════════════════════ */}
@@ -331,8 +349,9 @@ export const App: React.FC = () => {
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
+              scrollbarWidth: 'none',
             }}
-            className="hide-on-mobile"
+            className="hide-on-mobile no-scrollbar"
           >
             <GameFeedPanel />
           </aside>
@@ -347,15 +366,19 @@ export const App: React.FC = () => {
               flexDirection: 'column',
               alignItems: 'center',
               overflowY: 'auto',
-              padding: '1px 4px 5px',
+              padding: isMobile ? '1px 4px 6px' : '1px 4px 5px',
               boxSizing: 'border-box',
               width: '100%',
               maxWidth: 500,
               margin: '0 auto',
               background: 'rgba(27, 30, 31, 0.94)',
               border: '1px solid rgba(81, 181, 121, 0.2)',
-              borderRadius: 16,
+              borderBottom: isMobile ? 'none' : '1px solid rgba(81, 181, 121, 0.2)',
+              borderRadius: isMobile ? '14px 14px 0 0' : 16,
+              scrollbarWidth: 'none',
+              minHeight: 0,
             }}
+            className="no-scrollbar"
           >
             {/* Central Play Stage (Timer / 3D Spheres in Countdown, or Radar & Calling Ball in Draw) */}
             <KenoPlayStage
@@ -459,6 +482,132 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {/* Floating APK Download Banner for Browser Users */}
+      {showApkBanner && (
+        <aside
+          role="complementary"
+          aria-label="Download Android App"
+          style={{
+            position: 'fixed',
+            bottom: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'calc(100% - 24px)',
+            maxWidth: 480,
+            zIndex: 900,
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(11, 19, 32, 0.98) 100%)',
+            border: '1.5px solid rgba(16, 185, 129, 0.45)',
+            boxShadow: '0 12px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.15)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderRadius: 14,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            boxSizing: 'border-box',
+            animation: 'fadeIn 0.3s ease-out',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <img
+              src="/logo_keno.png"
+              alt="Fast Keno"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 9,
+                objectFit: 'contain',
+                background: '#0B1320',
+                padding: 2,
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#F8FAFC', whiteSpace: 'nowrap' }}>
+                  Fast Keno Android App
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#10B981',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                  }}
+                >
+                  APK
+                </span>
+              </div>
+              <p
+                style={{
+                  margin: '2px 0 0 0',
+                  fontSize: 11,
+                  color: '#94A3B8',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                Fast gameplay & instant updates
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <a
+              href="/FastKeno.apk"
+              download="FastKeno.apk"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                color: '#FFFFFF',
+                padding: '7px 12px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 800,
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Download size={14} strokeWidth={2.8} />
+              <span>Install</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowApkBanner(false);
+                localStorage.setItem('fastkeno_apk_banner_dismissed', 'true');
+              }}
+              aria-label="Dismiss app install banner"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#94A3B8',
+                cursor: 'pointer',
+                borderRadius: 8,
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </aside>
+      )}
+
       {/* Modals */}
       <AuthModal
         isOpen={authModalOpen}
@@ -469,6 +618,7 @@ export const App: React.FC = () => {
       <WalletModal
         isOpen={walletModalOpen}
         onClose={() => setWalletModalOpen(false)}
+        initialTab={walletInitialTab}
       />
 
       <ProfileModal
@@ -479,6 +629,7 @@ export const App: React.FC = () => {
           setRulesModalTab('fairness');
           setPaytableModalOpen(true);
         }}
+        onOpenWallet={handleOpenWallet}
       />
 
       <ResponsibleGamblingModal

@@ -7,18 +7,18 @@
   --bg-card-hover: linear-gradient(180deg, #435057, #333f46);
   --border-subtle: rgba(113, 206, 150, 0.2);
   --border-strong: rgba(31, 85, 54, 0.7);
-  
+
   --cell-default: linear-gradient(180deg, #333f46, #242b31);
   --cell-border: #28394C;
   --cell-hover: linear-gradient(180deg, #435057, #333f46);
-  
+
   --pick-fill: linear-gradient(180deg, #254632, #4c8b65);
   --pick-border: #4c8b65;
-  
+
   --drawn-fill: radial-gradient(circle, #0d3b69, #061c33 36%, #05182b 59%, #0a2435 60%, #4c6e6e 84%);
   --drawn-border: #287D54;
   --drawn-text: #ffffff;
-  
+
   --hit-fill: radial-gradient(circle, #087b67, #03493f 59%, #0d4239 60%, #47736b 77%, #6be2a8 78%);
   --hit-border: #6be2a8;
   --hit-glow: rgba(107, 226, 168, 0.75);
@@ -29,11 +29,11 @@
   --accent-gold: #e6b529;
   --accent-cyan: #8bdbff;
   --accent-red: #ff5c5c;
-  
+
   --text-primary: #FFFFFF;
   --text-secondary: #d7d9db;
   --text-muted: #a0a0a0;
-  
+
   --font-numbers: 'Roboto Condensed', sans-serif;
   --font-digital: 'DS-Digital', 'JetBrains Mono', monospace;
   --font-ui: 'SF Pro Display', 'Outfit', 'Inter', -apple-system, sans-serif;
@@ -75,8 +75,8 @@ body {
 /* Digital Timer */
 .game_timer {
   text-align: center;
-  margin: 4px auto 8px;
-  padding: 6px 16px;
+  margin: 1px auto 1px;
+  padding: 1px 1px;
   width: 320px;
   max-width: 90%;
   z-index: 3;
@@ -86,17 +86,18 @@ body {
   background-position: 50% 50%;
   color: #fff;
   font-family: var(--font-digital);
-  font-weight: 700;
-  font-size: 2.4rem;
+  font-weight: 500;
+  font-size: 1.2rem;
   line-height: normal;
 }
 
 @media only screen and (max-width: 810px) {
   .game_timer {
-    margin-top: 10px;
-    font-size: 1.5rem;
-    line-height: 22px;
-    padding: 3px 11px;
+    margin-top: 6px;
+    margin-bottom: 0px;
+    font-size: 1.55rem;
+    line-height: 24px;
+    padding: 2px 11px;
   }
 }
 
@@ -117,22 +118,37 @@ body {
   color: #fff;
 }
 
-/* Scrollbar */
+/* Scrollbar — Hidden globally for clean casino/app experience */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}
+
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none;
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
 }
+
 .no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
+
 /* Responsive Utilities */
 .show-on-mobile {
   display: none !important;
@@ -142,23 +158,26 @@ body {
   .hide-on-mobile {
     display: none !important;
   }
+
   .show-on-mobile {
     display: block !important;
   }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1E293B;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-
 @keyframes ballPop {
-  0% { transform: scale(0.6) rotate(-10deg); opacity: 0; }
-  70% { transform: scale(1.12) rotate(4deg); }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  0% {
+    transform: scale(0.6) rotate(-10deg);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.12) rotate(4deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
 }
 
 @keyframes callBallBounce {
@@ -166,13 +185,16 @@ body {
     transform: scale(0.25);
     opacity: 0;
   }
+
   60% {
     transform: scale(1.08);
     opacity: 1;
   }
+
   82% {
     transform: scale(0.98);
   }
+
   100% {
     transform: scale(1.0);
     opacity: 1;
@@ -183,23 +205,33 @@ body {
   0% {
     transform: scale(0.6);
   }
+
   60% {
     transform: scale(1.18);
   }
+
   100% {
     transform: scale(1.0);
   }
 }
 
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), inset 0 0 8px rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.9), inset 0 0 14px rgba(16, 185, 129, 0.6); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), inset 0 0 8px rgba(16, 185, 129, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.9), inset 0 0 14px rgba(16, 185, 129, 0.6);
+  }
 }
 
 @keyframes radarSpinCw {
   0% {
     transform: translate(-50%, -50%) rotate(0deg);
   }
+
   100% {
     transform: translate(-50%, -50%) rotate(360deg);
   }
@@ -209,29 +241,58 @@ body {
   0% {
     transform: translate(-50%, -50%) rotate(360deg);
   }
+
   100% {
     transform: translate(-50%, -50%) rotate(0deg);
   }
 }
 
 @keyframes timerPulse {
-  0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5)); }
-  50% { opacity: 1; filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.9)); }
+
+  0%,
+  100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+  }
+
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.9));
+  }
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideDrawerRight {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes ballSettle {
@@ -239,10 +300,12 @@ body {
     transform: scale(0.88);
     opacity: 0.8;
   }
+
   60% {
     transform: scale(1.06);
     opacity: 1;
   }
+
   100% {
     transform: scale(1.0);
     opacity: 1;
@@ -339,11 +402,14 @@ body {
 
 /* Fast Keno Live Chat Animations & Styling */
 @keyframes kenoLiveDotPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
     box-shadow: 0 0 6px #71ce96, 0 0 10px rgba(113, 206, 150, 0.4);
   }
+
   50% {
     opacity: 0.65;
     transform: scale(1.25);
@@ -360,6 +426,7 @@ body {
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -374,9 +441,11 @@ body {
   0% {
     transform: scale(1);
   }
+
   45% {
     transform: scale(1.32);
   }
+
   100% {
     transform: scale(1);
   }
@@ -403,6 +472,20 @@ body {
   background: rgba(113, 206, 150, 0.4);
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animation {
+  animation: spin 0.9s linear infinite;
+}
+
+
 /* Bright Auth Modal Utilities */
 .auth-modal-input::placeholder {
   color: #94A3B8;
@@ -416,4 +499,3 @@ body {
   -webkit-box-shadow: 0 0 0px 1000px #1E293B inset;
   transition: background-color 5000s ease-in-out 0s;
 }
-
