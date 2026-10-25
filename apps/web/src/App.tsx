@@ -72,7 +72,13 @@ export const App: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  const handleOpenWallet = (tab: 'deposit' | 'withdraw' | 'history' = 'deposit') => {
+    setWalletInitialTab(tab);
+    setWalletModalOpen(true);
+  };
   const [limitsModalOpen, setLimitsModalOpen] = useState(false);
   const [paytableModalOpen, setPaytableModalOpen] = useState(false);
   const [rulesModalTab, setRulesModalTab] = useState<'rules' | 'fairness' | 'freebet'>('rules');
@@ -278,7 +284,7 @@ export const App: React.FC = () => {
       <div style={{ position: 'relative', zIndex: 10 }}>
         <Header
           roundNumber={round?.roundNumber}
-          onOpenWallet={() => setWalletModalOpen(true)}
+          onOpenWallet={handleOpenWallet}
           onOpenAuth={(mode) => {
             setAuthMode(mode);
             setAuthModalOpen(true);
@@ -469,6 +475,7 @@ export const App: React.FC = () => {
       <WalletModal
         isOpen={walletModalOpen}
         onClose={() => setWalletModalOpen(false)}
+        initialTab={walletInitialTab}
       />
 
       <ProfileModal
@@ -479,6 +486,7 @@ export const App: React.FC = () => {
           setRulesModalTab('fairness');
           setPaytableModalOpen(true);
         }}
+        onOpenWallet={handleOpenWallet}
       />
 
       <ResponsibleGamblingModal

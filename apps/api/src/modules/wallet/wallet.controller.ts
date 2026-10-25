@@ -68,8 +68,9 @@ export class WalletController {
     return this.walletService.createWithdrawalRequest(req.user.id, {
       amountMinor: body.amountMinor,
       currency: body.currency || 'ETB',
-      paymentMethod: body.paymentMethod || body.destinationAccount || 'telebirr',
+      paymentMethod: body.paymentMethod || 'telebirr',
       destinationAccount: body.destinationAccount,
+      accountName: body.accountName,
       idempotencyKey: body.idempotencyKey,
     });
   }

@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { toastSuccess, toastError } from '../services/toast';
-import { X, Copy, Check, ArrowDownLeft, ArrowUpRight, Clock, ShieldCheck, HelpCircle } from 'lucide-react';
+import { X, Copy, Check, ArrowDownLeft, ArrowUpRight, Clock, ShieldCheck, HelpCircle, RotateCcw } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'deposit' | 'withdraw' | 'history';
 }
 
 const PAYMENT_METHODS = [
@@ -35,12 +37,12 @@ const PAYMENT_METHODS = [
     image: '/cbe.jpg',
     badge: 'FT Code',
     isInstant: false,
-    accountNumber: '1000234567891',
-    accountName: 'Amdom desta',
+    accountNumber: '1000287635657',
+    accountName: 'Fseha Hagos',
     hint: 'e.g. FT262920XXXX',
     instructions: [
       'Transfer via CBE Mobile Banking or branch to Account: 1000234567891',
-      'Recipient: Amdom desta',
+      'Recipient: Fseha Hagos',
       'Enter the FT transaction reference code for verification',
     ],
   },
@@ -51,12 +53,12 @@ const PAYMENT_METHODS = [
     image: '/cbe.jpg',
     badge: 'Auto Match',
     isInstant: false,
-    accountNumber: '0978614151',
-    accountName: 'Amdom desta',
+    accountNumber: '0948491265',
+    accountName: 'Fseha Hagos',
     hint: 'e.g. CB987654321',
     instructions: [
       'Open CBE Birr app or dial *847#',
-      'Transfer to CBE Birr mobile: 0978614151 (Amdom desta)',
+      'Transfer to CBE Birr mobile: 0948491265 (Fseha Hagos)',
       'Enter the EXACT amount and confirm',
       'Incoming SMS notification is detected and matched automatically',
     ],
@@ -69,11 +71,11 @@ const PAYMENT_METHODS = [
     badge: 'Auto Match',
     isInstant: false,
     accountNumber: '0700000000',
-    accountName: 'Amdom desta',
+    accountName: 'Fseha Hagos',
     hint: 'e.g. NL47JK890',
     instructions: [
       'Open your M-Pesa app or dial *777#',
-      'Select "Send Money" to 0700000000 (Amdom desta)',
+      'Select "Send Money" to 0700000000 (Fseha Hagos)',
       'Enter the EXACT deposit amount and confirm',
       'M-Pesa confirmation SMS will be captured and matched automatically',
     ],
@@ -85,12 +87,12 @@ const PAYMENT_METHODS = [
     image: null,
     badge: 'Awash/Dashen/BOA',
     isInstant: false,
-    accountNumber: '1000234567891',
-    accountName: 'Amdom desta',
+    accountNumber: '1000-------',
+    accountName: 'Fseha Hagos',
     hint: 'e.g. Bank Ref / Slip No',
     instructions: [
       'Transfer from Bank of Abyssinia, Awash, Dashen, Nib, etc.',
-      'Send to CBE Account: 1000234567891 (Amdom desta)',
+      'Send to CBE Account: 1000------- (Fseha Hagos)',
       'Enter your transaction reference for admin review',
     ],
   },
@@ -114,18 +116,42 @@ const extractRefPreview = (text: string): string => {
   return match && match[1] ? match[1].toUpperCase() : '';
 };
 
-export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
+export const WalletModal: React.FC<WalletModalProps> = ({
+  isOpen,
+  onClose,
+  initialTab = 'deposit',
+}) => {
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
+  const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'history'>(initialTab);
   const [selectedMethod, setSelectedMethod] = useState('telebirr');
+  const [withdrawMethod, setWithdrawMethod] = useState('telebirr');
   const [depositAmount, setDepositAmount] = useState('100');
   const [withdrawAmount, setWithdrawAmount] = useState('50');
   const [withdrawAccount, setWithdrawAccount] = useState('');
+  const [withdrawName, setWithdrawName] = useState('');
+  const [isManualAccount, setIsManualAccount] = useState(false);
+  const [isManualName, setIsManualName] = useState(false);
   const [txRef, setTxRef] = useState('');
   const [pendingDeposit, setPendingDeposit] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState({ mins: 15, secs: 0 });
   const [showHelp, setShowHelp] = useState(false);
+
+  // Sync tab & registered phone/name when modal opens or user profile loads
+  useEffect(() => {
+    if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
+      if (!isManualAccount) {
+        setWithdrawAccount(user?.phone || '');
+      }
+      if (!isManualName) {
+        setWithdrawName(user?.username || '');
+      }
+    }
+  }, [isOpen, initialTab, user?.phone, user?.username]);
 
   // 15-minute countdown timer for pending deposit
   useEffect(() => {
@@ -260,15 +286,33 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
     mutationFn: async () => {
       const amountNum = parseFloat(withdrawAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+
+      const avail = wallet?.balanceMinor ? Number(wallet.balanceMinor) / 100 : 0;
+      if (amountNum > avail) {
+        throw new Error(`Insufficient funds. Your available balance is ${avail.toFixed(2)} ETB`);
+      }
+
+      // Default to registered phone if Telebirr and not manually altered, or use entered value
+      const cleanAccount = (withdrawAccount.trim() || (withdrawMethod === 'telebirr' ? user?.phone : '') || '').trim();
+      if (!cleanAccount) {
+        throw new Error(
+          withdrawMethod === 'telebirr'
+            ? 'Please enter your Telebirr phone number'
+            : 'Please enter your payout account/phone number'
+        );
+      }
+
+      const cleanName = (withdrawName.trim() || (withdrawMethod === 'telebirr' ? user?.username : '') || '').trim();
+
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `wdr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
 
       const res = await apiClient.post('/api/v1/wallet/withdraw', {
         amountMinor,
         currency: 'ETB',
-        paymentMethod: selectedMethod,
-        destinationAccount: withdrawAccount.trim() || method.accountNumber,
+        paymentMethod: withdrawMethod,
+        destinationAccount: cleanAccount,
+        accountName: cleanName || undefined,
         idempotencyKey,
       });
       return res.data;
@@ -276,6 +320,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
     onSuccess: () => {
       toastSuccess('Withdrawal Submitted', 'Your withdrawal request has been received.');
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
       setActiveTab('history');
     },
     onError: (err: any) => {
@@ -937,6 +983,124 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
           {/* ─────────────────────────────────────────────────────────── */}
           {activeTab === 'withdraw' && (
             <div>
+              {/* Available Balance Banner */}
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  marginBottom: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>Available to Withdraw</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#10B981' }}>
+                    {balance} <span style={{ fontSize: 13, color: '#FFFFFF' }}>ETB</span>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#10B981',
+                  }}
+                >
+                  ⚡ Fast Payout
+                </div>
+              </div>
+
+              {/* Method Selector for Withdrawal */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
+                  Payout Method
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                  {PAYMENT_METHODS.filter((m) => m.id !== 'other_bank').map((method) => {
+                    const isSelected = withdrawMethod === method.id;
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => {
+                          setWithdrawMethod(method.id);
+                          if (method.id === 'telebirr') {
+                            if (!isManualAccount) setWithdrawAccount(user?.phone || '');
+                            if (!isManualName) setWithdrawName(user?.username || '');
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 10px',
+                          borderRadius: 10,
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#0B1320',
+                          border: isSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'left',
+                        }}
+                      >
+                        {method.image ? (
+                          <div
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              backgroundColor: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              padding: 2,
+                            }}
+                          >
+                            <img src={method.image} alt={method.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 18 }}>{method.icon}</span>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: isSelected ? '#10B981' : '#F8FAFC', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {method.name}
+                          </div>
+                          {method.id === 'telebirr' && (
+                            <div style={{ fontSize: 10, color: '#10B981', fontWeight: 600 }}>Default / Instant</div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Telebirr Default Info Alert */}
+              {withdrawMethod === 'telebirr' && (
+                <div
+                  style={{
+                    background: 'rgba(30, 41, 59, 0.4)',
+                    border: '1px solid rgba(81, 181, 121, 0.25)',
+                    borderRadius: 10,
+                    padding: '8px 12px',
+                    marginBottom: 14,
+                    fontSize: 11.5,
+                    color: '#94A3B8',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span style={{ color: '#10B981', fontWeight: 700 }}>Telebirr Payout:</span> Defaults to your registered phone number & account name. If you prefer to withdraw to another number, edit it manually below.
+                </div>
+              )}
+
+              {/* Withdraw Amount Input */}
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
                   Withdraw Amount (ETB)
@@ -945,6 +1109,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                   type="number"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Min 20 ETB"
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -960,40 +1125,153 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                 />
               </div>
 
-              {/* Presets */}
+              {/* Presets + MAX */}
               <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-                {WITHDRAW_PRESETS.map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setWithdrawAmount(amt)}
-                    style={{
-                      flex: 1,
-                      padding: '6px 0',
-                      borderRadius: 8,
-                      background: withdrawAmount === amt ? '#1E293B' : '#0B1320',
-                      border: withdrawAmount === amt ? '1px solid #10B981' : '1px solid #1E293B',
-                      color: withdrawAmount === amt ? '#10B981' : '#94A3B8',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {amt}
-                  </button>
-                ))}
+                {[...WITHDRAW_PRESETS, 'MAX'].map((amt) => {
+                  const isMax = amt === 'MAX';
+                  const isSelected = !isMax && withdrawAmount === amt;
+                  return (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => {
+                        if (isMax) {
+                          setWithdrawAmount(Math.max(0, Math.floor(Number(balance))).toString());
+                        } else {
+                          setWithdrawAmount(amt);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 0',
+                        borderRadius: 8,
+                        background: isSelected ? '#1E293B' : '#0B1320',
+                        border: isSelected ? '1px solid #10B981' : isMax ? '1px solid #F59E0B' : '1px solid #1E293B',
+                        color: isSelected ? '#10B981' : isMax ? '#F59E0B' : '#94A3B8',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {amt}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Destination Account */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                  Payout Account / Phone (Telebirr / CBE)
-                </label>
+              {/* Destination Account / Phone */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                    {withdrawMethod === 'telebirr'
+                      ? 'Telebirr Phone Number'
+                      : withdrawMethod === 'cbe_bank'
+                        ? 'CBE Bank Account Number'
+                        : 'Payout Account / Phone'}
+                  </label>
+                  {withdrawMethod === 'telebirr' && (
+                    withdrawAccount === (user?.phone || '') && user?.phone ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Check size={12} strokeWidth={3} /> Default Registered Phone
+                      </span>
+                    ) : user?.phone ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWithdrawAccount(user.phone || '');
+                          setIsManualAccount(false);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#10B981',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        <RotateCcw size={11} /> Reset to Registered ({user.phone})
+                      </button>
+                    ) : null
+                  )}
+                </div>
                 <input
                   type="text"
-                  placeholder="e.g. 0911223344"
+                  placeholder={withdrawMethod === 'telebirr' ? 'e.g. 0912345678' : 'Account or Phone Number'}
                   value={withdrawAccount}
-                  onChange={(e) => setWithdrawAccount(e.target.value)}
+                  onChange={(e) => {
+                    setWithdrawAccount(e.target.value);
+                    setIsManualAccount(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: '#0B1320',
+                    border: '1px solid #334155',
+                    color: '#F8FAFC',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    letterSpacing: '0.02em',
+                  }}
+                />
+                {withdrawMethod === 'telebirr' && isManualAccount && withdrawAccount !== (user?.phone || '') && (
+                  <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 4, fontWeight: 600 }}>
+                    ✍️ Manual phone number entered. Winnings will be sent to this number.
+                  </div>
+                )}
+              </div>
+
+              {/* Account Holder Name */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                    Account Holder Name
+                  </label>
+                  {withdrawName === (user?.username || '') && user?.username ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Check size={12} strokeWidth={3} /> Default Registered Name
+                    </span>
+                  ) : user?.username ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWithdrawName(user.username || '');
+                        setIsManualName(false);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#10B981',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      <RotateCcw size={11} /> Reset to Registered ({user.username})
+                    </button>
+                  ) : null}
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Full Name"
+                  value={withdrawName}
+                  onChange={(e) => {
+                    setWithdrawName(e.target.value);
+                    setIsManualName(true);
+                  }}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -1011,21 +1289,37 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
 
               <button
                 type="button"
-                disabled={withdrawMutation.isPending}
+                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)}
                 onClick={() => withdrawMutation.mutate()}
                 style={{
                   width: '100%',
                   padding: '14px 0',
                   borderRadius: 10,
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  background:
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                      ? '#1E293B'
+                      : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
-                  color: '#FFFFFF',
+                  color:
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                      ? '#64748B'
+                      : '#FFFFFF',
                   fontSize: 14,
                   fontWeight: 800,
-                  cursor: 'pointer',
+                  cursor:
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                      ? 'not-allowed'
+                      : 'pointer',
+                  boxShadow:
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                      ? 'none'
+                      : '0 4px 14px rgba(16, 185, 129, 0.35)',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                {withdrawMutation.isPending ? 'Submitting...' : 'Request Payout'}
+                {withdrawMutation.isPending
+                  ? 'Submitting Request...'
+                  : `Request Payout (${withdrawAmount || '0'} ETB)`}
               </button>
             </div>
           )}

@@ -43,6 +43,7 @@ export interface CreateWithdrawalRequestInput {
   currency?: string;
   paymentMethod: string;
   destinationAccount?: string;
+  accountName?: string;
   idempotencyKey?: string;
 }
 
@@ -319,6 +320,7 @@ export class WalletService {
         currency,
         paymentMethod: input.paymentMethod || 'bank_withdrawal',
         accountNumber: input.destinationAccount || undefined,
+        accountName: input.accountName || undefined,
         status: PaymentRequestStatus.PENDING,
         idempotencyKey: input.idempotencyKey,
       });

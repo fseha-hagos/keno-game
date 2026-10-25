@@ -1,12 +1,13 @@
 import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { X, User, Phone, ShieldCheck, LogOut, CheckCircle2 } from 'lucide-react';
+import { X, User, Phone, ShieldCheck, LogOut, CheckCircle2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenLimits: () => void;
   onOpenFairness?: () => void;
+  onOpenWallet?: (tab?: 'deposit' | 'withdraw' | 'history') => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -14,6 +15,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onClose,
   onOpenLimits,
   onOpenFairness,
+  onOpenWallet,
 }) => {
   const { user, logout } = useAuthStore();
 
@@ -116,6 +118,61 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               {user?.roles?.join(', ') || 'PLAYER'}
             </span>
           </div>
+        </div>
+
+        {/* Quick Deposit & Withdraw Actions */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenWallet?.('deposit');
+            }}
+            style={{
+              padding: '12px 0',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              border: 'none',
+              color: '#FFFFFF',
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <ArrowDownLeft size={16} strokeWidth={2.8} />
+            <span>Deposit</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenWallet?.('withdraw');
+            }}
+            style={{
+              padding: '12px 0',
+              borderRadius: 10,
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1.5px solid #10B981',
+              color: '#10B981',
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <ArrowUpRight size={16} strokeWidth={2.8} />
+            <span>Withdraw</span>
+          </button>
         </div>
 
         {/* Provably Fair Certificate */}
