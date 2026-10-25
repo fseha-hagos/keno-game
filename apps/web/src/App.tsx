@@ -274,13 +274,15 @@ export const App: React.FC = () => {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
+        height: isMobile ? '100dvh' : '100%',
         backgroundColor: '#000000',
         color: '#FFFFFF',
         display: 'flex',
         flexDirection: 'column',
         fontFamily: "var(--font-ui)",
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* Background wallpaper matching mock_web */}
@@ -289,7 +291,7 @@ export const App: React.FC = () => {
       <ToastContainer />
 
       {/* Top Header */}
-      <div style={{ position: 'relative', zIndex: 10 }}>
+      <div style={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
         <Header
           roundNumber={round?.roundNumber}
           onOpenWallet={handleOpenWallet}
@@ -317,6 +319,7 @@ export const App: React.FC = () => {
           overflow: 'hidden',
           position: 'relative',
           zIndex: 2,
+          minHeight: 0,
         }}
       >
         <div
@@ -324,10 +327,11 @@ export const App: React.FC = () => {
             display: 'flex',
             width: '100%',
             maxWidth: 1240,
-            height: 'calc(100vh - 84px)',
+            height: '100%',
             boxSizing: 'border-box',
-            padding: '4px',
+            padding: isMobile ? 0 : '4px',
             gap: 8,
+            minHeight: 0,
           }}
         >
           {/* ═════════════════════════════════════════════════════════ */}
@@ -362,15 +366,17 @@ export const App: React.FC = () => {
               flexDirection: 'column',
               alignItems: 'center',
               overflowY: 'auto',
-              padding: '1px 4px 5px',
+              padding: isMobile ? '1px 4px 6px' : '1px 4px 5px',
               boxSizing: 'border-box',
               width: '100%',
               maxWidth: 500,
               margin: '0 auto',
               background: 'rgba(27, 30, 31, 0.94)',
               border: '1px solid rgba(81, 181, 121, 0.2)',
-              borderRadius: 16,
+              borderBottom: isMobile ? 'none' : '1px solid rgba(81, 181, 121, 0.2)',
+              borderRadius: isMobile ? '14px 14px 0 0' : 16,
               scrollbarWidth: 'none',
+              minHeight: 0,
             }}
             className="no-scrollbar"
           >
