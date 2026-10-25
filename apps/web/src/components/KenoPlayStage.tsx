@@ -686,8 +686,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                             ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                             : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
                           boxShadow: isHit
-                              ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
-                              : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
+                            ? '0 0 10px rgba(34, 197, 94, 0.85), inset 0 1.2px 2px rgba(255, 255, 255, 0.6)'
+                            : '0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1.2px 1.5px rgba(255, 255, 255, 0.38), inset 0 -1.5px 3px rgba(0, 0, 0, 0.55)',
                           border: isHit
                             ? '1px solid #86EFAC'
                             : '1px solid rgba(255, 255, 255, 0.2)',
@@ -755,6 +755,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
                 gap: 'clamp(5px, 1.5vw, 8px)',
                 width: '100%',
+                marginBottom: 8,
+                marginTop: 6
               }}
             >
               {Array.from({ length: 10 }).map((_, col) => {
