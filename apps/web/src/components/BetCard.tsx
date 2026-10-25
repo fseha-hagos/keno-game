@@ -52,7 +52,7 @@ export const BetCard: React.FC<BetCardProps> = ({
       >
         <span
           style={{
-            fontSize: 14,
+            fontSize: 15.5,
             fontWeight: 700,
             fontFamily: KENO_FONTS.numbers,
             color: '#51b579',
@@ -65,7 +65,7 @@ export const BetCard: React.FC<BetCardProps> = ({
         {isUserTicket && (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 700,
               fontFamily: KENO_FONTS.numbers,
               background: 'rgba(76, 139, 101, 0.3)',
@@ -113,7 +113,7 @@ export const BetCard: React.FC<BetCardProps> = ({
                 background: isHit ? '#51b579' : '#35434b',
                 color: isHit ? '#FFFFFF' : '#d7d9db',
                 fontFamily: KENO_FONTS.numbers,
-                fontSize: 13,
+                fontSize: 14.5,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
@@ -135,7 +135,7 @@ export const BetCard: React.FC<BetCardProps> = ({
           gridTemplateColumns: '1fr 1fr',
           gap: 4,
           fontFamily: KENO_FONTS.numbers,
-          fontSize: 12.5,
+          fontSize: 14,
           fontWeight: 700,
           marginTop: 4,
         }}

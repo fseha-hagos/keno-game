@@ -114,7 +114,7 @@ export const BetBar: React.FC<BetBarProps> = ({
         <div
           style={{
             flex: 1,
-            height: 44,
+            height: 48,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -131,8 +131,8 @@ export const BetBar: React.FC<BetBarProps> = ({
             disabled={stake <= MIN_BET}
             title={stake <= MIN_BET ? 'Minimum bet is 4.00 ETB' : 'Decrease bet'}
             style={{
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               borderRadius: 3,
               background: 'transparent',
               border: 'none',
@@ -145,7 +145,7 @@ export const BetBar: React.FC<BetBarProps> = ({
               transition: 'color 0.15s ease',
             }}
           >
-            <Minus size={17} strokeWidth={2.4} />
+            <Minus size={19} strokeWidth={2.5} />
           </button>
 
           {/* Stake Input Value (e.g. 4.00) */}
@@ -161,12 +161,12 @@ export const BetBar: React.FC<BetBarProps> = ({
             onBlur={handleBlur}
             style={{
               width: '100%',
-              maxWidth: 95,
+              maxWidth: 105,
               background: 'transparent',
               border: 'none',
               textAlign: 'center',
               color: '#FFFFFF',
-              fontSize: 19,
+              fontSize: 22,
               fontWeight: 800,
               outline: 'none',
               fontFamily: KENO_FONTS.ui,
@@ -179,8 +179,8 @@ export const BetBar: React.FC<BetBarProps> = ({
             onClick={handleIncrement}
             title="Increase bet"
             style={{
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               borderRadius: 3,
               background: 'transparent',
               border: 'none',
@@ -193,7 +193,7 @@ export const BetBar: React.FC<BetBarProps> = ({
               transition: 'color 0.15s ease',
             }}
           >
-            <Plus size={17} strokeWidth={2.4} />
+            <Plus size={19} strokeWidth={2.5} />
           </button>
         </div>
 
@@ -203,14 +203,14 @@ export const BetBar: React.FC<BetBarProps> = ({
           onClick={handleDoubleStake}
           title="Double bet"
           style={{
-            height: 44,
-            padding: '0 13px',
+            height: 48,
+            padding: '0 15px',
             borderRadius: 4,
             background: '#242b31',
             border: 'none',
             color: '#51b579',
             fontFamily: KENO_FONTS.ui,
-            fontSize: 14,
+            fontSize: 18,
             fontWeight: 800,
             cursor: 'pointer',
             display: 'flex',
@@ -228,14 +228,14 @@ export const BetBar: React.FC<BetBarProps> = ({
           onClick={handleMaxStake}
           title="Max bet"
           style={{
-            height: 44,
-            padding: '0 13px',
+            height: 48,
+            padding: '0 15px',
             borderRadius: 4,
             background: '#242b31',
             border: 'none',
             color: '#51b579',
             fontFamily: KENO_FONTS.ui,
-            fontSize: 14,
+            fontSize: 18,
             fontWeight: 800,
             cursor: 'pointer',
             display: 'flex',
@@ -253,8 +253,8 @@ export const BetBar: React.FC<BetBarProps> = ({
           onClick={onOpenSettings}
           title="Settings"
           style={{
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             borderRadius: 4,
             background: '#242b31',
             border: 'none',
@@ -267,7 +267,7 @@ export const BetBar: React.FC<BetBarProps> = ({
             transition: 'background 0.12s ease',
           }}
         >
-          <Settings size={18} />
+          <Settings size={20} />
         </button>
       </div>
 
@@ -277,15 +277,15 @@ export const BetBar: React.FC<BetBarProps> = ({
         onClick={onPlaceBet}
         style={{
           width: '100%',
-          height: 48,
+          height: 56,
           borderRadius: 4,
           background: canBet ? 'rgba(72, 118, 82, 1)' : 'rgba(50, 77, 56, 1)',
           border: canBet ? '1px solid rgba(82, 134, 93, 1)' : '1px solid rgba(58, 88, 65, 1)',
           color: canBet ? '#ffffff' : '#9ec0a6',
           fontFamily: KENO_FONTS.ui,
-          fontSize: 19,
+          fontSize: 22,
           fontWeight: 800,
-          letterSpacing: '0.05em',
+          letterSpacing: '0.06em',
           textTransform: 'uppercase',
           cursor: canBet ? 'pointer' : 'default',
           display: 'flex',
@@ -298,8 +298,8 @@ export const BetBar: React.FC<BetBarProps> = ({
         {isLoading ? (
           <div
             style={{
-              width: 20,
-              height: 20,
+              width: 24,
+              height: 24,
               border: '2px solid rgba(255, 255, 255, 0.35)',
               borderTopColor: '#FFFFFF',
               borderRadius: '50%',

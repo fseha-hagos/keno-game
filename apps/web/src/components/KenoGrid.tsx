@@ -84,7 +84,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 background: bg,
                 color: textColor,
                 fontFamily: KENO_FONTS.numbers,
-                fontSize: 'clamp(19px, 4.8vw, 27px)',
+                fontSize: 'clamp(21px, 5.4vw, 30px)',
                 fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
@@ -103,10 +103,10 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '5%',
-                    left: '5%',
-                    width: 5,
-                    height: 5,
+                    top: '2%',
+                    left: '2%',
+                    width: 6,
+                    height: 6,
                     borderRadius: '50%',
                     backgroundColor: KENO_COLORS.dotHot,
                     pointerEvents: 'none',
@@ -119,10 +119,10 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
                 <span
                   style={{
                     position: 'absolute',
-                    top: '5%',
-                    left: '5%',
-                    width: 5,
-                    height: 5,
+                    top: '2%',
+                    left: '2%',
+                    width: 6,
+                    height: 6,
                     borderRadius: '50%',
                     backgroundColor: KENO_COLORS.dotCold,
                     pointerEvents: 'none',

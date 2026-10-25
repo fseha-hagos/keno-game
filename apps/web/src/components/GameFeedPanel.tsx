@@ -378,30 +378,30 @@ export const GameFeedPanel: React.FC = () => {
           borderBottom: '1px solid rgba(81, 181, 121, 0.25)',
           marginBottom: 8,
           width: '100%',
-          padding: '2px 2px 0',
+          padding: '0px 2px 0',
         }}
       >
         {[
           {
             key: 'GAME',
             label: 'GAME',
-            icon: <Play size={12} fill="#71ce96" color="#71ce96" />,
+            icon: <Play size={18} fill="#71ce96" color="#71ce96" />,
           },
           {
             key: 'HISTORY',
             label: 'HISTORY',
-            icon: <RotateCcw size={13} color="#71ce96" strokeWidth={2.8} />,
+            icon: <RotateCcw size={18} color="#71ce96" strokeWidth={2.8} />,
           },
           {
             key: 'RESULTS',
             label: 'RESULTS',
-            icon: <Check size={14} color="#71ce96" strokeWidth={3.4} />,
+            icon: <Check size={18} color="#71ce96" strokeWidth={3.4} />,
           },
           {
             key: 'STATISTICS',
             label: 'STATISTICS',
             icon: (
-              <svg width="15" height="13" viewBox="0 0 16 14" fill="none" style={{ marginRight: 1 }}>
+              <svg width="16" height="14" viewBox="0 0 16 14" fill="none" style={{ marginRight: 1 }}>
                 <path d="M1 9.5L4.5 5.5L8.5 8.5L14.5 2" stroke="#71ce96" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M1 13H15" stroke="#71ce96" strokeWidth="1.6" strokeLinecap="round" />
                 <rect x="2" y="8" width="2" height="4" fill="#71ce96" rx="0.5" />
@@ -413,7 +413,7 @@ export const GameFeedPanel: React.FC = () => {
           {
             key: 'LEADERBOARD',
             label: 'LEADERS',
-            icon: <Crown size={13} color="#71ce96" strokeWidth={2.5} />,
+            icon: <Crown size={18} color="#71ce96" strokeWidth={2.5} />,
           },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
@@ -424,14 +424,14 @@ export const GameFeedPanel: React.FC = () => {
               onClick={() => setActiveTab(tab.key as FeedTab)}
               style={{
                 flexShrink: 0,
-                padding: '6px 3px 7px',
+                padding: '7px 3px 8px',
                 border: 'none',
                 background: 'transparent',
                 color: '#71ce96',
                 opacity: isActive ? 1 : 0.85,
                 fontFamily: KENO_FONTS.ui,
-                fontSize: 12.5,
-                fontWeight: isActive ? 800 : 700,
+                fontSize: 15,
+                fontWeight: isActive ? 500 : 400,
                 letterSpacing: '0.03em',
                 textTransform: 'uppercase',
                 cursor: 'pointer',
@@ -464,7 +464,7 @@ export const GameFeedPanel: React.FC = () => {
             overflowX: 'auto',
             scrollbarWidth: 'none',
             fontFamily: KENO_FONTS.ui,
-            fontSize: 12,
+            fontSize: 15,
             whiteSpace: 'nowrap',
           }}
         >
@@ -479,7 +479,7 @@ export const GameFeedPanel: React.FC = () => {
               cursor: 'pointer',
               padding: 0,
               fontFamily: KENO_FONTS.ui,
-              fontSize: 12,
+              fontSize: 15,
             }}
           >
             All <span style={{ color: '#71ce96', marginLeft: 3 }}>{simTotalCount}</span>
@@ -496,7 +496,7 @@ export const GameFeedPanel: React.FC = () => {
               cursor: 'pointer',
               padding: 0,
               fontFamily: KENO_FONTS.ui,
-              fontSize: 12,
+              fontSize: 15,
             }}
           >
             My Tickets <span style={{ color: '#71ce96', marginLeft: 3 }}>{userTicketItems.length}</span>
@@ -513,7 +513,7 @@ export const GameFeedPanel: React.FC = () => {
               cursor: 'pointer',
               padding: 0,
               fontFamily: KENO_FONTS.ui,
-              fontSize: 12,
+              fontSize: 15,
             }}
           >
             My Bets <span style={{ color: '#71ce96', marginLeft: 3 }}>{userTicketItems.length}</span>
@@ -535,7 +535,7 @@ export const GameFeedPanel: React.FC = () => {
                 padding: '20px 14px',
                 textAlign: 'center',
                 color: '#64748B',
-                fontSize: 12,
+                fontSize: 15,
               }}
             >
               No bets placed for Round #{currentRoundNum ?? '—'} yet. Pick numbers and tap BET!
@@ -576,7 +576,7 @@ export const GameFeedPanel: React.FC = () => {
       {activeTab === 'HISTORY' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {groupedHistory.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#64748B', fontSize: 12, padding: 20 }}>
+            <div style={{ textAlign: 'center', color: '#64748B', fontSize: 15, padding: 20 }}>
               No past bets recorded.
             </div>
           ) : (
@@ -593,10 +593,10 @@ export const GameFeedPanel: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 900, color: '#FFFFFF' }}>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: '#FFFFFF' }}>
                       Round #{group.roundNumber}
                     </span>
-                    <span style={{ fontSize: 11, color: '#64748B' }}>
+                    <span style={{ fontSize: 12.5, color: '#64748B' }}>
                       {group.tickets.length} ticket{group.tickets.length > 1 ? 's' : ''}
                     </span>
                   </div>
@@ -614,7 +614,7 @@ export const GameFeedPanel: React.FC = () => {
                             padding: '6px 8px',
                             display: 'flex',
                             justifyContent: 'space-between',
-                            fontSize: 11,
+                            fontSize: 13,
                           }}
                         >
                           <div style={{ display: 'flex', gap: 4 }}>
@@ -663,7 +663,7 @@ export const GameFeedPanel: React.FC = () => {
                     padding: '8px 10px',
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 900, color: '#FFFFFF', marginBottom: 6 }}>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: '#FFFFFF', marginBottom: 6 }}>
                     Round #{roundNum}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3 }}>
@@ -675,7 +675,7 @@ export const GameFeedPanel: React.FC = () => {
                           borderRadius: '50%',
                           background: '#334155',
                           color: '#FFFFFF',
-                          fontSize: 9,
+                          fontSize: 11,
                           fontWeight: 800,
                           display: 'flex',
                           alignItems: 'center',
@@ -690,7 +690,7 @@ export const GameFeedPanel: React.FC = () => {
               );
             })
           ) : (
-            <div style={{ textAlign: 'center', color: '#64748B', fontSize: 12, padding: 20 }}>
+            <div style={{ textAlign: 'center', color: '#64748B', fontSize: 15, padding: 20 }}>
               No recent round results available.
             </div>
           )}
@@ -710,7 +710,7 @@ export const GameFeedPanel: React.FC = () => {
               justifyContent: 'space-between',
               padding: '2px 4px 8px',
               color: '#8d98a0',
-              fontSize: 12,
+              fontSize: 15,
               fontFamily: KENO_FONTS.ui,
             }}
           >
@@ -723,7 +723,7 @@ export const GameFeedPanel: React.FC = () => {
                 background: 'transparent',
                 border: 'none',
                 color: '#71ce96',
-                fontSize: 12,
+                fontSize: 15,
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
@@ -734,7 +734,7 @@ export const GameFeedPanel: React.FC = () => {
               }}
             >
               <span>Sort</span>
-              <svg width="13" height="11" viewBox="0 0 14 12" fill="none">
+              <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
                 <path d="M1 2H13M1 6H9M1 10H5" stroke="#71ce96" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
             </button>
@@ -772,15 +772,15 @@ export const GameFeedPanel: React.FC = () => {
                   {/* Square number badge */}
                   <div
                     style={{
-                      width: 28,
-                      height: 28,
+                      width: 32,
+                      height: 32,
                       borderRadius: 4,
                       background: '#333f46',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#FFFFFF',
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: 700,
                       fontFamily: KENO_FONTS.numbers,
                       boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.35)',
@@ -793,7 +793,7 @@ export const GameFeedPanel: React.FC = () => {
                   <div
                     style={{
                       flex: 1,
-                      height: 2.5,
+                      height: 3,
                       borderRadius: 2,
                       background: 'rgba(255, 255, 255, 0.06)',
                       overflow: 'hidden',
@@ -813,10 +813,10 @@ export const GameFeedPanel: React.FC = () => {
                   <div
                     style={{
                       color: '#FFFFFF',
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: 700,
                       fontFamily: KENO_FONTS.numbers,
-                      minWidth: 20,
+                      minWidth: 22,
                       textAlign: 'right',
                     }}
                   >
@@ -842,7 +842,7 @@ export const GameFeedPanel: React.FC = () => {
               alignItems: 'center',
               padding: '2px 14px 8px',
               color: '#8d98a0',
-              fontSize: 11.5,
+              fontSize: 13,
               fontWeight: 600,
               fontFamily: KENO_FONTS.ui,
             }}
@@ -887,7 +887,7 @@ export const GameFeedPanel: React.FC = () => {
                   {/* Rank # */}
                   <span
                     style={{
-                      fontSize: 13.5,
+                      fontSize: 15,
                       fontWeight: 800,
                       fontFamily: KENO_FONTS.numbers,
                       color: isTopThree ? '#facc15' : '#51b579',
@@ -899,7 +899,7 @@ export const GameFeedPanel: React.FC = () => {
                   {/* Masked ID */}
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: 14.5,
                       fontWeight: 700,
                       color: isTopThree ? '#FFFFFF' : '#86efac',
                       fontFamily: KENO_FONTS.ui,
@@ -912,7 +912,7 @@ export const GameFeedPanel: React.FC = () => {
                   {/* Bet Amount */}
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: 14.5,
                       fontWeight: 700,
                       fontFamily: KENO_FONTS.numbers,
                       color: isTopThree ? '#FFFFFF' : '#51b579',
@@ -929,12 +929,12 @@ export const GameFeedPanel: React.FC = () => {
                       flexDirection: 'column',
                       alignItems: 'flex-end',
                       justifyContent: 'center',
-                      lineHeight: 1.05,
+                      lineHeight: 1.1,
                     }}
                   >
                     <span
                       style={{
-                        fontSize: 13,
+                        fontSize: 14.5,
                         fontWeight: 900,
                         fontFamily: KENO_FONTS.numbers,
                         color: isTopThree ? '#facc15' : '#51b579',
@@ -944,7 +944,7 @@ export const GameFeedPanel: React.FC = () => {
                     </span>
                     <span
                       style={{
-                        fontSize: 9.5,
+                        fontSize: 11,
                         fontWeight: 800,
                         fontFamily: KENO_FONTS.ui,
                         color: isTopThree ? '#facc15' : '#51b579',
