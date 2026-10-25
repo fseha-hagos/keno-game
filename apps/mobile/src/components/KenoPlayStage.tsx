@@ -436,8 +436,7 @@ export const KenoPlayStage = ({
 
           {/* Card Text */}
           <View style={styles.cardTextCol}>
-            <Text style={styles.cardTitle}>Choose 5</Text>
-            <Text style={styles.cardTitle}>numbers</Text>
+            <Text style={styles.cardTitle}>Choose 10 numbers</Text>
             <Text style={styles.cardSubtitle}>From 1 to 80</Text>
           </View>
 
@@ -901,26 +900,27 @@ const styles = StyleSheet.create({
   ring4: { width: 340, height: 340, borderRadius: 170, top: -125, left: -100 },
 
   ballsCluster: {
-    width: 78,
-    height: 72,
+    width: 86,
+    height: 68,
     position: 'relative',
   },
   ball80: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#1E293B',
     borderWidth: 1,
     borderColor: '#334155',
     position: 'absolute',
-    top: 4,
-    left: 4,
+    top: 2,
+    left: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   ball80Text: {
-    color: '#CBD5E1',
-    fontSize: 9,
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '800',
   },
   specularSmall: {
@@ -933,22 +933,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
   ball10: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
     backgroundColor: '#1E293B',
     borderWidth: 1,
     borderColor: '#334155',
     position: 'absolute',
-    top: 1,
-    left: 32,
+    top: 0,
+    left: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   ball10Text: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '800',
   },
   specularMedium: {
     position: 'absolute',
@@ -960,23 +961,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   ball1: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#064E3B',
-    borderWidth: 2,
-    borderColor: '#22C55E',
+    borderWidth: 1.5,
+    borderColor: '#86EFAC',
     position: 'absolute',
-    top: 20,
-    left: 2,
+    bottom: 0,
+    left: 0,
     zIndex: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   ball1Inner: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#065F46',
     justifyContent: 'center',
     alignItems: 'center',
@@ -992,10 +993,9 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-30deg' }],
   },
   ball1Text: {
-    color: '#4ADE80',
-    fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
   },
 
   cardTextCol: {
