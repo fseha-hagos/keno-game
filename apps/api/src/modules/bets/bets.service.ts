@@ -120,7 +120,7 @@ export class BetsService {
         paytableVersionId: '00000000-0000-0000-0000-000000000001', // Default paytable v1
         stakeMinor: input.stakeMinor,
         currency: input.currency,
-        selectedNumbers: input.selectedNumbers.sort((a, b) => a - b),
+        selectedNumbers: input.selectedNumbers.sort((a: number, b: number) => a - b),
         spots,
         status: BetStatus.PENDING,
         idempotencyKey: input.idempotencyKey,

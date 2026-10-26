@@ -3,6 +3,6 @@ WORKDIR /app
 RUN corepack enable
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @keno/api build
+RUN pnpm -r --filter "./packages/**" build && pnpm --filter @keno/api build
 EXPOSE 3000
 CMD ["node", "apps/api/dist/main.js"]
