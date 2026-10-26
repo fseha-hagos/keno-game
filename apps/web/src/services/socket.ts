@@ -4,13 +4,10 @@ import { WebSocketEvents } from '@keno/shared-types';
 import { useGameStore } from '../store/useGameStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { queryClient } from '../queryClient';
-import { toastSuccess, toastError, toastWarning, toastInfo } from './toast';
+import { toastError } from './toast';
 
 class SocketService {
   private socket: Socket | null = null;
-  private hasEverConnected = false;
-  private wasDisconnected = false;
-  private lastReconnectToastTime = 0;
   private networkListenersAttached = false;
 
   connect() {
@@ -33,13 +30,6 @@ class SocketService {
       console.log('[WS] Connected to Keno Gateway:', API_BASE_URL);
       useGameStore.getState().setIsOnline(true);
 
-      if (this.hasEverConnected && this.wasDisconnected) {
-        toastSuccess('Connection Restored', 'Reconnected to game server.');
-      }
-      this.hasEverConnected = true;
-      this.wasDisconnected = false;
-      this.lastReconnectToastTime = 0;
-
       const currentUser = useAuthStore.getState().user;
       if (currentUser?.id) {
         this.socket?.emit('authenticate', { userId: currentUser.id });
@@ -49,43 +39,28 @@ class SocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('[WS] Disconnected:', reason);
       useGameStore.getState().setIsOnline(false);
-      if (reason !== 'io client disconnect' && !this.wasDisconnected) {
-        this.wasDisconnected = true;
-        toastWarning('Connection Lost', 'Disconnected from game server. Reconnecting...');
-      }
     });
 
     this.socket.on('connect_error', (err) => {
       console.warn('[WS] Connection Error:', err.message);
       useGameStore.getState().setIsOnline(false);
-      if (!this.wasDisconnected) {
-        this.wasDisconnected = true;
-        toastError('Connection Problem', 'Unable to reach game server. Retrying...');
-      }
     });
 
-    this.socket.io.on('reconnect_attempt', (attempt: number) => {
-      const now = Date.now();
-      if (now - this.lastReconnectToastTime > 12000) {
-        this.lastReconnectToastTime = now;
-        toastInfo('Reconnecting...', `Attempting to reconnect (${attempt})...`);
-      }
+    this.socket.io.on('reconnect_attempt', () => {
+      useGameStore.getState().setIsOnline(false);
     });
 
     this.socket.io.on('reconnect_failed', () => {
-      toastError('Connection Failed', 'Could not reach server. Please check your network or refresh.');
+      toastError('Connection Failed', 'Could not reach game server. Please check your network or refresh.');
     });
 
     // Browser network listeners (online / offline)
     if (typeof window !== 'undefined' && !this.networkListenersAttached) {
       this.networkListenersAttached = true;
       window.addEventListener('offline', () => {
-        this.wasDisconnected = true;
         useGameStore.getState().setIsOnline(false);
-        toastError('Network Offline', 'No internet connection detected.');
       });
       window.addEventListener('online', () => {
-        toastInfo('Network Restored', 'Re-establishing game connection...');
         if (this.socket && !this.socket.connected) {
           this.socket.connect();
         }

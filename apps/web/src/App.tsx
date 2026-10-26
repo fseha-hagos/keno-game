@@ -29,6 +29,7 @@ export const App: React.FC = () => {
     currency,
     isDrawing,
     drawnNumbers,
+    isOnline,
     resetSlips,
     addConfirmedTickets,
     clearConfirmedTickets,
@@ -36,6 +37,21 @@ export const App: React.FC = () => {
     setIsDrawing,
     resetRoundDraw,
   } = useGameStore();
+
+  const [showReconnectingPill, setShowReconnectingPill] = useState(false);
+
+  useEffect(() => {
+    let timer: any;
+    if (!isOnline) {
+      // Small 1.5s debounce so normal quick initial handshake is completely silent
+      timer = setTimeout(() => {
+        setShowReconnectingPill(true);
+      }, 1500);
+    } else {
+      setShowReconnectingPill(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isOnline]);
 
   const [timeLeft, setTimeLeft] = useState<number>(40);
   const [isMobile, setIsMobile] = useState(() =>
@@ -289,6 +305,46 @@ export const App: React.FC = () => {
       <div className="desktop-bg" />
 
       <ToastContainer />
+
+      {/* Subtle non-intrusive reconnection pill (only shown if disconnected for >1.5s) */}
+      {showReconnectingPill && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 10,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            background: 'rgba(15, 23, 42, 0.94)',
+            border: '1px solid rgba(234, 179, 8, 0.4)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            borderRadius: 20,
+            padding: '3px 12px',
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#FDE047',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.6)',
+            pointerEvents: 'none',
+            letterSpacing: '0.02em',
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: '#EAB308',
+              boxShadow: '0 0 6px #EAB308',
+              display: 'inline-block',
+            }}
+          />
+          <span>Reconnecting...</span>
+        </div>
+      )}
 
       {/* Top Header */}
       <div style={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
