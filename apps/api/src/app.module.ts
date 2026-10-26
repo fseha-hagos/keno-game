@@ -24,6 +24,14 @@ import { AdminModule } from './modules/admin/admin.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', 'apps/api/.env', '../../apps/api/.env'],
+      validate: (env) => {
+        for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
+          if (typeof env[key] !== 'string' || env[key].trim().length === 0) {
+            throw new Error(`Required environment variable ${key} is missing or empty.`);
+          }
+        }
+        return env;
+      },
     }),
     DatabaseModule,
     AuditModule,

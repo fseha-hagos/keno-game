@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -32,6 +32,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Change current user password' })
   async changePassword(@Request() req: any, @Body() body: any) {
+    if (
+      !body ||
+      typeof body.oldPassword !== 'string' ||
+      typeof body.newPassword !== 'string'
+    ) {
+      throw new BadRequestException('Current and new passwords are required.');
+    }
     return this.authService.changePassword(req.user.id, body.oldPassword, body.newPassword);
   }
 

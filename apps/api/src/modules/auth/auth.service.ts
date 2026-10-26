@@ -45,20 +45,17 @@ export class AuthService {
       email: input.email ? input.email.toLowerCase() : undefined,
       dateOfBirth: input.dateOfBirth,
       status: UserStatus.ACTIVE,
-      kycStatus: KycStatus.APPROVED, // For development ease
+      kycStatus: KycStatus.NOT_STARTED,
       kycTier: KycTier.TIER_1,
       roles: [UserRole.PLAYER],
     });
 
     const savedUser = await this.userRepo.save(user);
 
-    // Create wallet and seed initial demo funds ($500.00 = 50000 minor units)
-    await this.walletService.getOrCreateWallet(savedUser.id, GAME_CONFIG.DEFAULT_CURRENCY);
-    await this.walletService.deposit(
+    // Create an empty wallet; never grant demo funds during registration.
+    await this.walletService.getOrCreateWallet(
       savedUser.id,
-      '50000',
       GAME_CONFIG.DEFAULT_CURRENCY,
-      `initial_seed_${savedUser.id}`,
     );
 
     await this.auditService.log({
@@ -85,7 +82,9 @@ export class AuthService {
     }
 
     if (user.status === UserStatus.FROZEN || user.status === UserStatus.SUSPENDED) {
-      throw new UnauthorizedException('This account has been frozen or suspended by an administrator. Please contact support.');
+      throw new UnauthorizedException(
+        'This account has been frozen or suspended by an administrator. Please contact support.',
+      );
     }
 
     const isMatch = await bcrypt.compare(input.password, user.passwordHash);
@@ -107,40 +106,45 @@ export class AuthService {
     return { user, tokens };
   }
 
-  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+  async changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    if (typeof newPassword !== 'string' || newPassword.length < 12) {
+      throw new ConflictException('New password must be at least 12 characters long');
+    }
+
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Invalid user');
     }
 
-    const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
-    if (!isMatch) {
-      throw new UnauthorizedException('Incorrect current password');
+    const oldPasswordMatches = await bcrypt.compare(oldPassword, user.passwordHash);
+    if (!oldPasswordMatches) {
+      throw new UnauthorizedException('Current password is incorrect');
     }
 
-    if (!newPassword || newPassword.length < 6) {
-      throw new ConflictException('New password must be at least 6 characters long');
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(newPassword, salt);
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    user.currentRefreshTokenHash = null;
     await this.userRepo.save(user);
 
     await this.auditService.log({
       actorId: user.id,
-      actorRole: user.roles[0] || 'STAFF',
-      action: 'PASSWORD_CHANGED',
+      actorRole: user.roles[0] || 'PLAYER',
+      action: 'USER_PASSWORD_CHANGED',
       entity: 'USER',
       entityId: user.id,
+      metadata: {},
     });
 
-    return { success: true, message: 'Password changed successfully' };
+    return { message: 'Password changed successfully. Please sign in again.' };
   }
 
   async refreshToken(token: string): Promise<AuthTokens> {
     try {
       const payload = this.jwtService.verify(token, {
-        secret: process.env['JWT_REFRESH_SECRET'] || 'super_secret_refresh_key_keno_2026',
+        secret: process.env['JWT_REFRESH_SECRET']!,
       });
 
       const user = await this.userRepo.findOne({ where: { id: payload.sub } });
@@ -168,12 +172,12 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: process.env['JWT_ACCESS_SECRET'] || 'super_secret_access_key_keno_2026',
+      secret: process.env['JWT_ACCESS_SECRET']!,
       expiresIn: GAME_CONFIG.JWT_ACCESS_EXPIRES_IN_SECONDS,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: process.env['JWT_REFRESH_SECRET'] || 'super_secret_refresh_key_keno_2026',
+      secret: process.env['JWT_REFRESH_SECRET']!,
       expiresIn: GAME_CONFIG.JWT_REFRESH_EXPIRES_IN_SECONDS,
     });
 

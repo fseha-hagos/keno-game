@@ -77,7 +77,6 @@ export class PaymentRequest {
   @Column({ nullable: true })
   expiresAt?: Date;
 
-  @Index({ unique: true, sparse: true })
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   idempotencyKey?: string;
 

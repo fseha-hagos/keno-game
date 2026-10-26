@@ -45,7 +45,6 @@ export class LedgerTransaction {
   @Column({ type: 'varchar', length: 20, default: 'COMPLETED' })
   status!: string;
 
-  @Index({ unique: true, sparse: true })
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   idempotencyKey?: string;
 

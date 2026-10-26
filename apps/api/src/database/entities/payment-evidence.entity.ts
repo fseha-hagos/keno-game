@@ -58,7 +58,6 @@ export class PaymentEvidence {
    * SHA-256 hash of normalized notification payload.
    * Ensures identical SMS/notifications sent repeatedly by MacroDroid are never stored twice.
    */
-  @Index({ unique: true })
   @Column({ type: 'varchar', length: 64, unique: true })
   payloadHash!: string;
 

@@ -24,7 +24,7 @@ const entityClasses = (Object.values(entities) as any[]).filter(
             type: 'sqlite',
             database: configService.get<string>('DB_DATABASE', 'keno.sqlite'),
             entities: entityClasses,
-            synchronize: true,
+            synchronize: configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
             logging: configService.get<string>('NODE_ENV') === 'development',
           };
         }
@@ -38,7 +38,7 @@ const entityClasses = (Object.values(entities) as any[]).filter(
             type: 'postgres',
             url: databaseUrl,
             entities: entityClasses,
-            synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
+            synchronize: configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
             logging: configService.get<string>('NODE_ENV') === 'development',
             ssl: useSsl ? { rejectUnauthorized: false } : false,
           };
@@ -52,7 +52,7 @@ const entityClasses = (Object.values(entities) as any[]).filter(
           password: configService.get<string>('DB_PASSWORD', 'postgres'),
           database: configService.get<string>('DB_NAME', 'keno_db'),
           entities: entityClasses,
-          synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
+          synchronize: configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
           logging: configService.get<string>('NODE_ENV') === 'development',
           ssl: dbSsl === 'true' ? { rejectUnauthorized: false } : false,
         };
