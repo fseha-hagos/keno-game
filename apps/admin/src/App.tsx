@@ -395,7 +395,7 @@ export default function App() {
 
   const fetchData = () => {
     if (!adminToken) return;
-    const analysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 5);
+    const analysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
     setMathAnalysis(analysis);
 
     axios.get(`${API_URL}/api/v1/keno/rounds/recent`)

@@ -10,7 +10,7 @@ interface BetBarProps {
   onOpenSettings?: () => void;
 }
 
-const MIN_BET = 4; // Minimum allowed bet amount is 4.00 ETB
+const MIN_BET = 2; // Minimum allowed bet amount is 2.00 ETB
 
 export const BetBar: React.FC<BetBarProps> = ({
   onPlaceBet,
@@ -25,7 +25,7 @@ export const BetBar: React.FC<BetBarProps> = ({
     setStakeMinor,
   } = useGameStore();
 
-  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '400';
+  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '200';
   const stake = Math.max(MIN_BET, Number(referenceStakeMinor) / 100);
 
   const [inputText, setInputText] = useState(stake.toFixed(2));
@@ -52,8 +52,8 @@ export const BetBar: React.FC<BetBarProps> = ({
     setIsFocused(false);
     const val = parseFloat(inputText);
     if (isNaN(val) || val < MIN_BET) {
-      setStakeMinor('400'); // Minimum 4.00 ETB
-      setInputText('4.00');
+      setStakeMinor('200'); // Minimum 2.00 ETB
+      setInputText('2.00');
     } else {
       const clamped = Math.min(Math.max(val, MIN_BET), 50000);
       setStakeMinor(String(Math.round(clamped * 100)));
@@ -63,8 +63,8 @@ export const BetBar: React.FC<BetBarProps> = ({
 
   const handleDecrement = () => {
     if (stake <= MIN_BET) {
-      setStakeMinor('400');
-      setInputText('4.00');
+      setStakeMinor('200');
+      setInputText('2.00');
       return;
     }
     decrementAllStakes();
@@ -124,12 +124,12 @@ export const BetBar: React.FC<BetBarProps> = ({
             boxSizing: 'border-box',
           }}
         >
-          {/* Stepper Minus (Disallowed below 4.00) */}
+          {/* Stepper Minus (Disallowed below 2.00) */}
           <button
             type="button"
             onClick={handleDecrement}
             disabled={stake <= MIN_BET}
-            title={stake <= MIN_BET ? 'Minimum bet is 4.00 ETB' : 'Decrease bet'}
+            title={stake <= MIN_BET ? 'Minimum bet is 2.00 ETB' : 'Decrease bet'}
             style={{
               width: 36,
               height: 36,
@@ -148,7 +148,7 @@ export const BetBar: React.FC<BetBarProps> = ({
             <Minus size={19} strokeWidth={2.5} />
           </button>
 
-          {/* Stake Input Value (e.g. 4.00) */}
+          {/* Stake Input Value (e.g. 2.00) */}
           <input
             type="text"
             inputMode="decimal"
@@ -156,7 +156,7 @@ export const BetBar: React.FC<BetBarProps> = ({
             onChange={handleTextChange}
             onFocus={() => {
               setIsFocused(true);
-              setInputText(stake >= MIN_BET ? String(stake) : '4');
+              setInputText(stake >= MIN_BET ? String(stake) : '2');
             }}
             onBlur={handleBlur}
             style={{

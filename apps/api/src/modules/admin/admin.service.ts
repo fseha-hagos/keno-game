@@ -92,7 +92,7 @@ export class AdminService {
   /* ────────────────── 2. RTP CONFIGURATION (CREATOR ONLY) ────────────────── */
 
   async getRtpConfig() {
-    const mathAnalysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 5);
+    const mathAnalysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
     const dbEntries = await this.paytableRepo.find({ where: { status: 'ACTIVE' } });
     return {
       targetRtp: this.configuredRtp,
