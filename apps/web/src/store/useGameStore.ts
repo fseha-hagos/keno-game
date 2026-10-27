@@ -12,14 +12,14 @@ export interface BetSlip {
 // 55 - 100: adds 5 ETB at a time (55, 60, ... 100)
 // 125 - 500: adds 25 / 50 ETB at a time (125, 150, 175, 200, 250, 300, 350, 400, 450, 500)
 // 600 - 1000: adds 100 ETB at a time (600, 700, 800, 900, 1000)
-// 1500 - 5000: adds 500 ETB at a time (1500, 2000, 2500, 3000, 4000, 5000)
+// 1500 - 4000: adds 500 ETB at a time (1500, 2000, 2500, 3000, 3500, 4000)
 const STAKE_STEPS = [
   200, 300, 400, 500, 600, 700, 800, 900, 1000,
   1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
   5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000,
   12500, 15000, 17500, 20000, 25000, 30000, 35000, 40000, 45000, 50000,
   60000, 70000, 80000, 90000, 100000,
-  150000, 200000, 250000, 300000, 350000, 400000, 450000, 500000,
+  150000, 200000, 250000, 300000, 350000, 400000,
 ];
 const MAX_SLIPS = 5;
 
@@ -28,11 +28,11 @@ function makeSlip(id: string, stakeMinor = '200'): BetSlip {
 }
 
 function nextStake(current: string, direction: 1 | -1): string {
-  const minor = Math.max(200, Number(current) || 200);
+  const minor = Math.min(400000, Math.max(200, Number(current) || 200));
   if (direction === 1) {
     const next = STAKE_STEPS.find((s) => s > minor);
-    if (next !== undefined) return String(next);
-    return String(Math.min(minor + 100000, 500000));
+    if (next !== undefined && next <= 400000) return String(next);
+    return '400000';
   } else {
     const prev = [...STAKE_STEPS].reverse().find((s) => s < minor);
     if (prev !== undefined) return String(prev);
@@ -249,7 +249,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setStakeMinor: (stake: string) =>
     set((state) => {
-      const parsed = Math.max(200, Number(stake) || 200);
+      const parsed = Math.min(400000, Math.max(200, Number(stake) || 200));
       const safe = String(parsed);
       return {
         betSlips: state.betSlips.map((slip) => ({ ...slip, stakeMinor: safe })),

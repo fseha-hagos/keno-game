@@ -11,6 +11,7 @@ interface BetBarProps {
 }
 
 const MIN_BET = 2; // Minimum allowed bet amount is 2.00 ETB
+const MAX_BET = 4000; // Maximum allowed bet amount is 4,000.00 ETB
 
 export const BetBar: React.FC<BetBarProps> = ({
   onPlaceBet,
@@ -43,7 +44,7 @@ export const BetBar: React.FC<BetBarProps> = ({
 
     const val = parseFloat(text);
     if (!isNaN(val)) {
-      const clamped = Math.max(MIN_BET, val);
+      const clamped = Math.min(MAX_BET, Math.max(MIN_BET, val));
       setStakeMinor(String(Math.round(clamped * 100)));
     }
   };
@@ -55,7 +56,7 @@ export const BetBar: React.FC<BetBarProps> = ({
       setStakeMinor('200'); // Minimum 2.00 ETB
       setInputText('2.00');
     } else {
-      const clamped = Math.min(Math.max(val, MIN_BET), 50000);
+      const clamped = Math.min(Math.max(val, MIN_BET), MAX_BET);
       setStakeMinor(String(Math.round(clamped * 100)));
       setInputText(clamped.toFixed(2));
     }
@@ -71,17 +72,22 @@ export const BetBar: React.FC<BetBarProps> = ({
   };
 
   const handleIncrement = () => {
+    if (stake >= MAX_BET) {
+      setStakeMinor('400000');
+      setInputText('4000.00');
+      return;
+    }
     incrementAllStakes();
   };
 
   const handleDoubleStake = () => {
     const current = Math.max(MIN_BET * 100, Number(referenceStakeMinor));
-    const doubled = Math.min(current * 2, 500000); // cap at 5000.00 ETB
+    const doubled = Math.min(current * 2, MAX_BET * 100); // cap at 4000.00 ETB
     setStakeMinor(String(doubled));
   };
 
   const handleMaxStake = () => {
-    setStakeMinor('500000'); // 5000.00 ETB
+    setStakeMinor('400000'); // 4000.00 ETB
   };
 
   const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
@@ -177,18 +183,19 @@ export const BetBar: React.FC<BetBarProps> = ({
           <button
             type="button"
             onClick={handleIncrement}
-            title="Increase bet"
+            disabled={stake >= MAX_BET}
+            title={stake >= MAX_BET ? 'Maximum bet is 4,000.00 ETB' : 'Increase bet'}
             style={{
               width: 36,
               height: 36,
               borderRadius: 3,
               background: 'transparent',
               border: 'none',
-              color: '#cdd5df',
+              color: stake >= MAX_BET ? '#4b5563' : '#cdd5df',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
+              cursor: stake >= MAX_BET ? 'not-allowed' : 'pointer',
               padding: 0,
               transition: 'color 0.15s ease',
             }}

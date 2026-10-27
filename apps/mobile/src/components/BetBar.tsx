@@ -56,7 +56,7 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
       setStakeMinor('200'); // minimum 2.00 ETB
       setInputText('2.00');
     } else {
-      const clamped = Math.min(Math.max(val, 2), 50000);
+      const clamped = Math.min(Math.max(val, 2), 4000);
       const minor = Math.round(clamped * 100);
       setStakeMinor(String(minor));
       setInputText(clamped.toFixed(2));
@@ -75,12 +75,12 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
 
   const handleDoubleStake = () => {
     const current = Number(referenceStakeMinor);
-    const doubled = Math.min(current * 2, 500000); // cap at 5000.00
+    const doubled = Math.min(current * 2, 400000); // cap at 4000.00
     setStakeMinor(String(doubled));
   };
 
   const handleMaxStake = () => {
-    setStakeMinor('500000'); // 5000.00
+    setStakeMinor('400000'); // 4000.00
   };
 
   return (
