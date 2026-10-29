@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Headphones, X } from 'lucide-react';
 import { KENO_FONTS } from '../theme/kenoTheme';
 
@@ -6,106 +6,152 @@ interface FloatingSupportButtonProps {
   telegramUrl?: string;
 }
 
+const STORAGE_KEY = 'fastkeno_support_button_pos';
+const BUTTON_SIZE = 44;
+const PADDING = 12;
+
 export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
   telegramUrl = 'https://t.me/Fastkenosupportteam',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  // Initially hidden at the top so it doesn't cover or stack on the game grid/controls
-  const [isVisible, setIsVisible] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const lastScrollTopRef = useRef<number>(0);
-  const touchStartYRef = useRef<number>(0);
+
+  // Position on screen: x (left), y (top)
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
+    if (typeof window === 'undefined') {
+      return { x: 300, y: 500 };
+    }
+    const defaultX = Math.max(PADDING, window.innerWidth - BUTTON_SIZE - PADDING - 4);
+    const defaultY = Math.max(PADDING, window.innerHeight - BUTTON_SIZE - PADDING - 24);
+
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.x === 'number' && typeof parsed?.y === 'number') {
+          // Clamp to current viewport
+          const maxX = Math.max(PADDING, window.innerWidth - BUTTON_SIZE - PADDING);
+          const maxY = Math.max(PADDING, window.innerHeight - BUTTON_SIZE - PADDING);
+          return {
+            x: Math.min(Math.max(PADDING, parsed.x), maxX),
+            y: Math.min(Math.max(PADDING, parsed.y), maxY),
+          };
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+    return { x: defaultX, y: defaultY };
+  });
+
+  const clampPos = useCallback((x: number, y: number) => {
+    const maxX = Math.max(PADDING, window.innerWidth - BUTTON_SIZE - PADDING);
+    const maxY = Math.max(PADDING, window.innerHeight - BUTTON_SIZE - PADDING);
+    return {
+      x: Math.min(Math.max(PADDING, x), maxX),
+      y: Math.min(Math.max(PADDING, y), maxY),
+    };
+  }, []);
+
+  // Clamp on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPos((prev) => clampPos(prev.x, prev.y));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [clampPos]);
 
   // Close when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
       }
-    };
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }, [isOpen]);
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+      // Drag handling refs
+      const dragInfoRef = useRef<{
+        startX: number;
+        startY: number;
+        btnX: number;
+        btnY: number;
+        hasMoved: boolean;
+      }>({
+        startX: 0,
+        startY: 0,
+        btnX: 0,
+        btnY: 0,
+        hasMoved: false,
+      });
 
-  // Slide down to appear / slide up to disappear listener
-  useEffect(() => {
-    const handleScroll = (e: Event) => {
-      const target = (e.target === document || e.target === window
-        ? document.documentElement
-        : e.target) as HTMLElement;
+      const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+        // Only respond to primary mouse click or touch
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-      if (!target || typeof target.scrollTop !== 'number') return;
-      const currentScrollTop = target.scrollTop;
+        dragInfoRef.current = {
+          startX: e.clientX,
+          startY: e.clientY,
+          btnX: pos.x,
+          btnY: pos.y,
+          hasMoved: false,
+        };
 
-      // When near the top, always hide so it never covers the betting grid or action controls
-      if (currentScrollTop < 50) {
-        setIsVisible(false);
-        setIsOpen(false);
-        lastScrollTopRef.current = currentScrollTop;
-        return;
-      }
+        setIsDragging(true);
 
-      const diff = currentScrollTop - lastScrollTopRef.current;
-      if (diff > 8) {
-        // Sliding / scrolling down -> Appear
-        setIsVisible(true);
-      } else if (diff < -8) {
-        // Sliding / scrolling up -> Disappear
-        setIsVisible(false);
-        setIsOpen(false);
-      }
+      const onPointerMove = (moveEvt: PointerEvent) => {
+        const dx = moveEvt.clientX - dragInfoRef.current.startX;
+        const dy = moveEvt.clientY - dragInfoRef.current.startY;
 
-      lastScrollTopRef.current = currentScrollTop;
-    };
+            if (!dragInfoRef.current.hasMoved && Math.hypot(dx, dy) > 6) {
+              dragInfoRef.current.hasMoved = true;
+            }
 
-    const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY > 8) {
-        // Scrolling down -> Appear
-        setIsVisible(true);
-      } else if (e.deltaY < -8) {
-        // Scrolling up -> Disappear
-        setIsVisible(false);
-        setIsOpen(false);
-      }
-    };
+            if (dragInfoRef.current.hasMoved) {
+              const nextX = dragInfoRef.current.btnX + dx;
+              const nextY = dragInfoRef.current.btnY + dy;
+              const clamped = clampPos(nextX, nextY);
+              setPos(clamped);
+            }
+          };
 
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartYRef.current = e.touches[0]?.clientY || 0;
-    };
+            const onPointerUp = (upEvt: PointerEvent) => {
+              window.removeEventListener('pointermove', onPointerMove);
+              window.removeEventListener('pointerup', onPointerUp);
+              window.removeEventListener('pointercancel', onPointerUp);
+              setIsDragging(false);
 
-    const handleTouchMove = (e: TouchEvent) => {
-      const currentY = e.touches[0]?.clientY || 0;
-      const delta = touchStartYRef.current - currentY;
+                if (dragInfoRef.current.hasMoved) {
+                  const dx = upEvt.clientX - dragInfoRef.current.startX;
+                  const dy = upEvt.clientY - dragInfoRef.current.startY;
+                  const finalPos = clampPos(dragInfoRef.current.btnX + dx, dragInfoRef.current.btnY + dy);
+                  setPos(finalPos);
+                  try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(finalPos));
+                  } catch {
+                    // ignore localStorage errors
+                  }
+                } else {
+                  // Simple tap / click without drag: toggle popover
+                  setIsOpen((prev) => !prev);
+                }
+            };
 
-      // Finger moving up = page sliding down -> Appear
-      if (delta > 14) {
-        setIsVisible(true);
-      }
-      // Finger moving down = page sliding up towards top -> Disappear
-      else if (delta < -14) {
-        setIsVisible(false);
-        setIsOpen(false);
-      }
-    };
-
-    // Capture true ensures we catch scroll events on <main>, window, or any nested scroll view
-    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    window.addEventListener('wheel', handleWheel, { passive: true });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: true });
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll, { capture: true });
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, []);
+            window.addEventListener('pointermove', onPointerMove, { passive: true });
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerUp);
+          };
 
   const handleTelegramClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,25 +159,26 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
     setIsOpen(false);
   };
 
+  // Determine popup positioning based on button's current screen position
+  const isNearBottom = pos.y > (typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400);
+  const isNearRight = pos.x > (typeof window !== 'undefined' ? window.innerWidth * 0.5 : 200);
+
   return (
     <div
       ref={containerRef}
       style={{
         position: 'fixed',
-        bottom: 18,
-        right: 16,
-        zIndex: 999,
+        left: pos.x,
+        top: pos.y,
+        zIndex: 9999,
+        userSelect: 'none',
+        touchAction: 'none', // Prevents screen scrolling while dragging the button
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-end',
-        userSelect: 'none',
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.85)',
-        pointerEvents: isVisible ? 'auto' : 'none',
-        transition: 'opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+        alignItems: isNearRight ? 'flex-end' : 'flex-start',
       }}
     >
-      {/* Floating Telegram Action Pill (Appears above the support trigger button) */}
+      {/* Floating Telegram Action Pill */}
       <div
         onClick={handleTelegramClick}
         role="button"
@@ -143,26 +190,34 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
         }}
         title="Open Telegram Support @Fastkenosupportteam"
         style={{
-          marginBottom: 10,
+          position: 'absolute',
+          [isNearBottom ? 'bottom' : 'top']: BUTTON_SIZE + 10,
+          [isNearRight ? 'right' : 'left']: 0,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
           background: 'linear-gradient(135deg, #24A1DE 0%, #1A8CC2 100%)',
           borderRadius: 9999,
-          padding: '5px 14px 5px 6px',
-          boxShadow: '0 4px 14px rgba(36, 161, 222, 0.4), 0 2px 6px rgba(0, 0, 0, 0.4)',
+          padding: '6px 14px 6px 7px',
+          boxShadow: '0 6px 18px rgba(36, 161, 222, 0.45), 0 2px 8px rgba(0, 0, 0, 0.5)',
           cursor: 'pointer',
           transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           opacity: isOpen ? 1 : 0,
-          transform: isOpen ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.9)',
+          transform: isOpen
+            ? 'scale(1)'
+            : isNearBottom
+              ? 'translateY(12px) scale(0.85)'
+              : 'translateY(-12px) scale(0.85)',
           pointerEvents: isOpen ? 'auto' : 'none',
+          whiteSpace: 'nowrap',
+          zIndex: 10000,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+          e.currentTarget.style.transform = 'scale(1.03)';
           e.currentTarget.style.filter = 'brightness(1.08)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = isOpen ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.9)';
+          e.currentTarget.style.transform = isOpen ? 'scale(1)' : 'scale(0.85)';
           e.currentTarget.style.filter = 'none';
         }}
       >
@@ -201,48 +256,58 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
             fontWeight: 700,
             letterSpacing: '0.01em',
             lineHeight: 1,
-            whiteSpace: 'nowrap',
+            userSelect: 'none',
           }}
         >
           @Fastkenosupportteam
         </span>
       </div>
 
-      {/* Customer Support Trigger Button: Compact and themed in Fast Keno Emerald Green */}
+      {/* Draggable Customer Support Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-label={isOpen ? 'Close Customer Support' : 'Open Customer Support'}
-        title={isOpen ? 'Close Support' : 'Customer Support'}
+        onPointerDown={handlePointerDown}
+        aria-label={isOpen ? 'Close Customer Support' : 'Hold to drag, click for Support'}
+        title="Hold & drag to move • Click for Support"
         style={{
-          width: 42,
-          height: 42,
+          width: BUTTON_SIZE,
+          height: BUTTON_SIZE,
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-          border: '1px solid rgba(113, 206, 150, 0.45)',
-          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0, 0, 0, 0.45)',
+          background: isDragging
+            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+            : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+          border: '1.5px solid rgba(113, 206, 150, 0.5)',
+          boxShadow: isDragging
+            ? '0 8px 24px rgba(16, 185, 129, 0.6), 0 3px 10px rgba(0, 0, 0, 0.6)'
+            : '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
+          cursor: isDragging ? 'grabbing' : 'grab',
           padding: 0,
           color: '#FFFFFF',
-          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: isDragging ? 'none' : 'transform 0.18s ease, box-shadow 0.18s ease',
+          transform: isDragging ? 'scale(1.12)' : 'scale(1)',
           outline: 'none',
+          touchAction: 'none',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.08)';
-          e.currentTarget.style.background = 'linear-gradient(135deg, #34D399 0%, #10B981 100%)';
+          if (!isDragging) {
+            e.currentTarget.style.transform = 'scale(1.08)';
+            e.currentTarget.style.background = 'linear-gradient(135deg, #34D399 0%, #10B981 100%)';
+          }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+          if (!isDragging) {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+          }
         }}
       >
         {isOpen ? (
-          <X size={20} strokeWidth={2.4} style={{ transition: 'transform 0.15s ease' }} />
+          <X size={20} strokeWidth={2.4} style={{ pointerEvents: 'none' }} />
         ) : (
-          <Headphones size={20} strokeWidth={2.2} style={{ transition: 'transform 0.15s ease' }} />
+          <Headphones size={20} strokeWidth={2.2} style={{ pointerEvents: 'none' }} />
         )}
       </button>
     </div>
