@@ -485,7 +485,7 @@ export const App: React.FC = () => {
           {/* ═════════════════════════════════════════════════════════ */}
           {/* RIGHT COLUMN: Live Chat & Active Players                */}
           {/* ═════════════════════════════════════════════════════════ */}
-          {chatOpen && (
+          {isAuthenticated && chatOpen && (
             <aside
               style={{
                 width: 300,
@@ -501,7 +501,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Mobile Chat Slide-over Drawer */}
-      {mobileChatOpen && (
+      {isAuthenticated && mobileChatOpen && (
         <div
           role="dialog"
           aria-modal="true"
