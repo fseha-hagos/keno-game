@@ -226,19 +226,19 @@ export class ChatService implements OnModuleInit {
     @InjectRepository(ChatMessage)
     private readonly chatRepo: Repository<ChatMessage>,
     private readonly eventsGateway: EventsGateway,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     try {
       const count = await this.chatRepo.count();
       if (count < 20) {
         this.logger.log('Seeding initial authentic community chat messages...');
-        const seedBaseTimestamp = Date.now() - 1000 * 60 * 35; // 35 mins ago
+        const baseTime = Date.now() - 1000 * 60 * 35; // 35 mins ago
         for (let i = 0; i < INITIAL_STARTER_MESSAGES.length; i++) {
           const item = INITIAL_STARTER_MESSAGES[i]!;
           const msg = this.chatRepo.create({
             ...item,
-            createdAt: new Date(seedBaseTimestamp + i * 45000),
+            createdAt: new Date(baseTime + i * 45000),
           });
           await this.chatRepo.save(msg);
         }

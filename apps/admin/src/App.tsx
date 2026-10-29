@@ -83,10 +83,25 @@ function StatusBadge({ status }: { status: string }) {
 /* ─────────────────────── ADMIN LOGIN ─────────────────────── */
 
 function AdminLogin({ onLogin }: { onLogin: (token: string, user: any) => void }) {
+  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // OTP state
+  const [otpSessionId, setOtpSessionId] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpMessage, setOtpMessage] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(45);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  useEffect(() => {
+    if (resendCountdown > 0 && step === 'otp') {
+      const timer = setTimeout(() => setResendCountdown((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown, step]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +112,19 @@ function AdminLogin({ onLogin }: { onLogin: (token: string, user: any) => void }
         phone: phone.trim(),
         password,
       });
+
+      // Strict Two-Step Verification for all administrators via Telegram
+      if (res.data?.requireOtp) {
+        setOtpSessionId(res.data.otpSessionId);
+        setOtpMessage(res.data.message || 'OTP sent to Telegram.');
+        setStep('otp');
+        setOtp('');
+        setError('');
+        setResendCountdown(45);
+        setLoading(false);
+        return;
+      }
+
       const { tokens, user } = res.data;
 
       // Verify user has any authorized admin role
@@ -128,6 +156,49 @@ function AdminLogin({ onLogin }: { onLogin: (token: string, user: any) => void }
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) {
+      setError('Please enter the 6-digit OTP code');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/v1/auth/admin/verify-otp`, {
+        otpSessionId,
+        otp: otp.trim(),
+      });
+      const { tokens, user } = res.data;
+      localStorage.setItem('admin_token', tokens.accessToken);
+      localStorage.setItem('admin_refresh_token', tokens.refreshToken);
+      localStorage.setItem('admin_user', JSON.stringify(user));
+      onLogin(tokens.accessToken, user);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'OTP verification failed';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setError('');
+    try {
+      const res = await axios.post(`${API_URL}/api/v1/auth/admin/resend-otp`, {
+        otpSessionId,
+      });
+      setOtpMessage(res.data?.message || 'New OTP sent to Telegram.');
+      setResendCountdown(45);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to resend OTP.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const setDemoAccount = (u: string, p: string) => {
     setPhone(u);
     setPassword(p);
@@ -138,145 +209,221 @@ function AdminLogin({ onLogin }: { onLogin: (token: string, user: any) => void }
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       minHeight: '100vh', backgroundColor: '#0A0F1D', padding: '20px',
     }}>
-      <form onSubmit={handleSubmit} style={{
-        backgroundColor: '#0F172A', padding: '44px 38px', borderRadius: '20px',
-        border: '1px solid #1E293B', width: '440px', maxWidth: '95vw',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '64px', height: '64px', borderRadius: '16px',
-            background: 'linear-gradient(135deg, #10B981, #059669)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px',
-          }}>
-            <ShieldCheck size={32} color="#fff" />
+      {step === 'credentials' ? (
+        <form onSubmit={handleSubmit} style={{
+          backgroundColor: '#0F172A', padding: '44px 38px', borderRadius: '20px',
+          border: '1px solid #1E293B', width: '440px', maxWidth: '95vw',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+        }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '16px',
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <ShieldCheck size={32} color="#fff" />
+            </div>
+            <h1 style={{ color: '#10B981', fontSize: '22px', fontWeight: 900, letterSpacing: '1px' }}>
+              KENO ADMIN CONSOLE
+            </h1>
+            <p style={{ color: '#64748B', fontSize: '13px', fontWeight: 600, marginTop: '4px' }}>
+              Multi-Tier Role Authorization
+            </p>
           </div>
-          <h1 style={{ color: '#10B981', fontSize: '22px', fontWeight: 900, letterSpacing: '1px' }}>
-            KENO ADMIN CONSOLE
-          </h1>
-          <p style={{ color: '#64748B', fontSize: '13px', fontWeight: 600, marginTop: '4px' }}>
-            Multi-Tier Role Authorization
-          </p>
-        </div>
 
-        {/* Error */}
-        {error && (
-          <div style={{
-            backgroundColor: 'rgba(239,68,68,0.12)', border: '1px solid #EF4444',
-            borderRadius: '8px', padding: '10px 14px', marginBottom: '20px',
-            color: '#FCA5A5', fontSize: '13px', fontWeight: 600,
-          }}>
-            {error}
+          {/* Error */}
+          {error && (
+            <div style={{
+              backgroundColor: 'rgba(239,68,68,0.12)', border: '1px solid #EF4444',
+              borderRadius: '8px', padding: '10px 14px', marginBottom: '20px',
+              color: '#FCA5A5', fontSize: '13px', fontWeight: 600,
+            }}>
+              {error}
+            </div>
+          )}
+
+          {/* Phone/Username */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
+              PHONE NUMBER OR USERNAME
+            </label>
+            <div style={{ position: 'relative' }}>
+              <User size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Enter phone number or username"
+                required
+                style={{
+                  width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155',
+                  borderRadius: '10px', padding: '14px 14px 14px 40px', color: '#F8FAFC',
+                  fontSize: '14px', fontWeight: 600, outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#10B981')}
+                onBlur={(e) => (e.target.style.borderColor = '#334155')}
+              />
+            </div>
           </div>
-        )}
 
-        {/* Phone/Username */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
-            PHONE NUMBER OR USERNAME
-          </label>
-          <div style={{ position: 'relative' }}>
-            <User size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+          {/* Password */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
+              PASSWORD
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                required
+                style={{
+                  width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155',
+                  borderRadius: '10px', padding: '14px 14px 14px 40px', color: '#F8FAFC',
+                  fontSize: '14px', fontWeight: 600, outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#10B981')}
+                onBlur={(e) => (e.target.style.borderColor = '#334155')}
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%', padding: '14px',
+              background: loading ? '#334155' : 'linear-gradient(135deg, #10B981, #059669)',
+              border: 'none', borderRadius: '10px',
+              color: '#fff', fontSize: '14px', fontWeight: 900,
+              letterSpacing: '0.5px', cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            {loading ? 'AUTHENTICATING...' : 'SIGN IN TO CONSOLE'}
+          </button>
+        </form>
+      ) : (
+        /* OTP Step: Strict Telegram 2-Factor Authentication */
+        <form onSubmit={handleVerifyOtp} style={{
+          backgroundColor: '#0F172A', padding: '44px 38px', borderRadius: '20px',
+          border: '1px solid rgba(16, 185, 129, 0.4)', width: '440px', maxWidth: '95vw',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 35px rgba(16, 185, 129, 0.15)',
+        }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '16px',
+              background: 'linear-gradient(135deg, #24A1DE 0%, #10B981 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+              boxShadow: '0 8px 20px rgba(36, 161, 222, 0.35)',
+            }}>
+              <KeyRound size={32} color="#fff" />
+            </div>
+            <h1 style={{ color: '#10B981', fontSize: '20px', fontWeight: 900, letterSpacing: '0.5px' }}>
+              TELEGRAM 2-FACTOR AUTH
+            </h1>
+            <p style={{ color: '#94A3B8', fontSize: '12.5px', marginTop: '6px', lineHeight: 1.4 }}>
+              {otpMessage || `Enter the 6-digit security OTP sent to Telegram for admin ${phone}`}
+            </p>
+          </div>
+
+          {/* Error Banner */}
+          {error && (
+            <div style={{
+              backgroundColor: 'rgba(239,68,68,0.12)', border: '1px solid #EF4444',
+              borderRadius: '8px', padding: '10px 14px', marginBottom: '20px',
+              color: '#FCA5A5', fontSize: '13px', fontWeight: 600, textAlign: 'center',
+            }}>
+              {error}
+            </div>
+          )}
+
+          {/* 6-Digit OTP Input */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.8px', display: 'block', marginBottom: '8px', textAlign: 'center' }}>
+              ENTER 6-DIGIT SECURITY CODE
+            </label>
             <input
               type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 0900000000, admin, owner, or operator"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="••••••"
+              autoFocus
               required
               style={{
-                width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155',
-                borderRadius: '10px', padding: '14px 14px 14px 40px', color: '#F8FAFC',
-                fontSize: '14px', fontWeight: 600, outline: 'none',
-                transition: 'border-color 0.2s',
+                width: '100%', backgroundColor: '#1E293B', border: '1px solid rgba(16, 185, 129, 0.5)',
+                borderRadius: '12px', padding: '16px', color: '#34D399',
+                fontSize: '28px', fontWeight: 900, textAlign: 'center', letterSpacing: '12px',
+                outline: 'none', boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.4)',
+                fontFamily: 'monospace', boxSizing: 'border-box',
               }}
-              onFocus={(e) => (e.target.style.borderColor = '#10B981')}
-              onBlur={(e) => (e.target.style.borderColor = '#334155')}
+              onFocus={(e) => (e.target.style.borderColor = '#34D399')}
+              onBlur={(e) => (e.target.style.borderColor = 'rgba(16, 185, 129, 0.5)')}
             />
           </div>
-        </div>
 
-        {/* Password */}
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
-            PASSWORD
-          </label>
-          <div style={{ position: 'relative' }}>
-            <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              required
-              style={{
-                width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155',
-                borderRadius: '10px', padding: '14px 14px 14px 40px', color: '#F8FAFC',
-                fontSize: '14px', fontWeight: 600, outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#10B981')}
-              onBlur={(e) => (e.target.style.borderColor = '#334155')}
-            />
-          </div>
-        </div>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading || otp.length < 6}
+            style={{
+              width: '100%', padding: '14px',
+              background: loading || otp.length < 6 ? '#334155' : 'linear-gradient(135deg, #10B981, #059669)',
+              border: 'none', borderRadius: '10px',
+              color: '#fff', fontSize: '14px', fontWeight: 900,
+              letterSpacing: '0.5px', cursor: loading || otp.length < 6 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: otp.length === 6 ? '0 4px 18px rgba(16, 185, 129, 0.4)' : 'none',
+            }}
+          >
+            {loading ? 'VERIFYING SECURITY CODE...' : 'VERIFY & ENTER CONSOLE'}
+          </button>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: '100%', padding: '14px',
-            background: loading ? '#334155' : 'linear-gradient(135deg, #10B981, #059669)',
-            border: 'none', borderRadius: '10px',
-            color: '#fff', fontSize: '14px', fontWeight: 900,
-            letterSpacing: '0.5px', cursor: loading ? 'not-allowed' : 'pointer',
-            transition: 'opacity 0.2s',
-          }}
-        >
-          {loading ? 'AUTHENTICATING...' : 'SIGN IN TO CONSOLE'}
-        </button>
-
-        {/* Quick Role Fill shortcuts */}
-        <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px solid #1E293B' }}>
-          <p style={{ color: '#64748B', fontSize: '11px', fontWeight: 700, textAlign: 'center', marginBottom: '10px' }}>
-            QUICK LOGIN DEMO ACCOUNTS:
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          {/* Resend & Back controls */}
+          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
             <button
               type="button"
-              onClick={() => setDemoAccount('admin', 'admin123')}
+              disabled={resendCountdown > 0 || resendLoading}
+              onClick={handleResendOtp}
               style={{
-                backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: '6px',
-                padding: '6px 4px', color: '#FBBF24', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                background: 'transparent', border: 'none',
+                color: resendCountdown > 0 ? '#64748B' : '#38BDF8',
+                fontSize: '12px', fontWeight: 700, cursor: resendCountdown > 0 ? 'default' : 'pointer',
+                textDecoration: resendCountdown > 0 ? 'none' : 'underline',
               }}
             >
-              👑 Creator
+              {resendLoading ? 'Sending new code...' : resendCountdown > 0 ? `Resend code in ${resendCountdown}s` : 'Resend code via Telegram'}
             </button>
+
             <button
               type="button"
-              onClick={() => setDemoAccount('owner', 'owner123')}
+              onClick={() => {
+                setStep('credentials');
+                setError('');
+              }}
               style={{
-                backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: '6px',
-                padding: '6px 4px', color: '#60A5FA', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                background: 'transparent', border: 'none',
+                color: '#94A3B8', fontSize: '12px', fontWeight: 600,
+                cursor: 'pointer', padding: '4px',
               }}
             >
-              🏢 Owner
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoAccount('operator', 'operator123')}
-              style={{
-                backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: '6px',
-                padding: '6px 4px', color: '#34D399', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
-              }}
-            >
-              ⚡ Operator
+              ← Back to login
             </button>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }
@@ -400,7 +547,7 @@ export default function App() {
 
     axios.get(`${API_URL}/api/v1/keno/rounds/recent`)
       .then((res) => setRounds(res.data))
-      .catch(() => {});
+      .catch(() => { });
 
     // Payment requests
     axios.get(`${API_URL}/api/v1/wallet/admin/payment-requests`, { headers: authHeaders })
@@ -421,17 +568,17 @@ export default function App() {
     // MacroDroid evidence
     axios.get(`${API_URL}/api/v1/payments/admin/evidence?limit=100`, { headers: authHeaders })
       .then((res) => setEvidenceList(res.data))
-      .catch(() => {});
+      .catch(() => { });
 
     // Audit logs
     axios.get(`${API_URL}/api/v1/audit/recent?limit=50`, { headers: authHeaders })
       .then((res) => setAuditLogs(res.data))
-      .catch(() => {});
+      .catch(() => { });
 
     // System status
     axios.get(`${API_URL}/api/v1/admin/system/status`, { headers: authHeaders })
       .then((res) => setSystemStatus(res.data))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   useEffect(() => {
@@ -1137,11 +1284,10 @@ export default function App() {
                           key={r.id}
                           style={{
                             backgroundColor: '#0F172A', padding: '20px', borderRadius: '14px',
-                            border: `1.5px solid ${
-                              isWithdrawal
+                            border: `1.5px solid ${isWithdrawal
                                 ? r.status === 'PENDING' ? '#B91C1C' : '#1E293B'
                                 : hasMatch && r.status === 'PENDING' ? '#10B981' : r.status === 'PENDING' ? '#713F12' : '#1E293B'
-                            }`,
+                              }`,
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
