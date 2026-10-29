@@ -231,7 +231,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {/* Telegram Link */}
             <a
-              href="https://t.me/fastkenogames"
+              href="https://t.me/Fastkenosupportteam"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -250,7 +250,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <img src="/telegram.png" alt="Telegram" style={{ width: 16, height: 16, objectFit: 'contain' }} />
               <div>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#38BDF8' }}>Telegram</div>
-                <div style={{ fontSize: 10, color: '#94A3B8' }}>@fastkenogames</div>
+                <div style={{ fontSize: 10, color: '#94A3B8' }}>@Fastkenosupportteam</div>
               </div>
             </a>
 

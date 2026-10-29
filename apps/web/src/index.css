@@ -476,6 +476,7 @@ body {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -498,4 +499,12 @@ body {
   -webkit-text-fill-color: #FFFFFF;
   -webkit-box-shadow: 0 0 0px 1000px #1E293B inset;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+
+/* Responsive mobile header utilities: omit ETB on mobile to leave space for chat */
+@media (max-width: 640px) {
+  .header-mobile-hide-currency {
+    display: none !important;
+  }
 }

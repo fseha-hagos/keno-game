@@ -7,10 +7,14 @@ interface FloatingSupportButtonProps {
 }
 
 export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
-  telegramUrl = 'https://t.me/fastkenogames',
+  telegramUrl = 'https://t.me/Fastkenosupportteam',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  // Initially hidden at the top so it doesn't cover or stack on the game grid/controls
+  const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
+  const touchStartYRef = useRef<number>(0);
 
   // Close when clicking outside
   useEffect(() => {
@@ -28,6 +32,81 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
     };
   }, [isOpen]);
 
+  // Slide down to appear / slide up to disappear listener
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = (e.target === document || e.target === window
+        ? document.documentElement
+        : e.target) as HTMLElement;
+
+      if (!target || typeof target.scrollTop !== 'number') return;
+      const currentScrollTop = target.scrollTop;
+
+      // When near the top, always hide so it never covers the betting grid or action controls
+      if (currentScrollTop < 50) {
+        setIsVisible(false);
+        setIsOpen(false);
+        lastScrollTopRef.current = currentScrollTop;
+        return;
+      }
+
+      const diff = currentScrollTop - lastScrollTopRef.current;
+      if (diff > 8) {
+        // Sliding / scrolling down -> Appear
+        setIsVisible(true);
+      } else if (diff < -8) {
+        // Sliding / scrolling up -> Disappear
+        setIsVisible(false);
+        setIsOpen(false);
+      }
+
+      lastScrollTopRef.current = currentScrollTop;
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY > 8) {
+        // Scrolling down -> Appear
+        setIsVisible(true);
+      } else if (e.deltaY < -8) {
+        // Scrolling up -> Disappear
+        setIsVisible(false);
+        setIsOpen(false);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartYRef.current = e.touches[0]?.clientY || 0;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const currentY = e.touches[0]?.clientY || 0;
+      const delta = touchStartYRef.current - currentY;
+
+      // Finger moving up = page sliding down -> Appear
+      if (delta > 14) {
+        setIsVisible(true);
+      }
+      // Finger moving down = page sliding up towards top -> Disappear
+      else if (delta < -14) {
+        setIsVisible(false);
+        setIsOpen(false);
+      }
+    };
+
+    // Capture true ensures we catch scroll events on <main>, window, or any nested scroll view
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, { capture: true });
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
+
   const handleTelegramClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     window.open(telegramUrl, '_blank', 'noopener,noreferrer');
@@ -39,16 +118,20 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
       ref={containerRef}
       style={{
         position: 'fixed',
-        bottom: 22,
-        right: 20,
+        bottom: 18,
+        right: 16,
         zIndex: 999,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-end',
         userSelect: 'none',
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.85)',
+        pointerEvents: isVisible ? 'auto' : 'none',
+        transition: 'opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-      {/* Floating Telegram Action Pill (Appears above the button, matching Image 2) */}
+      {/* Floating Telegram Action Pill (Appears above the support trigger button) */}
       <div
         onClick={handleTelegramClick}
         role="button"
@@ -58,20 +141,20 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
             handleTelegramClick(e as any);
           }
         }}
-        title="Open Telegram Support"
+        title="Open Telegram Support @Fastkenosupportteam"
         style={{
-          marginBottom: 12,
+          marginBottom: 10,
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          background: '#24A1DE',
+          gap: 8,
+          background: 'linear-gradient(135deg, #24A1DE 0%, #1A8CC2 100%)',
           borderRadius: 9999,
-          padding: '7px 18px 7px 8px',
-          boxShadow: '0 6px 20px rgba(36, 161, 222, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35)',
+          padding: '5px 14px 5px 6px',
+          boxShadow: '0 4px 14px rgba(36, 161, 222, 0.4), 0 2px 6px rgba(0, 0, 0, 0.4)',
           cursor: 'pointer',
           transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           opacity: isOpen ? 1 : 0,
-          transform: isOpen ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.9)',
+          transform: isOpen ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.9)',
           pointerEvents: isOpen ? 'auto' : 'none',
         }}
         onMouseEnter={(e) => {
@@ -79,28 +162,28 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
           e.currentTarget.style.filter = 'brightness(1.08)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = isOpen ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.9)';
+          e.currentTarget.style.transform = isOpen ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.9)';
           e.currentTarget.style.filter = 'none';
         }}
       >
         {/* White circle with blue Telegram paper airplane icon */}
         <div
           style={{
-            width: 32,
-            height: 32,
+            width: 26,
+            height: 26,
             borderRadius: '50%',
             background: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
           }}
         >
           <svg
             viewBox="0 0 24 24"
-            width="18"
-            height="18"
+            width="15"
+            height="15"
             style={{ display: 'block', transform: 'translate(-1px, 0.5px)' }}
           >
             <path
@@ -110,34 +193,34 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
           </svg>
         </div>
 
-        {/* Bold white 'Telegram' text matching Image 2 */}
         <span
           style={{
             color: '#FFFFFF',
             fontFamily: KENO_FONTS.ui,
-            fontSize: 15.5,
-            fontWeight: 800,
+            fontSize: 12.5,
+            fontWeight: 700,
             letterSpacing: '0.01em',
             lineHeight: 1,
+            whiteSpace: 'nowrap',
           }}
         >
-          Telegram
+          @Fastkenosupportteam
         </span>
       </div>
 
-      {/* Red Circular Floating Trigger Button (Matching Image 1 & Image 2) */}
+      {/* Customer Support Trigger Button: Compact and themed in Fast Keno Emerald Green */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? 'Close Customer Support' : 'Open Customer Support'}
-        title={isOpen ? 'Close' : 'Customer Support'}
+        title={isOpen ? 'Close Support' : 'Customer Support'}
         style={{
-          width: 54,
-          height: 54,
+          width: 42,
+          height: 42,
           borderRadius: '50%',
-          background: '#D31E28',
-          border: 'none',
-          boxShadow: '0 4px 16px rgba(211, 30, 40, 0.48), 0 2px 6px rgba(0, 0, 0, 0.35)',
+          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+          border: '1px solid rgba(113, 206, 150, 0.45)',
+          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -148,18 +231,18 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
           outline: 'none',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.06)';
-          e.currentTarget.style.background = '#E0232E';
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.background = 'linear-gradient(135deg, #34D399 0%, #10B981 100%)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.background = '#D31E28';
+          e.currentTarget.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
         }}
       >
         {isOpen ? (
-          <X size={26} strokeWidth={2.6} style={{ transition: 'transform 0.15s ease' }} />
+          <X size={20} strokeWidth={2.4} style={{ transition: 'transform 0.15s ease' }} />
         ) : (
-          <Headphones size={27} strokeWidth={2.4} style={{ transition: 'transform 0.15s ease' }} />
+          <Headphones size={20} strokeWidth={2.2} style={{ transition: 'transform 0.15s ease' }} />
         )}
       </button>
     </div>
