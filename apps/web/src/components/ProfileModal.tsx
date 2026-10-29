@@ -43,6 +43,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           borderRadius: 20,
           width: '100%',
           maxWidth: 420,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           padding: '24px 22px',
           boxShadow: '0 25px 50px rgba(0, 0, 0, 0.8)',
           boxSizing: 'border-box',
@@ -112,6 +115,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
               <CheckCircle2 size={14} /> Verified
             </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: '#94A3B8' }}>Self-Exclusion:</span>
+            {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() ? (
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: '2px 8px', borderRadius: 6 }}>
+                Active until {new Date(user.selfExcludedUntil).toLocaleDateString()}
+              </span>
+            ) : (
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>
+                None (Active)
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, color: '#94A3B8' }}>Account Type:</span>
@@ -210,6 +225,42 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </p>
         </div>
 
+{user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#EF4444', marginBottom: 4 }}>
+              ⏸️ Account Self-Excluded
+            </div>
+            <p style={{ margin: 0, fontSize: 11.5, color: '#CBD5E1', lineHeight: 1.45 }}>
+              Your account is self-excluded until <strong>{new Date(user.selfExcludedUntil).toLocaleDateString()}</strong>. If you wish to reactivate or stop your exclusion early, please contact our support team below.
+            </p>
+          </div>
+        )}
+                {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#EF4444', marginBottom: 4 }}>
+              ⏸️ Account Self-Excluded
+            </div>
+            <p style={{ margin: 0, fontSize: 11.5, color: '#CBD5E1', lineHeight: 1.45 }}>
+              Your account is self-excluded until <strong>{new Date(user.selfExcludedUntil).toLocaleDateString()}</strong>. If you wish to reactivate or stop your exclusion early, please contact our support team below.
+            </p>
+          </div>
+        )}
         {/* Customer Support Card */}
         <div
           style={{

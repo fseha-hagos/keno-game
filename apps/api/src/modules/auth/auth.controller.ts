@@ -110,6 +110,8 @@ export class AuthController {
       kycStatus: user.kycStatus,
       kycTier: user.kycTier,
       roles: user.roles,
+      selfExcludedUntil: user.selfExcludedUntil,
+      coolingOffUntil: user.coolingOffUntil,
       createdAt: user.createdAt,
     };
   }

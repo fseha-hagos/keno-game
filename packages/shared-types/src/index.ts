@@ -126,6 +126,8 @@ export interface UserDto {
   kycStatus: KycStatus;
   kycTier: KycTier;
   roles: UserRole[];
+  selfExcludedUntil?: string | null;
+  coolingOffUntil?: string | null;
   createdAt: string;
 }
 

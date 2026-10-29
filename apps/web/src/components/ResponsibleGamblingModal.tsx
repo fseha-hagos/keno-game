@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuthStore } from '../store/useAuthStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { toastSuccess, toastError } from '../services/toast';
@@ -63,10 +64,8 @@ export const ResponsibleGamblingModal: React.FC<ResponsibleGamblingModalProps> =
       return res.data;
     },
     onSuccess: () => {
-      toastSuccess(
-        'Self-Exclusion Active',
-        'Your account has been temporarily self-excluded. Bets are paused.',
-      );
+      toastSuccess('Self-Exclusion Active', 'Your account has been temporarily self-excluded. Bets are paused.');
+      useAuthStore.getState().checkAuth?.();
       onClose();
     },
     onError: (err: any) => {
@@ -83,7 +82,7 @@ export const ResponsibleGamblingModal: React.FC<ResponsibleGamblingModalProps> =
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
         backdropFilter: 'blur(5px)',
-        zIndex: 1000,
+        zIndex: 1100,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -231,14 +230,12 @@ export const ResponsibleGamblingModal: React.FC<ResponsibleGamblingModalProps> =
             Take a Break (Self-Exclusion)
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {[1, 7, 30].map((days) => (
+            {[1, 7].map((days) => (
               <button
                 key={days}
                 type="button"
                 onClick={() => {
-                  if (confirm(`Are you sure you want to self-exclude for ${days} days?`)) {
-                    selfExcludeMutation.mutate(days);
-                  }
+                  selfExcludeMutation.mutate(days);
                 }}
                 style={{
                   flex: 1,

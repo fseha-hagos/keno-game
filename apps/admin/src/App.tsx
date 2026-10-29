@@ -670,6 +670,32 @@ export default function App() {
     }
   };
 
+  // Toggle Player Self-Exclusion (Stop or Apply)
+  const handleToggleSelfExclusion = async (userId: string, isExcluded: boolean) => {
+    const action = isExcluded ? 'STOP' : 'EXCLUDE';
+    const confirmMsg = isExcluded
+      ? 'STOP self-exclusion for this player? Their account will become ACTIVE immediately.'
+      : 'EXCLUDE this player for 7 days? They will be unable to place bets.';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await axios.post(
+        `${API_URL}/api/v1/admin/players/${userId}/toggle-exclusion`,
+        { action, durationDays: 7, reason: isExcluded ? 'Self-exclusion lifted by admin' : 'Exclusion initiated by admin' },
+        { headers: authHeaders }
+      );
+      // Refresh current player list
+      if (activeTab === 'players') {
+        const res = await axios.get(`${API_URL}/api/v1/admin/players`, { headers: authHeaders });
+        setPlayerList(res.data);
+      }
+      alert(isExcluded ? 'Self-exclusion stopped! Account is now ACTIVE.' : 'Self-exclusion applied for 7 days.');
+    } catch (err: any) {
+      alert(`Failed to update exclusion: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
   // Toggle Player Freeze / Unfreeze
   const handleToggleFreeze = async (userId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
@@ -1730,6 +1756,8 @@ export default function App() {
                   <option value="ACTIVE">Active Only</option>
                   <option value="FROZEN">Frozen Only</option>
                   <option value="SUSPENDED">Suspended Only</option>
+                  <option value="SELF_EXCLUDED">Self-Excluded Only</option>
+                  <option value="SELF_EXCLUDED">Self-Excluded Only</option>
                 </select>
               </div>
             </div>
@@ -1743,6 +1771,8 @@ export default function App() {
                     <th style={{ padding: '14px 16px' }}>WALLET BALANCE</th>
                     <th style={{ padding: '14px 16px' }}>LOCKED FUNDS</th>
                     <th style={{ padding: '14px 16px' }}>ACCOUNT STATUS</th>
+                    <th style={{ padding: '14px 16px' }}>SELF-EXCLUSION</th>
+                    <th style={{ padding: '14px 16px' }}>SELF-EXCLUSION</th>
                     <th style={{ padding: '14px 16px' }}>JOINED</th>
                     <th style={{ padding: '14px 16px', textAlign: 'right' }}>ACTIONS</th>
                   </tr>
@@ -1759,8 +1789,43 @@ export default function App() {
                         <td style={{ padding: '14px 16px' }}>
                           <StatusBadge status={p.status} />
                         </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {p.selfExcludedUntil && new Date(p.selfExcludedUntil) > new Date() ? (
+                            <span style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#F87171',
+                              padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800,
+                            }}>
+                              Until {new Date(p.selfExcludedUntil).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#64748B', fontSize: '12px' }}>None</span>
+                          )}
+                        </td>
                         <td style={{ padding: '14px 16px', color: '#64748B', fontSize: '12px' }}>{formatDate(p.createdAt)}</td>
-                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <td style={{ padding: '14px 16px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                          {p.selfExcludedUntil && new Date(p.selfExcludedUntil) > new Date() ? (
+                            <button
+                              onClick={() => handleToggleSelfExclusion(p.id, true)}
+                              style={{
+                                backgroundColor: '#1E3A8A', color: '#93C5FD',
+                                border: '1px solid #3B82F6', padding: '6px 12px', borderRadius: '6px',
+                                fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                              }}
+                            >
+                              ▶️ STOP EXCLUSION
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleSelfExclusion(p.id, false)}
+                              style={{
+                                backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#F87171',
+                                border: '1px solid rgba(239, 68, 68, 0.4)', padding: '6px 10px', borderRadius: '6px',
+                                fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                              }}
+                            >
+                              ⏸️ EXCLUDE (7D)
+                            </button>
+                          )}
                           <button
                             onClick={() => handleToggleFreeze(p.id, p.status)}
                             style={{
@@ -1770,7 +1835,7 @@ export default function App() {
                               fontSize: '11px', fontWeight: 800, cursor: 'pointer',
                             }}
                           >
-                            {isFrozen ? '✅ UNFREEZE USER' : '❄️ FREEZE ACCOUNT'}
+                            {isFrozen ? '✅ UNFREEZE' : '❄️ FREEZE'}
                           </button>
                         </td>
                       </tr>
