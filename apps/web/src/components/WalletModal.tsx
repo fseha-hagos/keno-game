@@ -390,7 +390,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backgroundColor: 'rgba(0, 0, 0, 0.72)',
         backdropFilter: 'blur(5px)',
         zIndex: 1000,
         display: 'flex',
@@ -401,8 +401,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     >
       <div
         style={{
-          background: '#0F172A',
-          border: '1px solid #1E293B',
+          background: '#121A26',
+          border: '1px solid #2A3B52',
           borderRadius: 20,
           width: '100%',
           maxWidth: 460,
@@ -453,7 +453,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         <div
           style={{
             display: 'flex',
-            background: '#0B1320',
+            background: '#152132',
             margin: '12px 16px',
             borderRadius: 10,
             padding: 4,
@@ -473,8 +473,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 padding: '8px 0',
                 border: 'none',
                 borderRadius: 8,
-                background: activeTab === tab ? '#1E293B' : 'transparent',
-                color: activeTab === tab ? '#F8FAFC' : '#64748B',
+                background: activeTab === tab ? '#223247' : 'transparent',
+                color: activeTab === tab ? '#FFFFFF' : '#94A3B8',
                 fontSize: 12,
                 fontWeight: 800,
                 textTransform: 'capitalize',
@@ -585,7 +585,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 {/* Account Details Box */}
                 <div
                   style={{
-                    background: '#0B1320',
+                    background: '#152132',
                     border: '1px solid #1E293B',
                     borderRadius: 12,
                     padding: '12px 14px',
@@ -609,8 +609,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         type="button"
                         onClick={() => copyToClipboard(currentMethod.accountNumber)}
                         style={{
-                          background: '#1E293B',
-                          border: '1px solid #334155',
+                          background: '#28374E',
+                          border: '1.5px solid #2D425E',
                           borderRadius: 6,
                           padding: '4px 8px',
                           color: '#F8FAFC',
@@ -708,8 +708,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         width: '100%',
                         padding: '11px 0',
                         borderRadius: 10,
-                        background: '#1E293B',
-                        border: '1px solid #334155',
+                        background: '#28374E',
+                        border: '1.5px solid #2D425E',
                         color: '#F8FAFC',
                         fontSize: 13,
                         fontWeight: 700,
@@ -724,7 +724,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
                 {/* Reference Code Input or Awaiting Approval Status */}
                 {pendingDeposit?.proofSubmitted ? (
-                  <div style={{ background: '#0B1320', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+                  <div style={{ background: '#152132', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
                     <div style={{ display: 'inline-flex', padding: 10, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', marginBottom: 10 }}>
                       <Check size={24} />
                     </div>
@@ -746,8 +746,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         width: '100%',
                         padding: '10px 0',
                         borderRadius: 8,
-                        background: '#1E293B',
-                        border: '1px solid #334155',
+                        background: '#28374E',
+                        border: '1.5px solid #2D425E',
                         color: '#94A3B8',
                         fontSize: 12,
                         fontWeight: 700,
@@ -779,7 +779,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           width: '100%',
                           padding: '10px 12px',
                           borderRadius: 10,
-                          background: '#0B1320',
+                          background: '#152132',
                           border: extractRefPreview(txRef) ? '1px solid #10B981' : '1px solid #334155',
                           color: '#F8FAFC',
                           fontSize: 13,
@@ -801,8 +801,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           flex: 1,
                           padding: '12px 0',
                           borderRadius: 10,
-                          background: '#1E293B',
-                          border: '1px solid #334155',
+                          background: '#28374E',
+                          border: '1.5px solid #2D425E',
                           color: '#94A3B8',
                           fontSize: 13,
                           fontWeight: 700,
@@ -853,7 +853,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         }}
                         style={{
                           width: '100%',
-                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#0B1320',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#162030',
                           border: isSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
                           borderRadius: 14,
                           padding: '10px 14px',
@@ -900,7 +900,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                               width: 42,
                               height: 42,
                               borderRadius: '50%',
-                              backgroundColor: '#1E293B',
+                              backgroundColor: '#28374E',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -971,8 +971,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       width: '100%',
                       padding: '12px 14px',
                       borderRadius: 10,
-                      background: '#0B1320',
-                      border: '1px solid #334155',
+                      background: '#152132',
+                      border: '1.5px solid #2D425E',
                       color: '#F8FAFC',
                       fontSize: 16,
                       fontWeight: 800,
@@ -993,7 +993,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         flex: 1,
                         padding: '6px 0',
                         borderRadius: 8,
-                        background: depositAmount === amt ? '#1E293B' : '#0B1320',
+                        background: depositAmount === amt ? '#28374E' : '#162030',
                         border: depositAmount === amt ? '1px solid #10B981' : '1px solid #1E293B',
                         color: depositAmount === amt ? '#10B981' : '#94A3B8',
                         fontSize: 11,
@@ -1096,7 +1096,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           gap: 8,
                           padding: '8px 10px',
                           borderRadius: 10,
-                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#0B1320',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#162030',
                           border: isSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
@@ -1169,8 +1169,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    background: '#0B1320',
-                    border: '1px solid #334155',
+                    background: '#152132',
+                    border: '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 16,
                     fontWeight: 800,
@@ -1200,7 +1200,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         flex: 1,
                         padding: '6px 0',
                         borderRadius: 8,
-                        background: isSelected ? '#1E293B' : '#0B1320',
+                        background: isSelected ? '#28374E' : '#162030',
                         border: isSelected ? '1px solid #10B981' : isMax ? '1px solid #F59E0B' : '1px solid #1E293B',
                         color: isSelected ? '#10B981' : isMax ? '#F59E0B' : '#94A3B8',
                         fontSize: 11,
@@ -1267,8 +1267,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    background: '#0B1320',
-                    border: '1px solid #334155',
+                    background: '#152132',
+                    border: '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 14,
                     fontWeight: 700,
@@ -1331,8 +1331,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    background: '#0B1320',
-                    border: '1px solid #334155',
+                    background: '#152132',
+                    border: '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 14,
                     fontWeight: 600,
@@ -1352,7 +1352,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                   borderRadius: 10,
                   background:
                     withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
-                      ? '#1E293B'
+                      ? '#28374E'
                       : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
                   color:
@@ -1460,7 +1460,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 <div
                   style={{
                     display: 'flex',
-                    background: '#0B1320',
+                    background: '#152132',
                     borderRadius: 8,
                     padding: 3,
                     marginBottom: 14,
@@ -1476,7 +1476,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       padding: '8px 4px',
                       borderRadius: 6,
                       border: 'none',
-                      background: historySegment === 'payments' ? '#1E293B' : 'transparent',
+                      background: historySegment === 'payments' ? '#28374E' : 'transparent',
                       color: historySegment === 'payments' ? '#10B981' : '#94A3B8',
                       fontSize: 12,
                       fontWeight: historySegment === 'payments' ? 800 : 600,
@@ -1513,7 +1513,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       padding: '8px 4px',
                       borderRadius: 6,
                       border: 'none',
-                      background: historySegment === 'bets' ? '#1E293B' : 'transparent',
+                      background: historySegment === 'bets' ? '#28374E' : 'transparent',
                       color: historySegment === 'bets' ? '#10B981' : '#94A3B8',
                       fontSize: 12,
                       fontWeight: historySegment === 'bets' ? 800 : 600,
@@ -1574,7 +1574,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                             <div
                               key={req.id}
                               style={{
-                                background: '#0B1320',
+                                background: '#152132',
                                 border: '1px solid #1E293B',
                                 borderRadius: 10,
                                 padding: '12px 14px',
@@ -1729,7 +1729,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           color: '#64748B',
                           fontSize: 13,
                           padding: '30px 16px',
-                          background: '#0B1320',
+                          background: '#152132',
                           borderRadius: 12,
                           border: '1px solid #1E293B',
                         }}
@@ -1791,7 +1791,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                             <div
                               key={tx.id}
                               style={{
-                                background: '#0B1320',
+                                background: '#152132',
                                 border: '1px solid #1E293B',
                                 borderRadius: 10,
                                 padding: '10px 14px',
@@ -1857,7 +1857,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           color: '#64748B',
                           fontSize: 13,
                           padding: '30px 16px',
-                          background: '#0B1320',
+                          background: '#152132',
                           borderRadius: 12,
                           border: '1px solid #1E293B',
                         }}

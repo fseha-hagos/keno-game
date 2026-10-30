@@ -27,7 +27,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backgroundColor: 'rgba(0, 0, 0, 0.72)',
         backdropFilter: 'blur(5px)',
         zIndex: 1000,
         display: 'flex',
@@ -38,8 +38,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     >
       <div
         style={{
-          background: '#0F172A',
-          border: '1px solid #1E293B',
+          background: 'linear-gradient(180deg, #1A2536 0%, #131D2E 100%)',
+          border: '1px solid #33445C',
           borderRadius: 20,
           width: '100%',
           maxWidth: 420,
@@ -97,7 +97,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Account Info Card */}
         <div
           style={{
-            background: '#0B1320',
+            background: '#162030',
             border: '1px solid #1E293B',
             borderRadius: 12,
             padding: '14px 16px',
@@ -228,8 +228,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
           <div
             style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
               borderRadius: 12,
               padding: '12px 14px',
               marginBottom: 16,
@@ -238,25 +238,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <div style={{ fontSize: 13, fontWeight: 800, color: '#EF4444', marginBottom: 4 }}>
               ⏸️ Account Self-Excluded
             </div>
-            <p style={{ margin: 0, fontSize: 11.5, color: '#CBD5E1', lineHeight: 1.45 }}>
-              Your account is self-excluded until <strong>{new Date(user.selfExcludedUntil).toLocaleDateString()}</strong>. If you wish to reactivate or stop your exclusion early, please contact our support team below.
-            </p>
-          </div>
-        )}
-        {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
-          <div
-            style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#EF4444', marginBottom: 4 }}>
-              ⏸️ Account Self-Excluded
-            </div>
-            <p style={{ margin: 0, fontSize: 11.5, color: '#CBD5E1', lineHeight: 1.45 }}>
+            <p style={{ margin: 0, fontSize: 11.5, color: '#E2E8F0', lineHeight: 1.45 }}>
               Your account is self-excluded until <strong>{new Date(user.selfExcludedUntil).toLocaleDateString()}</strong>. If you wish to reactivate or stop your exclusion early, please contact our support team below.
             </p>
           </div>
@@ -264,7 +246,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Customer Support Card */}
         <div
           style={{
-            background: '#0B1320',
+            background: '#162030',
             border: '1px solid #1E293B',
             borderRadius: 12,
             padding: '12px 14px',
@@ -349,7 +331,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       width: '100%',
       padding: '11px 0',
       borderRadius: 10,
-      background: '#1E293B',
+      background: '#28374E',
       border: '1px solid #334155',
       color: '#F8FAFC',
       fontSize: 13,
