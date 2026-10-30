@@ -8,6 +8,10 @@ export const GAME_CONFIG = {
   MIN_STAKE_MINOR: '200', // 2.00 ETB (minimum bet amount)
   MAX_STAKE_MINOR: '400000', // 4,000.00 ETB (maximum bet amount)
   MAX_PAYOUT_MINOR: '3000000', // 30,000.00 ETB (maximum win cap)
+  MIN_DEPOSIT_MINOR: '5000', // 50.00 ETB
+  MAX_DEPOSIT_MINOR: '10000000', // 100,000.00 ETB
+  MIN_WITHDRAW_MINOR: '5000', // 50.00 ETB
+  MAX_WITHDRAW_MINOR: '1000000', // 10,000.00 ETB
   ROUND_BETTING_WINDOW_SECONDS: 60, // 1 minute (60s) immediate countdown window
   ROUND_DRAW_INTERVAL_SECONDS: 60,
   BALL_DRAW_ANIMATION_DELAY_MS: 1600, // 1.6s per ball drawing speed

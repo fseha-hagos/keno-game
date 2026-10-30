@@ -198,6 +198,16 @@ export class WalletService {
     const currency = input.currency || GAME_CONFIG.DEFAULT_CURRENCY;
     await this.getOrCreateWallet(userId, currency);
 
+    const depositAmountMinor = BigInt(input.amountMinor || '0');
+    const minDepositMinor = BigInt(GAME_CONFIG.MIN_DEPOSIT_MINOR || '5000');
+    const maxDepositMinor = BigInt(GAME_CONFIG.MAX_DEPOSIT_MINOR || '10000000');
+
+    if (depositAmountMinor < minDepositMinor || depositAmountMinor > maxDepositMinor) {
+      const minETB = Number(minDepositMinor) / 100;
+      const maxETB = Number(maxDepositMinor) / 100;
+      throw new BadRequestException(`Deposit amount must be between ${minETB} ETB and ${maxETB} ETB`);
+    }
+
     if (input.idempotencyKey) {
       const existing = await this.paymentRepo.findOne({
         where: { idempotencyKey: input.idempotencyKey },
@@ -300,6 +310,15 @@ export class WalletService {
       }
 
       const amountToWithdraw = BigInt(input.amountMinor);
+      const minWithdrawMinor = BigInt(GAME_CONFIG.MIN_WITHDRAW_MINOR || '5000');
+      const maxWithdrawMinor = BigInt(GAME_CONFIG.MAX_WITHDRAW_MINOR || '1000000');
+
+      if (amountToWithdraw < minWithdrawMinor || amountToWithdraw > maxWithdrawMinor) {
+        const minETB = Number(minWithdrawMinor) / 100;
+        const maxETB = Number(maxWithdrawMinor) / 100;
+        throw new BadRequestException(`Withdrawal amount must be between ${minETB} ETB and ${maxETB} ETB`);
+      }
+
       const availableBalance = BigInt(wallet.balanceMinor);
 
       if (availableBalance < amountToWithdraw) {

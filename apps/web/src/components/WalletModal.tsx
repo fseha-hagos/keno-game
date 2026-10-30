@@ -121,7 +121,7 @@ const PAYMENT_METHODS = [
 ];
 
 const DEPOSIT_PRESETS = ['50', '100', '200', '500', '1000'];
-const WITHDRAW_PRESETS = ['20', '50', '100', '250', '500'];
+const WITHDRAW_PRESETS = ['50', '100', '250', '500', '1000'];
 
 const extractRefPreview = (text: string): string => {
   if (!text) return '';
@@ -1344,29 +1344,29 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
               <button
                 type="button"
-                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)}
+                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)}
                 onClick={() => withdrawMutation.mutate()}
                 style={{
                   width: '100%',
                   padding: '14px 0',
                   borderRadius: 10,
                   background:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? '#1E293B'
                       : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
                   color:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? '#64748B'
                       : '#FFFFFF',
                   fontSize: 14,
                   fontWeight: 800,
                   cursor:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? 'not-allowed'
                       : 'pointer',
                   boxShadow:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? 'none'
                       : '0 4px 14px rgba(16, 185, 129, 0.35)',
                   transition: 'all 0.15s ease',

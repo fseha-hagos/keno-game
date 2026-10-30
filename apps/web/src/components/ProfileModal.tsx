@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { X, User, Phone, ShieldCheck, LogOut, CheckCircle2, ArrowDownLeft, ArrowUpRight, Download } from 'lucide-react';
+import { X, User, ShieldCheck, LogOut, CheckCircle2, ArrowDownLeft, ArrowUpRight, Download } from 'lucide-react';
 import { isWebWrapperApp } from '../utils/isAppWrapper';
 
 interface ProfileModalProps {
@@ -225,7 +225,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </p>
         </div>
 
-{user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
+        {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
           <div
             style={{
               background: 'rgba(239, 68, 68, 0.12)',
@@ -243,7 +243,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </p>
           </div>
         )}
-                {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
+        {user?.selfExcludedUntil && new Date(user.selfExcludedUntil) > new Date() && (
           <div
             style={{
               background: 'rgba(239, 68, 68, 0.12)',
@@ -279,136 +279,115 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <span style={{ fontSize: 10.5, color: '#10B981', fontWeight: 700 }}>● 24/7 Support</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {/* Telegram Link */}
-            <a
-              href="https://t.me/Fastkenosupportteam"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'rgba(36, 161, 222, 0.12)',
-                border: '1px solid rgba(36, 161, 222, 0.4)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                textDecoration: 'none',
-                color: '#38BDF8',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <img src="/telegram.png" alt="Telegram" style={{ width: 16, height: 16, objectFit: 'contain' }} />
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#38BDF8' }}>Telegram</div>
-                <div style={{ fontSize: 10, color: '#94A3B8' }}>@Fastkenosupportteam</div>
-              </div>
-            </a>
-
-            {/* Phone Support */}
-            <a
-              href="tel:0948491265"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: 8,
-                padding: '8px 10px',
-                textDecoration: 'none',
-                color: '#10B981',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Phone size={16} color="#10B981" />
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#10B981' }}>Call Support</div>
-                <div style={{ fontSize: 10, color: '#94A3B8' }}>0948491265</div>
-              </div>
-            </a>
-          </div>
+              <a
+                href="https://t.me/Fastkenosupportteam"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(36, 161, 222, 0.12)',
+                  border: '1px solid rgba(36, 161, 222, 0.4)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  textDecoration: 'none',
+                  color: '#38BDF8',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <img src="/telegram.png" alt="Telegram" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+                  <div>
+                    <div style={{ fontSize: 11.5, fontWeight: 800, color: '#38BDF8' }}>Telegram Support</div>
+                    <div style={{ fontSize: 10.5, color: '#94A3B8' }}>@Fastkenosupportteam</div>
+                  </div>
         </div>
-
-        {/* Download Android APK Button (only shown in normal browser) */}
-        {!isWebWrapperApp() && (
-          <a
-            href="/FastKeno.apk"
-            download="FastKeno.apk"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              width: '100%',
-              padding: '11px 0',
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              color: '#10B981',
-              fontSize: 13,
-              fontWeight: 800,
-              textDecoration: 'none',
-              cursor: 'pointer',
-              marginBottom: 10,
-              boxSizing: 'border-box',
-            }}
-          >
-            <Download size={16} strokeWidth={2.5} />
-            <span>Download Android App (APK)</span>
-          </a>
-        )}
-
-        {/* Responsible Gaming Button */}
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            onOpenLimits();
-          }}
-          style={{
-            width: '100%',
-            padding: '11px 0',
-            borderRadius: 10,
-            background: '#1E293B',
-            border: '1px solid #334155',
-            color: '#F8FAFC',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            marginBottom: 10,
-          }}
-        >
-          🛡️ Manage Safe Play & Limits
-        </button>
-
-        {/* Logout */}
-        <button
-          type="button"
-          onClick={() => {
-            logout();
-            onClose();
-          }}
-          style={{
-            width: '100%',
-            padding: '11px 0',
-            borderRadius: 10,
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#EF4444',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}
-        >
-          <LogOut size={16} />
-          <span>Sign Out</span>
-        </button>
-      </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8' }}>Chat Now →</span>
+      </a>
     </div>
+
+        {/* Download Android APK Button (only shown in normal browser) */ }
+  {
+    !isWebWrapperApp() && (
+      <a
+        href="/FastKeno.apk"
+        download="FastKeno.apk"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          width: '100%',
+          padding: '11px 0',
+          borderRadius: 10,
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.4)',
+          color: '#10B981',
+          fontSize: 13,
+          fontWeight: 800,
+          textDecoration: 'none',
+          cursor: 'pointer',
+          marginBottom: 10,
+          boxSizing: 'border-box',
+        }}
+      >
+        <Download size={16} strokeWidth={2.5} />
+        <span>Download Android App (APK)</span>
+      </a>
+    )
+  }
+
+  {/* Responsible Gaming Button */ }
+  <button
+    type="button"
+    onClick={() => {
+      onClose();
+      onOpenLimits();
+    }}
+    style={{
+      width: '100%',
+      padding: '11px 0',
+      borderRadius: 10,
+      background: '#1E293B',
+      border: '1px solid #334155',
+      color: '#F8FAFC',
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: 'pointer',
+      marginBottom: 10,
+    }}
+  >
+    🛡️ Manage Safe Play & Limits
+  </button>
+
+  {/* Logout */ }
+  <button
+    type="button"
+    onClick={() => {
+      logout();
+      onClose();
+    }}
+    style={{
+      width: '100%',
+      padding: '11px 0',
+      borderRadius: 10,
+      background: 'rgba(239, 68, 68, 0.1)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+      color: '#EF4444',
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    }}
+  >
+    <LogOut size={16} />
+    <span>Sign Out</span>
+  </button>
+      </div >
+    </div >
   );
 };
