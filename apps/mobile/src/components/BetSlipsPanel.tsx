@@ -105,17 +105,17 @@ export const BetSlipsPanel = () => {
           const stake = Number(slip.stakeMinor) / 100;
           const maxMult =
             spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
-          const maxWin = stake * maxMult;
+          const maxWin = Math.min(30000, stake * maxMult);
 
           const cleanSlipNums = slip.selectedNumbers.map(Number).filter((n) => !isNaN(n));
           const hitCount = cleanSlipNums.filter((n) => liveDrawnSet.has(n)).length;
           const currentMult =
             spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
-          const currentWin = stake * currentMult;
+          const currentWin = Math.min(30000, stake * currentMult);
 
-          // Build 5 slots
+          // Build 10 slots
           const slots: (number | null)[] = [...slip.selectedNumbers];
-          while (slots.length < 5) slots.push(null);
+          while (slots.length < 10) slots.push(null);
 
           return (
             <View key={slip.id} style={[styles.row, isActive && styles.rowActive]}>

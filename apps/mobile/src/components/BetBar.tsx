@@ -24,7 +24,7 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
     setStakeMinor,
   } = useGameStore();
 
-  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '500';
+  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '200';
   const stake = Number(referenceStakeMinor) / 100;
 
   const [inputText, setInputText] = useState(stake.toFixed(2));
@@ -52,11 +52,11 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
   const handleBlur = () => {
     setIsFocused(false);
     const val = parseFloat(inputText);
-    if (isNaN(val) || val <= 0) {
-      setStakeMinor('100'); // minimum 1.00 ETB
-      setInputText('1.00');
+    if (isNaN(val) || val < 2) {
+      setStakeMinor('200'); // minimum 2.00 ETB
+      setInputText('2.00');
     } else {
-      const clamped = Math.min(Math.max(val, 1), 50000);
+      const clamped = Math.min(Math.max(val, 2), 4000);
       const minor = Math.round(clamped * 100);
       setStakeMinor(String(minor));
       setInputText(clamped.toFixed(2));
@@ -75,12 +75,12 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
 
   const handleDoubleStake = () => {
     const current = Number(referenceStakeMinor);
-    const doubled = Math.min(current * 2, 500000); // cap at 5000.00
+    const doubled = Math.min(current * 2, 400000); // cap at 4000.00
     setStakeMinor(String(doubled));
   };
 
   const handleMaxStake = () => {
-    setStakeMinor('500000'); // 5000.00
+    setStakeMinor('400000'); // 4000.00
   };
 
   return (

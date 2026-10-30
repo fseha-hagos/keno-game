@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
-import { toastSuccess, toastError } from '../services/toast';
+import { toastSuccess, toastError, toastInfo } from '../services/toast';
 import {
   X,
   Copy,
@@ -37,37 +37,37 @@ interface WalletModalProps {
 
 const PAYMENT_METHODS = [
   {
+    id: 'cbe_bank',
+    name: 'Commercial Bank of Ethiopia (CBE)',
+    icon: '🏛️',
+    image: '/cbe.jpg',
+    badge: 'FT Code',
+    isInstant: false,
+    accountNumber: '1000282131138',
+    accountName: 'Abel Alemseged',
+    hint: 'e.g. FT262920XXXX',
+    instructions: [
+      'Transfer via CBE Mobile Banking or branch to Account: 1000282131138',
+      'Recipient Account Name: Abel Alemseged',
+      'Enter the FT transaction reference code for verification',
+    ],
+  },
+  {
     id: 'telebirr',
     name: 'telebirr',
     icon: '📱',
     image: '/telebirr.jpg',
     badge: 'Auto Match',
     isInstant: true,
-    accountNumber: '0948491265',
-    accountName: 'Fseha Hagos',
+    accountNumber: '0930547684',
+    accountName: 'Abel Alemseged',
     hint: 'e.g. CI94719082',
     instructions: [
       'Open your Telebirr app or dial *127#',
-      'Select "Send Money" to 0948491265 (Fseha Hagos)',
+      'Select "Send Money" to 0930547684 (Abel Alemseged)',
       'Enter the EXACT deposit amount',
       'Confirm the transaction with your PIN',
       'Our automated instant verification system automatically detects your payment!',
-    ],
-  },
-  {
-    id: 'cbe_bank',
-    name: 'Commercial Bank of Ethiopia',
-    icon: '🏛️',
-    image: '/cbe.jpg',
-    badge: 'FT Code',
-    isInstant: false,
-    accountNumber: '1000287635657',
-    accountName: 'Fseha Hagos',
-    hint: 'e.g. FT262920XXXX',
-    instructions: [
-      'Transfer via CBE Mobile Banking or branch to Account: 1000234567891',
-      'Recipient: Fseha Hagos',
-      'Enter the FT transaction reference code for verification',
     ],
   },
   {
@@ -77,12 +77,12 @@ const PAYMENT_METHODS = [
     image: '/cbe.jpg',
     badge: 'Auto Match',
     isInstant: false,
-    accountNumber: '0948491265',
-    accountName: 'Fseha Hagos',
+    accountNumber: '0930547684',
+    accountName: 'Abel Alemseged',
     hint: 'e.g. CB987654321',
     instructions: [
       'Open CBE Birr app or dial *847#',
-      'Transfer to CBE Birr mobile: 0948491265 (Fseha Hagos)',
+      'Transfer to CBE Birr mobile: 0930547684 (Abel Alemseged)',
       'Enter the EXACT amount and confirm',
       'Incoming SMS notification is detected and matched automatically',
     ],
@@ -92,16 +92,14 @@ const PAYMENT_METHODS = [
     name: 'M-Pesa (Safaricom)',
     icon: '📲',
     image: '/mpesa.jpg',
-    badge: 'Auto Match',
+    badge: 'Coming Soon',
     isInstant: false,
-    accountNumber: '0700000000',
-    accountName: 'Fseha Hagos',
-    hint: 'e.g. NL47JK890',
+    accountNumber: 'Safaricom M-Pesa',
+    accountName: 'Abel Alemseged',
+    hint: 'Coming soon',
     instructions: [
-      'Open your M-Pesa app or dial *777#',
-      'Select "Send Money" to 0700000000 (Fseha Hagos)',
-      'Enter the EXACT deposit amount and confirm',
-      'M-Pesa confirmation SMS will be captured and matched automatically',
+      'Safaricom M-Pesa integration is currently in progress.',
+      'We will integrate this service soon! Please use Telebirr or CBE in the meantime.',
     ],
   },
   {
@@ -111,19 +109,19 @@ const PAYMENT_METHODS = [
     image: null,
     badge: 'Awash/Dashen/BOA',
     isInstant: false,
-    accountNumber: '1000-------',
-    accountName: 'Fseha Hagos',
+    accountNumber: '1000282131138',
+    accountName: 'Abel Alemseged',
     hint: 'e.g. Bank Ref / Slip No',
     instructions: [
       'Transfer from Bank of Abyssinia, Awash, Dashen, Nib, etc.',
-      'Send to CBE Account: 1000------- (Fseha Hagos)',
+      'Send to CBE Account: 1000282131138 (Abel Alemseged)',
       'Enter your transaction reference for admin review',
     ],
   },
 ];
 
 const DEPOSIT_PRESETS = ['50', '100', '200', '500', '1000'];
-const WITHDRAW_PRESETS = ['20', '50', '100', '250', '500'];
+const WITHDRAW_PRESETS = ['50', '100', '250', '500', '1000'];
 
 const extractRefPreview = (text: string): string => {
   if (!text) return '';
@@ -392,7 +390,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backgroundColor: 'rgba(0, 0, 0, 0.72)',
         backdropFilter: 'blur(5px)',
         zIndex: 1000,
         display: 'flex',
@@ -403,8 +401,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     >
       <div
         style={{
-          background: '#0F172A',
-          border: '1px solid #1E293B',
+          background: '#121A26',
+          border: '1px solid #2A3B52',
           borderRadius: 20,
           width: '100%',
           maxWidth: 460,
@@ -455,7 +453,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         <div
           style={{
             display: 'flex',
-            background: '#0B1320',
+            background: '#152132',
             margin: '12px 16px',
             borderRadius: 10,
             padding: 4,
@@ -475,8 +473,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 padding: '8px 0',
                 border: 'none',
                 borderRadius: 8,
-                background: activeTab === tab ? '#1E293B' : 'transparent',
-                color: activeTab === tab ? '#F8FAFC' : '#64748B',
+                background: activeTab === tab ? '#223247' : 'transparent',
+                color: activeTab === tab ? '#FFFFFF' : '#94A3B8',
                 fontSize: 12,
                 fontWeight: 800,
                 textTransform: 'capitalize',
@@ -587,7 +585,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 {/* Account Details Box */}
                 <div
                   style={{
-                    background: '#0B1320',
+                    background: '#152132',
                     border: '1px solid #1E293B',
                     borderRadius: 12,
                     padding: '12px 14px',
@@ -611,8 +609,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         type="button"
                         onClick={() => copyToClipboard(currentMethod.accountNumber)}
                         style={{
-                          background: '#1E293B',
-                          border: '1px solid #334155',
+                          background: '#28374E',
+                          border: '1.5px solid #2D425E',
                           borderRadius: 6,
                           padding: '4px 8px',
                           color: '#F8FAFC',
@@ -710,8 +708,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         width: '100%',
                         padding: '11px 0',
                         borderRadius: 10,
-                        background: '#1E293B',
-                        border: '1px solid #334155',
+                        background: '#28374E',
+                        border: '1.5px solid #2D425E',
                         color: '#F8FAFC',
                         fontSize: 13,
                         fontWeight: 700,
@@ -726,7 +724,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
                 {/* Reference Code Input or Awaiting Approval Status */}
                 {pendingDeposit?.proofSubmitted ? (
-                  <div style={{ background: '#0B1320', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+                  <div style={{ background: '#152132', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
                     <div style={{ display: 'inline-flex', padding: 10, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', marginBottom: 10 }}>
                       <Check size={24} />
                     </div>
@@ -748,8 +746,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         width: '100%',
                         padding: '10px 0',
                         borderRadius: 8,
-                        background: '#1E293B',
-                        border: '1px solid #334155',
+                        background: '#28374E',
+                        border: '1.5px solid #2D425E',
                         color: '#94A3B8',
                         fontSize: 12,
                         fontWeight: 700,
@@ -781,7 +779,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           width: '100%',
                           padding: '10px 12px',
                           borderRadius: 10,
-                          background: '#0B1320',
+                          background: '#152132',
                           border: extractRefPreview(txRef) ? '1px solid #10B981' : '1px solid #334155',
                           color: '#F8FAFC',
                           fontSize: 13,
@@ -803,8 +801,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           flex: 1,
                           padding: '12px 0',
                           borderRadius: 10,
-                          background: '#1E293B',
-                          border: '1px solid #334155',
+                          background: '#28374E',
+                          border: '1.5px solid #2D425E',
                           color: '#94A3B8',
                           fontSize: 13,
                           fontWeight: 700,
@@ -846,10 +844,16 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       <button
                         key={method.id}
                         type="button"
-                        onClick={() => setSelectedMethod(method.id)}
+                        onClick={() => {
+                          if (method.id === 'mpesa') {
+                            toastInfo('M-Pesa (Safaricom)', 'We will integrate Safaricom M-Pesa soon! Please use Telebirr or CBE for now.');
+                            return;
+                          }
+                          setSelectedMethod(method.id);
+                        }}
                         style={{
                           width: '100%',
-                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#0B1320',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#162030',
                           border: isSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
                           borderRadius: 14,
                           padding: '10px 14px',
@@ -896,7 +900,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                               width: 42,
                               height: 42,
                               borderRadius: '50%',
-                              backgroundColor: '#1E293B',
+                              backgroundColor: '#28374E',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -967,8 +971,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       width: '100%',
                       padding: '12px 14px',
                       borderRadius: 10,
-                      background: '#0B1320',
-                      border: '1px solid #334155',
+                      background: '#152132',
+                      border: '1.5px solid #2D425E',
                       color: '#F8FAFC',
                       fontSize: 16,
                       fontWeight: 800,
@@ -989,7 +993,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         flex: 1,
                         padding: '6px 0',
                         borderRadius: 8,
-                        background: depositAmount === amt ? '#1E293B' : '#0B1320',
+                        background: depositAmount === amt ? '#28374E' : '#162030',
                         border: depositAmount === amt ? '1px solid #10B981' : '1px solid #1E293B',
                         color: depositAmount === amt ? '#10B981' : '#94A3B8',
                         fontSize: 11,
@@ -1076,6 +1080,10 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         key={method.id}
                         type="button"
                         onClick={() => {
+                          if (method.id === 'mpesa') {
+                            toastInfo('M-Pesa (Safaricom)', 'We will integrate Safaricom M-Pesa soon! Please use Telebirr or CBE for now.');
+                            return;
+                          }
                           setWithdrawMethod(method.id);
                           if (method.id === 'telebirr') {
                             if (!isManualAccount) setWithdrawAccount(user?.phone || '');
@@ -1088,7 +1096,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           gap: 8,
                           padding: '8px 10px',
                           borderRadius: 10,
-                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#0B1320',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#162030',
                           border: isSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
@@ -1161,8 +1169,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    background: '#0B1320',
-                    border: '1px solid #334155',
+                    background: '#152132',
+                    border: '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 16,
                     fontWeight: 800,
@@ -1192,7 +1200,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         flex: 1,
                         padding: '6px 0',
                         borderRadius: 8,
-                        background: isSelected ? '#1E293B' : '#0B1320',
+                        background: isSelected ? '#28374E' : '#162030',
                         border: isSelected ? '1px solid #10B981' : isMax ? '1px solid #F59E0B' : '1px solid #1E293B',
                         color: isSelected ? '#10B981' : isMax ? '#F59E0B' : '#94A3B8',
                         fontSize: 11,
@@ -1259,8 +1267,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    background: '#0B1320',
-                    border: '1px solid #334155',
+                    background: '#152132',
+                    border: '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 14,
                     fontWeight: 700,
@@ -1323,8 +1331,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    background: '#0B1320',
-                    border: '1px solid #334155',
+                    background: '#152132',
+                    border: '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 14,
                     fontWeight: 600,
@@ -1336,29 +1344,29 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
               <button
                 type="button"
-                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)}
+                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)}
                 onClick={() => withdrawMutation.mutate()}
                 style={{
                   width: '100%',
                   padding: '14px 0',
                   borderRadius: 10,
                   background:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
-                      ? '#1E293B'
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
+                      ? '#28374E'
                       : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
                   color:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? '#64748B'
                       : '#FFFFFF',
                   fontSize: 14,
                   fontWeight: 800,
                   cursor:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? 'not-allowed'
                       : 'pointer',
                   boxShadow:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? 'none'
                       : '0 4px 14px rgba(16, 185, 129, 0.35)',
                   transition: 'all 0.15s ease',
@@ -1452,7 +1460,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 <div
                   style={{
                     display: 'flex',
-                    background: '#0B1320',
+                    background: '#152132',
                     borderRadius: 8,
                     padding: 3,
                     marginBottom: 14,
@@ -1468,7 +1476,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       padding: '8px 4px',
                       borderRadius: 6,
                       border: 'none',
-                      background: historySegment === 'payments' ? '#1E293B' : 'transparent',
+                      background: historySegment === 'payments' ? '#28374E' : 'transparent',
                       color: historySegment === 'payments' ? '#10B981' : '#94A3B8',
                       fontSize: 12,
                       fontWeight: historySegment === 'payments' ? 800 : 600,
@@ -1505,7 +1513,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       padding: '8px 4px',
                       borderRadius: 6,
                       border: 'none',
-                      background: historySegment === 'bets' ? '#1E293B' : 'transparent',
+                      background: historySegment === 'bets' ? '#28374E' : 'transparent',
                       color: historySegment === 'bets' ? '#10B981' : '#94A3B8',
                       fontSize: 12,
                       fontWeight: historySegment === 'bets' ? 800 : 600,
@@ -1566,7 +1574,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                             <div
                               key={req.id}
                               style={{
-                                background: '#0B1320',
+                                background: '#152132',
                                 border: '1px solid #1E293B',
                                 borderRadius: 10,
                                 padding: '12px 14px',
@@ -1721,7 +1729,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           color: '#64748B',
                           fontSize: 13,
                           padding: '30px 16px',
-                          background: '#0B1320',
+                          background: '#152132',
                           borderRadius: 12,
                           border: '1px solid #1E293B',
                         }}
@@ -1783,7 +1791,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                             <div
                               key={tx.id}
                               style={{
-                                background: '#0B1320',
+                                background: '#152132',
                                 border: '1px solid #1E293B',
                                 borderRadius: 10,
                                 padding: '10px 14px',
@@ -1849,7 +1857,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                           color: '#64748B',
                           fontSize: 13,
                           padding: '30px 16px',
-                          background: '#0B1320',
+                          background: '#152132',
                           borderRadius: 12,
                           border: '1px solid #1E293B',
                         }}

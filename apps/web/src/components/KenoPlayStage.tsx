@@ -248,8 +248,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
 
   const spotEntries = spots > 0 ? DEFAULT_96_PAYTABLE_ENTRIES.filter((e) => e.spots === spots) : [];
   const maxMultiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
-  const stakeAmount = Number(activeSlip?.stakeMinor || '400') / 100;
-  const possibleWin = (stakeAmount * maxMultiplier).toFixed(2);
+  const stakeAmount = Number(activeSlip?.stakeMinor || '200') / 100;
+  const possibleWin = Math.min(30000, stakeAmount * maxMultiplier).toFixed(2);
 
   // 10 selected slots
   const selectedSlots: (number | null)[] = [...selectedNumbers];

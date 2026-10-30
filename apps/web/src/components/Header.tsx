@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
-import { ShieldCheck, Menu, MessageSquare, X, Wallet, Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ShieldCheck, Menu, MessageSquare, Wallet, Plus } from 'lucide-react';
 import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
 
 interface HeaderProps {
@@ -54,62 +54,28 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header style={{ width: '100%', background: KENO_COLORS.topBarBg, userSelect: 'none' }}>
-      {/* 1. Top Window Bar: "Fast Keno" on left, "✕" on right */}
-      {/* <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '6px 16px',
-          borderBottom: '1px solid #131B26',
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.02em' }}>
-          Fast Keno
-        </span>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (window.history.length > 1) window.history.back();
-          }}
-          style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 26,
-            height: 26,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#CBD5E1',
-            cursor: 'pointer',
-          }}
-        >
-          <X size={15} />
-        </button>
-      </div> */}
-
-      {/* 2. In-Game Navigation Bar */}
+      {/* In-Game Navigation Bar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 16px',
+          padding: '8px 10px',
           background: 'linear-gradient(180deg, #09111C 0%, #060B12 100%)',
           borderBottom: '1px solid #152232',
-          gap: 12,
+          gap: 6,
+          boxSizing: 'border-box',
+          width: '100%',
         }}
       >
         {/* Left: Official Fast Keno Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, cursor: 'pointer' }}>
           <img
             src="/logo_keno.png"
             alt="Fast Keno"
             style={{
-              height: 28,
-              maxHeight: 32,
+              height: 26,
+              maxHeight: 30,
               objectFit: 'contain',
               filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))',
             }}
@@ -117,7 +83,16 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center: Money & Deposit Pill (when authenticated) + Round ID */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            minWidth: 0,
+            flexShrink: 1,
+            justifyContent: 'center',
+          }}
+        >
           {/* Money & Easy Deposit Pill: ONLY visible when authenticated */}
           {isAuthenticated && (
             <div
@@ -130,6 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
                 overflow: 'hidden',
                 height: 28,
                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+                flexShrink: 0,
               }}
             >
               {/* Left: Wallet icon and balance */}
@@ -139,18 +115,18 @@ export const Header: React.FC<HeaderProps> = ({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  padding: '2px 10px',
+                  padding: '2px 8px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 5,
                   cursor: 'pointer',
                 }}
                 title="Open Wallet"
               >
-                <Wallet size={14} color="#71ce96" strokeWidth={2.2} />
+                <Wallet size={13} color="#71ce96" strokeWidth={2.2} />
                 <span
                   style={{
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: 700,
                     color: '#e6b529',
                     fontFamily: KENO_FONTS.ui,
@@ -158,7 +134,13 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   {formattedBalance}
                 </span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>ETB</span>
+                {/* Omitted on mobile screens to preserve space for the chat button */}
+                <span
+                  className="header-mobile-hide-currency"
+                  style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF', marginLeft: 2 }}
+                >
+                  ETB
+                </span>
               </button>
 
               {/* Action green deposit '+' button */}
@@ -169,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
                   background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
                   height: '100%',
-                  padding: '0 8px',
+                  padding: '0 7px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -179,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
                 title="Deposit Funds"
               >
-                <Plus size={14} color="#FFFFFF" strokeWidth={3} />
+                <Plus size={13} color="#FFFFFF" strokeWidth={3} />
               </button>
             </div>
           )}
@@ -188,11 +170,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div
             onClick={onOpenFairness}
             style={{
-              padding: '2px 10px',
+              padding: '2px 8px',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              fontSize: 12,
+              gap: 5,
+              fontSize: 11.5,
               fontWeight: 400,
               color: '#FFFFFF',
               fontFamily: KENO_FONTS.ui,
@@ -201,23 +183,23 @@ export const Header: React.FC<HeaderProps> = ({
               borderRadius: 50,
               height: 28,
               cursor: onOpenFairness ? 'pointer' : 'default',
+              flexShrink: 0,
             }}
             title="Provably Fair Cryptographic Verification"
           >
             <span style={{ color: '#71ce96', fontWeight: 600 }}>ID:</span>
             <span style={{ color: '#FFFFFF' }}>{displayRoundNumber}</span>
-            <ShieldCheck size={13} color="#71ce96" />
+            <ShieldCheck size={12} color="#71ce96" />
           </div>
         </div>
 
         {/* Right side:
-            When NOT authenticated: [ Sign In ] [ Register ] [ ☰ ] (message/chat icon hidden)
-            When LOGGED IN: [ ☰ ] [ 💬 ] (matching screenshot 1)
+            flexShrink: 0 ensures Menu & Chat buttons are NEVER squished or hidden off-screen!
         */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           {!isAuthenticated ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <button
                   type="button"
                   onClick={() => onOpenAuth('login')}
@@ -225,9 +207,9 @@ export const Header: React.FC<HeaderProps> = ({
                     background: 'rgba(16, 185, 129, 0.08)',
                     border: '1px solid rgba(16, 185, 129, 0.4)',
                     borderRadius: 6,
-                    padding: '4px 10px',
+                    padding: '3px 8px',
                     color: '#10B981',
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: 700,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
@@ -243,9 +225,9 @@ export const Header: React.FC<HeaderProps> = ({
                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                     border: 'none',
                     borderRadius: 6,
-                    padding: '4px 10px',
+                    padding: '3px 8px',
                     color: '#FFFFFF',
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: 700,
                     cursor: 'pointer',
                     boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)',
@@ -274,6 +256,28 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Menu size={20} color="#22C55E" />
               </button>
+
+              {onToggleChat && (
+                <button
+                  type="button"
+                  onClick={onToggleChat}
+                  style={{
+                    background: chatOpen ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
+                    border: chatOpen ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid transparent',
+                    borderRadius: 6,
+                    color: chatOpen ? '#22C55E' : '#94A3B8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 4,
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Toggle Live Chat"
+                >
+                  <MessageSquare size={19} color={chatOpen ? '#22C55E' : '#94A3B8'} />
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -300,18 +304,20 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={onToggleChat}
                   style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: chatOpen ? '#22C55E' : '#64748B',
+                    background: chatOpen ? 'rgba(34, 197, 94, 0.18)' : 'transparent',
+                    border: chatOpen ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid transparent',
+                    borderRadius: 6,
+                    color: chatOpen ? '#22C55E' : '#CBD5E1',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: 4,
+                    transition: 'all 0.15s ease',
                   }}
                   title="Toggle Live Chat"
                 >
-                  <MessageSquare size={20} />
+                  <MessageSquare size={19} color={chatOpen ? '#22C55E' : '#CBD5E1'} />
                 </button>
               )}
             </>

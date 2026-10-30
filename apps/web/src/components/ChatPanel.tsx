@@ -18,14 +18,36 @@ interface ChatMessage {
 }
 
 const INITIAL_MESSAGES: ChatMessage[] = [
-  { id: '1', user: 'j***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-1.png', avatarColor: '#F59E0B', text: 'Fam', upvotes: 1 },
-  { id: '2', user: 'c***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'Araaa minishe account layi yenabarewuni birr withdraw adaragubigni', upvotes: 2 },
-  { id: '3', user: 'c***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'Araaa min ayinati lebinati nw koyi irasachewu withdraw adrigo miwosduti', upvotes: 0 },
-  { id: '4', user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', avatarColor: '#c7ceea', text: 'ydmrrrr', upvotes: 1 },
-  { id: '5', user: 's***r', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', avatarColor: '#a2d729', text: 'Rain', upvotes: 0 },
-  { id: '6', user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', avatarColor: '#ffb7b2', text: '🔥', upvotes: 1 },
-  { id: '7', user: 'm***u', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', avatarColor: '#b5ead7', text: 'Ere bamaryam', upvotes: 1 },
-  { id: '8', user: 'm***o', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-14.png', avatarColor: '#ffdab9', text: 'Guys', upvotes: 0 },
+  { id: '1', user: 'j***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-1.png', avatarColor: '#F59E0B', text: 'Fam', upvotes: 2 },
+  { id: '2', user: 'c***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'Araaa minishe account layi yenabarewuni birr withdraw adaragubigni', upvotes: 3 },
+  { id: '3', user: 'c***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'Araaa min ayinati lebinati nw koyi irasachewu withdraw adrigo miwosduti', upvotes: 1 },
+  { id: '4', user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', avatarColor: '#c7ceea', text: 'ydmrrrr', upvotes: 4 },
+  { id: '5', user: 's***r', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', avatarColor: '#a2d729', text: 'Rain', upvotes: 2 },
+  { id: '6', user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', avatarColor: '#ffb7b2', text: '🔥', upvotes: 5 },
+  { id: '7', user: 'm***u', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', avatarColor: '#b5ead7', text: 'Ere bamaryam', upvotes: 2 },
+  { id: '8', user: 'm***o', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-14.png', avatarColor: '#ffdab9', text: 'Guys', upvotes: 1 },
+  { id: '9', user: 'b***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-5.png', avatarColor: '#38bdf8', text: '70 and 77 please 🙏', upvotes: 3 },
+  { id: '10', user: '09***44', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-9.png', avatarColor: '#f59e0b', text: '3 hit out of 4, need one more!', upvotes: 2 },
+  { id: '11', user: 'k***m', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-2.png', avatarColor: '#71ce96', text: 'Big win on 5 picks! 🔥', upvotes: 6 },
+  { id: '12', user: 'd***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-10.png', avatarColor: '#c7ceea', text: 'Good luck everyone 🍀', upvotes: 4 },
+  { id: '13', user: 't***e', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-6.png', avatarColor: '#a2d729', text: '10 birr and a dream 🚀', upvotes: 5 },
+  { id: '14', user: '09***82', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', avatarColor: '#ffb7b2', text: 'Rain pls admin 🌧️', upvotes: 3 },
+  { id: '15', user: 'h***s', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-13.png', avatarColor: '#ffdab9', text: 'Let’s hit that 80!', upvotes: 2 },
+  { id: '16', user: 'y***n', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-15.png', avatarColor: '#38bdf8', text: '💥💥💥 wow', upvotes: 1 },
+  { id: '17', user: 'a***b', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', avatarColor: '#b5ead7', text: 'ayzoh fam bet small first', upvotes: 4 },
+  { id: '18', user: '07***19', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-16.png', avatarColor: '#F59E0B', text: 'አረ በስማም ዛሬ ተመችቶኛል', upvotes: 3 },
+  { id: '19', user: 'f***e', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-1.png', avatarColor: '#71ce96', text: '500 birr profit today let\'s go', upvotes: 5 },
+  { id: '20', user: 'n***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', avatarColor: '#c7ceea', text: '14 28 42 numbers incoming', upvotes: 2 },
+  { id: '21', user: '09***91', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-5.png', avatarColor: '#a2d729', text: 'yene keno bet lol', upvotes: 1 },
+  { id: '22', user: 'w***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', avatarColor: '#ffb7b2', text: 'Rain dropped! 🎉', upvotes: 3 },
+  { id: '23', user: 'l***k', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', avatarColor: '#ffdab9', text: 'anyone hitting 7?', upvotes: 2 },
+  { id: '24', user: 'g***t', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-2.png', avatarColor: '#38bdf8', text: 'Fast Keno best game honestly', upvotes: 4 },
+  { id: '25', user: '09***63', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-9.png', avatarColor: '#b5ead7', text: 'minem ayidelem next round enashenifalen', upvotes: 3 },
+  { id: '26', user: 'e***m', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', avatarColor: '#F59E0B', text: '🔥 4 in a row!', upvotes: 5 },
+  { id: '27', user: 'r***s', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-14.png', avatarColor: '#71ce96', text: 'Good vibes only ✨', upvotes: 2 },
+  { id: '28', user: 'p***h', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-6.png', avatarColor: '#c7ceea', text: 'Who picked 1 and 80?', upvotes: 1 },
+  { id: '29', user: '07***52', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-10.png', avatarColor: '#a2d729', text: 'telebirr deposit was instant nice', upvotes: 4 },
+  { id: '30', user: 'k***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', avatarColor: '#ffb7b2', text: '🎯 Keno Luck!', upvotes: 3 },
 ];
 
 const EMOJI_LIST = ['🔥', '🎉', '🚀', '❤️', '👏', '🤑', '🍀', '🎲', '😂', '💎', '🎯', '🤞', '⚡', '💯', '💰', '✨'];
@@ -39,13 +61,24 @@ const LIVE_COMMUNITY_POOL = [
   { user: 'd***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-10.png', text: 'Good luck everyone 🍀' },
   { user: 's***r', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', text: 'Rain' },
   { user: 't***e', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-6.png', text: '10 birr and a dream 🚀' },
-  { user: '09***82', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', text: 'Rain pls!' },
+  { user: '09***82', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', text: 'Rain pls admin 🌧️' },
   { user: 'h***s', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-13.png', text: 'Let’s hit that 80!' },
   { user: 'y***n', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-15.png', text: '💥💥💥' },
-  { user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', text: 'min new zarei luck' },
-  { user: 'a***b', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', text: 'ayzoh fam' },
-  { user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', text: '🔥' },
+  { user: 'i***p', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', text: 'min new zarei luck 😂' },
+  { user: 'a***b', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', text: 'ayzoh fam bet smart' },
+  { user: 'z***w', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-7.png', text: '🔥 winning streak' },
   { user: 'm***u', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', text: 'Ere bamaryam' },
+  { user: '07***19', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-16.png', text: 'አረ በስማም ዛሬ አሪፍ ነው' },
+  { user: 'f***e', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-1.png', text: 'telebirr deposit confirmed instant' },
+  { user: 'n***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-3.png', text: '14 28 42 let\'s go!' },
+  { user: 'w***d', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-12.png', text: 'Rain dropped! 🎉' },
+  { user: 'g***t', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-2.png', text: 'Fast Keno to the moon 🚀' },
+  { user: 'e***m', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-4.png', text: '🔥 3 out of 3 hit!' },
+  { user: 'p***h', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-6.png', text: 'Who picked 1 and 80?' },
+  { user: '07***52', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-10.png', text: '500 birr on next round 💰' },
+  { user: 'k***a', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-11.png', text: '🎯 Keno Luck!' },
+  { user: '09***12', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-8.png', text: 'congrats everyone 🎉' },
+  { user: 't***f', avatarUrl: 'https://games.phoenixbet.io/fast-keno/assets/avatars/av-14.png', text: 'yessss hit it!' },
 ];
 
 const LOCAL_STORAGE_LIKES_KEY = 'fast_keno_liked_messages';
@@ -137,10 +170,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
       const delay = 3500 + Math.random() * 3200; // 3.5s - 6.7s
       timeoutId = setTimeout(() => {
         setOnlineCount((prev) => {
-          // Natural fluctuation step between -3 and +4
           const delta = Math.floor(Math.random() * 8) - 3;
           const next = prev + delta;
-          // Keep realistically between 3,515 and 3,595
           if (next < 3520) return prev + Math.floor(Math.random() * 4) + 1;
           if (next > 3585) return prev - Math.floor(Math.random() * 4) - 1;
           return next;
@@ -175,7 +206,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
           setTimeout(() => scrollToBottom('auto'), 120);
         }
       } catch {
-        // Fallback to starter messages
+        // Fallback to rich starter messages
       }
     };
 
@@ -232,10 +263,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
   useEffect(() => {
     if (!isOnline) return;
 
-    // Periodic organic chat message
+    // Organic community chat message every 6 to 12 seconds
     let chatTimer: ReturnType<typeof setTimeout>;
     const scheduleNextCommunityMessage = () => {
-      const interval = 16000 + Math.random() * 16000; // 16s - 32s
+      const interval = 6000 + Math.random() * 6000; // 6s - 12s
       chatTimer = setTimeout(() => {
         const template = LIVE_COMMUNITY_POOL[Math.floor(Math.random() * LIVE_COMMUNITY_POOL.length)]!;
         const newMsg: ChatMessage = {
@@ -244,14 +275,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
           avatarUrl: template.avatarUrl,
           avatarColor: getUserColor(template.user),
           text: template.text,
-          upvotes: 0,
+          upvotes: Math.random() > 0.6 ? 1 : 0,
           createdAt: new Date().toISOString(),
         };
 
         setMessages((prev) => {
-          // Limit to recent 100 messages in memory
+          // Limit to recent 120 messages in memory
           const updated = [...prev, newMsg];
-          return updated.length > 100 ? updated.slice(updated.length - 100) : updated;
+          return updated.length > 120 ? updated.slice(updated.length - 120) : updated;
         });
 
         if (isScrolledUpRef.current) {
@@ -266,15 +297,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
 
     scheduleNextCommunityMessage();
 
-    // Periodic organic like reaction by other online players
+    // Organic like reaction on recent messages every 10 to 18 seconds
     let likeTimer: ReturnType<typeof setTimeout>;
     const scheduleNextCommunityLike = () => {
-      const interval = 22000 + Math.random() * 25000; // 22s - 47s
+      const interval = 10000 + Math.random() * 8000; // 10s - 18s
       likeTimer = setTimeout(() => {
         setMessages((prev) => {
           if (prev.length === 0) return prev;
-          // Pick a recent message from last 12 messages
-          const candidateSlice = prev.slice(-12);
+          // Pick a random message from last 15 messages
+          const candidateSlice = prev.slice(-15);
           const target = candidateSlice[Math.floor(Math.random() * candidateSlice.length)]!;
           return prev.map((m) => (m.id === target.id ? { ...m, upvotes: m.upvotes + 1 } : m));
         });
@@ -290,9 +321,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
     };
   }, [isOnline, scrollToBottom]);
 
-  // 4. Send message handler
+  // 4. Send message handler (works via Send button click, tap on mobile, and Enter key)
   const handleSend = async (e?: React.FormEvent, customText?: string) => {
-    if (e) e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     const messageContent = (customText || inputText).trim();
     if (!messageContent || isSending) return;
 
@@ -308,7 +341,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
     const color = getUserColor(displayName);
     const tempId = `temp-${Date.now()}`;
 
-    // Optimistic UI append
+    // Optimistic UI append immediately
     const optimisticMessage: ChatMessage = {
       id: tempId,
       user: displayName,
@@ -340,7 +373,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
         );
       }
     } catch {
-      // Keep optimistic message displayed so user experience is smooth
+      // Optimistic message remains visible so user experience is smooth
     } finally {
       setIsSending(false);
     }
@@ -366,9 +399,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
       try {
         socketService.likeChatMessage(id, 'unlike');
         await apiClient.post(`/api/v1/chat/messages/${id}/like`, { action: 'unlike' });
-      } catch {
-        // Silently tolerate network hiccups
-      }
+      } catch {}
     } else {
       // Like (single like per comment)
       nextLiked.add(id);
@@ -388,9 +419,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
       try {
         socketService.likeChatMessage(id, 'like');
         await apiClient.post(`/api/v1/chat/messages/${id}/like`, { action: 'like' });
-      } catch {
-        // Silently tolerate
-      }
+      } catch {}
     }
   };
 
@@ -412,7 +441,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
     <div
       style={{
         width: '100%',
-        maxWidth: 320,
+        maxWidth: isMobile ? '100%' : 320,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -788,9 +817,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
         </div>
       )}
 
-      {/* Bottom Input Area */}
+      {/* Bottom Input Area: Supports both Enter key and clicking/tapping Send button */}
       <form
-        onSubmit={handleSend}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSend();
+        }}
         style={{
           padding: '10px',
           borderTop: '1px solid rgba(81, 181, 121, 0.2)',
@@ -835,24 +867,43 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onClose, isMobile = false 
             }}
           />
           <button
-            type="submit"
+            type="button"
             disabled={!inputText.trim() || isSending}
+            onMouseDown={(e) => {
+              // Crucial: prevent input blur on desktop so click reliably triggers
+              e.preventDefault();
+            }}
+            onTouchStart={(e) => {
+              // Crucial: trigger send on touch before mobile keyboard dismissal shifts layout
+              if (inputText.trim() && !isSending) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
             style={{
               background: inputText.trim()
                 ? 'linear-gradient(180deg, #4c8b65, #254632)'
                 : 'rgba(255, 255, 255, 0.1)',
               border: 'none',
-              borderRadius: 3,
+              borderRadius: 4,
               color: '#FFFFFF',
               cursor: inputText.trim() ? 'pointer' : 'default',
-              padding: '4px 8px',
+              padding: '5px 10px',
+              minWidth: 34,
+              minHeight: 28,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              touchAction: 'manipulation',
               transition: 'background 0.15s ease, transform 0.1s ease',
             }}
+            title="Send message"
           >
-            <Send size={13} />
+            <Send size={14} style={{ pointerEvents: 'none' }} />
           </button>
         </div>
 

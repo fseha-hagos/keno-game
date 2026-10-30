@@ -50,8 +50,8 @@ describe('Game Mathematics & Probability Engine', () => {
   });
 
   describe('Paytable & Theoretical RTP', () => {
-    it('prints and validates RTP across all 5 spots', () => {
-      for (let spots = 1; spots <= 5; spots++) {
+    it('prints and validates RTP across all 10 spots', () => {
+      for (let spots = 1; spots <= 10; spots++) {
         const analysis = calculateSpotRtp(spots, DEFAULT_96_PAYTABLE_ENTRIES);
         // Log for verification
         // eslint-disable-next-line no-console
@@ -62,7 +62,7 @@ describe('Game Mathematics & Probability Engine', () => {
     });
 
     it('overall average RTP across all spots is in target range ~85% - 95%', () => {
-      const overall = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 5);
+      const overall = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
       expect(overall.averageRtp).toBeGreaterThanOrEqual(0.85);
       expect(overall.averageRtp).toBeLessThanOrEqual(0.95);
     });

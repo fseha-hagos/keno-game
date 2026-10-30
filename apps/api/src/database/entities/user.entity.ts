@@ -53,6 +53,10 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   currentRefreshTokenHash?: string | null;
 
+  /** Telegram chat_id for admin OTP delivery — set when admin sends /start to the bot */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  telegramChatId?: string | null;
+
   @OneToMany(() => WalletAccount, (wallet) => wallet.user)
   wallets!: WalletAccount[];
 

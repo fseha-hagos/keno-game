@@ -27,6 +27,6 @@ export class PaytablesController {
       const spots = parseInt(spotsParam, 10);
       return calculateSpotRtp(spots, DEFAULT_96_PAYTABLE_ENTRIES);
     }
-    return calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 5);
+    return calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
   }
 }

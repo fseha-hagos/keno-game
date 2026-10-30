@@ -112,6 +112,16 @@ export class AdminController {
     return this.adminService.setUserStatus(req.user, id, body.status, body.reason);
   }
 
+  @Post('players/:id/toggle-exclusion')
+  @ApiOperation({ summary: 'Admin toggle self-exclusion: stop or apply exclusion on player' })
+  async togglePlayerExclusion(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: { action: 'STOP' | 'EXCLUDE'; durationDays?: number; reason?: string },
+  ) {
+    return this.adminService.togglePlayerExclusion(req.user, id, body.action, body.durationDays, body.reason);
+  }
+
   /* ────────────────── WITHDRAWAL REVIEW: FULL USER TRANSACTION HISTORY ────────────────── */
 
   @Get('users/:id/financial-history')

@@ -15,6 +15,7 @@ import { ResponsibleGamblingModal } from './components/ResponsibleGamblingModal'
 import { ProfileModal } from './components/ProfileModal';
 import { PaytableModal } from './components/PaytableModal';
 import { ToastContainer } from './components/ToastContainer';
+import { FloatingSupportButton } from './components/FloatingSupportButton';
 import { useGameStore } from './store/useGameStore';
 import { useAuthStore } from './store/useAuthStore';
 import { apiClient } from './api/client';
@@ -484,7 +485,7 @@ export const App: React.FC = () => {
           {/* ═════════════════════════════════════════════════════════ */}
           {/* RIGHT COLUMN: Live Chat & Active Players                */}
           {/* ═════════════════════════════════════════════════════════ */}
-          {chatOpen && (
+          {isAuthenticated && chatOpen && (
             <aside
               style={{
                 width: 300,
@@ -500,7 +501,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Mobile Chat Slide-over Drawer */}
-      {mobileChatOpen && (
+      {isAuthenticated && mobileChatOpen && (
         <div
           role="dialog"
           aria-modal="true"
@@ -698,6 +699,9 @@ export const App: React.FC = () => {
         onClose={() => setPaytableModalOpen(false)}
         initialTab={rulesModalTab}
       />
+
+      {/* Floating Customer Support Button */}
+      <FloatingSupportButton />
     </div>
   );
 };

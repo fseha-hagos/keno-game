@@ -5,6 +5,7 @@ import { Bet } from '../../database/entities/bet.entity';
 import { GameRound } from '../../database/entities/game-round.entity';
 import { BetStatus, TransactionType, LedgerReferenceType } from '@keno/shared-types';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
+import { GAME_CONFIG } from '@keno/config';
 import { LedgerService } from '../ledger/ledger.service';
 import { PaytablesService } from '../paytables/paytables.service';
 import { EventsGateway } from '../websocket/events.gateway';
@@ -87,9 +88,11 @@ export class SettlementService {
 
       bet.multiplier = multiplier;
 
-      // 3. Compute Payout Minor Units: floor(stakeMinor * multiplier)
+      // 3. Compute Payout Minor Units: floor(stakeMinor * multiplier), capped at MAX_PAYOUT (30,000 ETB)
       const stakeNum = Number(bet.stakeMinor);
-      const payoutNum = Math.floor(stakeNum * multiplier);
+      const rawPayoutNum = Math.floor(stakeNum * multiplier);
+      const maxPayoutNum = Number(GAME_CONFIG.MAX_PAYOUT_MINOR || '3000000');
+      const payoutNum = Math.min(rawPayoutNum, maxPayoutNum);
       const payoutMinor = payoutNum.toString();
       bet.payoutMinor = payoutMinor;
       bet.status = BetStatus.SETTLED;

@@ -92,7 +92,7 @@ export class AdminService {
   /* ────────────────── 2. RTP CONFIGURATION (CREATOR ONLY) ────────────────── */
 
   async getRtpConfig() {
-    const mathAnalysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 5);
+    const mathAnalysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
     const dbEntries = await this.paytableRepo.find({ where: { status: 'ACTIVE' } });
     return {
       targetRtp: this.configuredRtp,
@@ -377,6 +377,7 @@ export class AdminService {
       status: p.status,
       roles: p.roles,
       kycStatus: p.kycStatus,
+      selfExcludedUntil: p.selfExcludedUntil,
       createdAt: p.createdAt,
       balanceMinor: walletMap.get(p.id)?.balanceMinor || '0',
       lockedMinor: walletMap.get(p.id)?.lockedMinor || '0',
@@ -393,6 +394,10 @@ export class AdminService {
 
     const prevStatus = user.status;
     user.status = status;
+    if (status === UserStatus.ACTIVE) {
+      user.selfExcludedUntil = null as any;
+      user.coolingOffUntil = null as any;
+    }
     await this.userRepo.save(user);
 
     await this.auditService.log({
@@ -416,6 +421,60 @@ export class AdminService {
       status: user.status,
       message: `User status changed to ${status}`,
     };
+  }
+
+  
+  async togglePlayerExclusion(actor: User, userId: string, action: 'STOP' | 'EXCLUDE', durationDays = 7, reason?: string) {
+    this.assertIsStaff(actor);
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Player account not found');
+    }
+
+    if (action === 'STOP') {
+      user.status = UserStatus.ACTIVE;
+      user.selfExcludedUntil = null as any;
+      user.coolingOffUntil = null as any;
+      await this.userRepo.save(user);
+
+      await this.auditService.log({
+        actorId: actor.id,
+        actorRole: actor.roles[0] || 'STAFF',
+        action: 'SELF_EXCLUSION_STOPPED_BY_ADMIN',
+        entity: 'USER',
+        entityId: user.id,
+        metadata: { reason: reason || 'Stopped by admin request', actedBy: actor.username },
+      });
+
+      return {
+        success: true,
+        message: 'Self-exclusion has been stopped. Player account is now ACTIVE.',
+        status: user.status,
+        selfExcludedUntil: null,
+      };
+    } else {
+      const until = new Date();
+      until.setDate(until.getDate() + durationDays);
+      user.status = UserStatus.SELF_EXCLUDED;
+      user.selfExcludedUntil = until;
+      await this.userRepo.save(user);
+
+      await this.auditService.log({
+        actorId: actor.id,
+        actorRole: actor.roles[0] || 'STAFF',
+        action: 'SELF_EXCLUSION_APPLIED_BY_ADMIN',
+        entity: 'USER',
+        entityId: user.id,
+        metadata: { durationDays, until, reason: reason || 'Applied by admin', actedBy: actor.username },
+      });
+
+      return {
+        success: true,
+        message: `Self-exclusion applied for ${durationDays} days.`,
+        status: user.status,
+        selfExcludedUntil: user.selfExcludedUntil,
+      };
+    }
   }
 
   /* ────────────────── 5. FULL USER TRANSACTION HISTORY (WITHDRAWAL REVIEW) ────────────────── */

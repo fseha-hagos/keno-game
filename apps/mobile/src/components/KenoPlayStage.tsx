@@ -278,8 +278,8 @@ export const KenoPlayStage = ({
     .sort((a, b) => a.hits - b.hits);
 
   const maxMultiplier = spotEntries.length > 0 ? (spotEntries[spotEntries.length - 1]?.multiplier ?? 0) : 0;
-  const stake = Number(activeSlip?.stakeMinor ?? '400') / 100;
-  const possibleWin = (stake * maxMultiplier).toFixed(2);
+  const stake = Number(activeSlip?.stakeMinor ?? '200') / 100;
+  const possibleWin = Math.min(30000, stake * maxMultiplier).toFixed(2);
 
   // ═══════════════════════════════════════════════════
   // 1. DRAW PHASE — Big ball on top moving to its specific space at bottom

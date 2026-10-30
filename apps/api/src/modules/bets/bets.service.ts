@@ -72,9 +72,12 @@ export class BetsService {
       );
     }
 
-    // 3. Minimum Stake Check (Minimum 4.00 ETB)
+    // 3. Minimum & Maximum Stake Check (2.00 - 4,000.00 ETB)
     if (BigInt(input.stakeMinor) < BigInt(GAME_CONFIG.MIN_STAKE_MINOR)) {
-      throw new BadRequestException('Minimum bet amount is 4.00 ETB');
+      throw new BadRequestException('Minimum bet amount is 2.00 ETB');
+    }
+    if (BigInt(input.stakeMinor) > BigInt(GAME_CONFIG.MAX_STAKE_MINOR)) {
+      throw new BadRequestException('Maximum bet amount is 4,000.00 ETB');
     }
 
     // 4. Responsible Gambling Limits Check
