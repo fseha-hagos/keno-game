@@ -520,8 +520,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                 left: '50%',
                 transform:
                   b.phase === 'flying'
-                    ? `translate(calc(-50% + ${b.deltaX}px), calc(-50% + ${b.deltaY}px)) scale(0.448)`
-                    : 'translate(-50%, -50%) scale(1)',
+                      ? `translate(calc(-50% + ${b.deltaX}px), calc(-50% + ${b.deltaY}px)) scale(0.51724)`
+                      : 'translate(-50%, -50%) scale(1)',
                 transition:
                   b.phase === 'flying'
                     ? `transform ${b.duration || 820}ms cubic-bezier(0.25, 1, 0.35, 1)`
@@ -609,12 +609,12 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     position: 'relative',
                     zIndex: 3,
                     fontFamily: KENO_FONTS.numbers,
-                    fontSize: 38,
+                    fontSize: 32.87,
                     fontWeight: 800,
                     color: '#FFFFFF',
                     lineHeight: 1,
                     letterSpacing: '-0.02em',
-                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.95)',
                   }}
                 >
                   {b.num}
@@ -663,7 +663,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     }}
                     style={{
                       width: '100%',
-                      maxWidth: 26,
+                      maxWidth: 30,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',
@@ -772,7 +772,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     }}
                     style={{
                       width: '100%',
-                      maxWidth: 26,
+                      maxWidth: 30,
                       aspectRatio: '1/1',
                       display: 'flex',
                       alignItems: 'center',

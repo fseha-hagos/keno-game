@@ -15,6 +15,12 @@ import {
   Loader2,
   RefreshCw,
   Sparkles,
+  CheckCircle2,
+  Phone,
+  Send,
+  FileCheck,
+  CreditCard,
+  ArrowDownCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -449,41 +455,77 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Switcher */}
+        {/* Tab Switcher - Vibrant Active Highlight matching image 3 */}
         <div
           style={{
             display: 'flex',
-            background: '#152132',
+            background: '#0D1522',
             margin: '12px 16px',
-            borderRadius: 10,
+            borderRadius: 12,
             padding: 4,
-            border: '1px solid #1E293B',
+            border: '1px solid #1E2D42',
           }}
         >
-          {(['deposit', 'withdraw', 'history'] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab);
-                setPendingDeposit(null);
-              }}
-              style={{
-                flex: 1,
-                padding: '8px 0',
-                border: 'none',
-                borderRadius: 8,
-                background: activeTab === tab ? '#223247' : 'transparent',
-                color: activeTab === tab ? '#FFFFFF' : '#94A3B8',
-                fontSize: 12,
-                fontWeight: 800,
-                textTransform: 'capitalize',
-                cursor: 'pointer',
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+          {(['deposit', 'withdraw', 'history'] as const).map((tab) => {
+            const isActive = activeTab === tab;
+            let activeBg = 'transparent';
+            let activeShadow = 'none';
+            if (isActive) {
+              if (tab === 'deposit') {
+                activeBg = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+                activeShadow = '0 3px 14px rgba(16, 185, 129, 0.45)';
+              } else if (tab === 'withdraw') {
+                activeBg = 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)';
+                activeShadow = '0 3px 14px rgba(14, 165, 233, 0.45)';
+              } else {
+                activeBg = 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)';
+                activeShadow = '0 3px 14px rgba(139, 92, 246, 0.45)';
+              }
+            }
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab);
+                  setPendingDeposit(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '9px 0',
+                  border: 'none',
+                  borderRadius: 9,
+                  background: activeBg,
+                  boxShadow: activeShadow,
+                  color: isActive ? '#FFFFFF' : '#94A3B8',
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  textTransform: 'capitalize',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                {isActive && (
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: '#FFFFFF',
+                      display: 'inline-block',
+                      boxShadow: '0 0 6px #FFFFFF',
+                    }}
+                  />
+                )}
+                {tab}
+              </button>
+            );
+          })}
         </div>
 
         {/* Scrollable Content */}
@@ -493,346 +535,720 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           {/* ─────────────────────────────────────────────────────────── */}
           {activeTab === 'deposit' && (
             pendingDeposit ? (
-              /* Step 2: Deposit Payment Instructions & Proof Reference */
-              <div>
-                {/* Header Card: Target Amount & Provider + Timer & Help Button */}
-                <div
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.08)',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                    borderRadius: 12,
-                    padding: '12px 14px',
-                    marginBottom: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {currentMethod.image ? (
+              pendingDeposit.proofSubmitted ? (
+                /* Step 3: Transaction Details & Live Progress Stepper (matching shamo.bet true 1 & true 2) */
+                <div>
+                  {/* Top Transaction Summary Card */}
+                  <div
+                    style={{
+                      background: 'linear-gradient(180deg, #162436 0%, #101A27 100%)',
+                      border: '1px solid #23354C',
+                      borderRadius: 14,
+                      padding: '16px',
+                      marginBottom: 14,
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          TRANSACTION
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>
+                          #{String(pendingDeposit.id || '26897388').slice(-8).toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Live Status Pill */}
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '4px 10px',
+                          borderRadius: 20,
+                          fontSize: 10.5,
+                          fontWeight: 800,
+                          letterSpacing: '0.03em',
+                          background:
+                            pendingDeposit.status === 'APPROVED'
+                              ? 'rgba(16, 185, 129, 0.15)'
+                              : pendingDeposit.status === 'REJECTED'
+                                ? 'rgba(239, 68, 68, 0.15)'
+                                : 'rgba(245, 158, 11, 0.15)',
+                          color:
+                            pendingDeposit.status === 'APPROVED'
+                              ? '#10B981'
+                              : pendingDeposit.status === 'REJECTED'
+                                ? '#EF4444'
+                                : '#F59E0B',
+                          border: `1px solid ${pendingDeposit.status === 'APPROVED'
+                            ? 'rgba(16, 185, 129, 0.35)'
+                            : pendingDeposit.status === 'REJECTED'
+                              ? 'rgba(239, 68, 68, 0.35)'
+                              : 'rgba(245, 158, 11, 0.35)'
+                            }`,
+                        }}
+                      >
+                        {pendingDeposit.status === 'APPROVED' ? (
+                          <>
+                            <CheckCircle2 size={12} />
+                            <span>APPROVED</span>
+                          </>
+                        ) : pendingDeposit.status === 'REJECTED' ? (
+                          <>
+                            <X size={12} />
+                            <span>REJECTED</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock size={12} />
+                            <span>VERIFICATION SENT</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                      DEPOSIT
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 28, fontWeight: 900, color: '#10B981' }}>
+                        +{depositAmount || pendingDeposit.displayAmount || '100'}
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: '#E2E8F0' }}>ETB</span>
+                    </div>
+
+                    <div style={{ fontSize: 11.5, color: '#94A3B8' }}>
+                      {currentMethod.name} • {formatTxDate(pendingDeposit.createdAt || new Date())}
+                    </div>
+                  </div>
+
+                  {/* Vertical Progress Stepper */}
+                  <div
+                    style={{
+                      background: '#152132',
+                      border: '1px solid #1E2D42',
+                      borderRadius: 14,
+                      padding: '16px 14px',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 900, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+                      PROGRESS
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                      {/* Step 1: Request Created */}
+                      <div style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: 22 }}>
+                        <div style={{ position: 'absolute', left: 13, top: 26, bottom: 0, width: 2, background: '#10B981' }} />
                         <div
                           style={{
-                            width: 32,
-                            height: 32,
+                            width: 28,
+                            height: 28,
                             borderRadius: '50%',
-                            overflow: 'hidden',
-                            backgroundColor: '#FFFFFF',
+                            background: '#10B981',
+                            color: '#FFFFFF',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             flexShrink: 0,
-                            padding: 2,
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                            zIndex: 2,
+                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.45)',
                           }}
                         >
-                          <img
-                            src={currentMethod.image}
-                            alt={currentMethod.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                          />
+                          <CreditCard size={14} strokeWidth={2.5} />
                         </div>
-                      ) : null}
-                      <div>
-                        <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>Amount to Send</div>
-                        <div style={{ fontSize: 15, fontWeight: 900, color: '#F8FAFC' }}>
-                          {depositAmount} ETB <span style={{ fontSize: 12, fontWeight: 600, color: '#10B981' }}>via {currentMethod.name}</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>Request Created</div>
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                            Deposit request submitted • {formatTxDate(pendingDeposit.createdAt || new Date())}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 2: Processing */}
+                      <div style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: 22 }}>
+                        <div style={{ position: 'absolute', left: 13, top: 26, bottom: 0, width: 2, background: '#10B981' }} />
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#10B981',
+                            color: '#FFFFFF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            zIndex: 2,
+                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.45)',
+                          }}
+                        >
+                          <RefreshCw size={14} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>Processing</div>
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                            Your request is being handled
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 3: Payment Verification */}
+                      <div style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: 22 }}>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: 13,
+                            top: 26,
+                            bottom: 0,
+                            width: 2,
+                            background:
+                              pendingDeposit.status === 'APPROVED'
+                                ? '#10B981'
+                                : 'linear-gradient(180deg, #10B981 0%, #F59E0B 100%)',
+                          }}
+                        />
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#10B981',
+                            color: '#FFFFFF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            zIndex: 2,
+                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.45)',
+                          }}
+                        >
+                          <FileCheck size={14} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>Payment Verification</div>
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                            Verification sent • Ref: <span style={{ color: '#10B981', fontWeight: 800 }}>{pendingDeposit.transactionReference}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 4: Awaiting Confirmation */}
+                      <div style={{ display: 'flex', gap: 12, position: 'relative' }}>
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background:
+                              pendingDeposit.status === 'APPROVED'
+                                ? '#10B981'
+                                : pendingDeposit.status === 'REJECTED'
+                                  ? '#EF4444'
+                                  : 'rgba(245, 158, 11, 0.2)',
+                            border: `2px solid ${pendingDeposit.status === 'APPROVED'
+                              ? '#10B981'
+                              : pendingDeposit.status === 'REJECTED'
+                                ? '#EF4444'
+                                : '#F59E0B'
+                              }`,
+                            color:
+                              pendingDeposit.status === 'APPROVED' || pendingDeposit.status === 'REJECTED'
+                                ? '#FFFFFF'
+                                : '#F59E0B',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            zIndex: 2,
+                            boxShadow:
+                              pendingDeposit.status === 'APPROVED'
+                                ? '0 0 12px rgba(16, 185, 129, 0.5)'
+                                : '0 0 12px rgba(245, 158, 11, 0.4)',
+                          }}
+                        >
+                          {pendingDeposit.status === 'APPROVED' ? (
+                            <Check size={14} strokeWidth={3} />
+                          ) : pendingDeposit.status === 'REJECTED' ? (
+                            <X size={14} strokeWidth={3} />
+                          ) : (
+                            <Clock size={14} strokeWidth={2.5} />
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 800,
+                              color:
+                                pendingDeposit.status === 'APPROVED'
+                                  ? '#10B981'
+                                  : pendingDeposit.status === 'REJECTED'
+                                    ? '#EF4444'
+                                    : '#F59E0B',
+                            }}
+                          >
+                            {pendingDeposit.status === 'APPROVED'
+                              ? 'Confirmed & Credited'
+                              : pendingDeposit.status === 'REJECTED'
+                                ? 'Deposit Rejected'
+                                : 'Awaiting Confirmation'}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2, lineHeight: 1.4 }}>
+                            {pendingDeposit.status === 'APPROVED'
+                              ? 'Your balance has been updated with the deposit amount.'
+                              : pendingDeposit.status === 'REJECTED'
+                                ? pendingDeposit.adminNote || 'The transaction could not be verified. Please contact support.'
+                                : 'Waiting for confirmation from payment provider or agent. Live-monitoring every 3s...'}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {/* Countdown */}
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: '#EF4444',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          padding: '3px 7px',
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Clock size={12} />
-                        {String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
-                      </span>
+                  {/* Pay To Details Summary Card */}
+                  <div
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid #1E293B',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 14,
+                      fontSize: 11.5,
+                    }}
+                  >
+                    <div style={{ fontSize: 10.5, fontWeight: 900, color: '#64748B', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                      PAY TO DETAILS
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ color: '#94A3B8' }}>Method</span>
+                      <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{currentMethod.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ color: '#94A3B8' }}>Account Name</span>
+                      <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{currentMethod.accountName}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#94A3B8' }}>Account Number</span>
+                      <span style={{ color: '#10B981', fontWeight: 800 }}>{currentMethod.accountNumber}</span>
+                    </div>
+                  </div>
 
-                      {/* Help '?' Button */}
+                  {/* Having an issue? Contact Agent Box */}
+                  <div
+                    style={{
+                      background: 'rgba(30, 41, 59, 0.45)',
+                      border: '1px solid #23354C',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 16,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 11.5, color: '#94A3B8', marginBottom: 10 }}>
+                      Having an issue? Contact our 24/7 payment agent:
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
                       <button
                         type="button"
-                        onClick={() => setShowHelp(true)}
+                        onClick={() => window.open('https://t.me/Fastkenosupportteam', '_blank', 'noopener,noreferrer')}
                         style={{
-                          background: 'rgba(251, 191, 36, 0.12)',
-                          border: '1px solid rgba(251, 191, 36, 0.4)',
-                          borderRadius: '50%',
-                          width: 28,
-                          height: 28,
+                          flex: 1,
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          background: 'rgba(36, 161, 222, 0.15)',
+                          border: '1px solid rgba(36, 161, 222, 0.4)',
+                          color: '#38BDF8',
+                          fontSize: 12,
+                          fontWeight: 700,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#FBBF24',
+                          gap: 6,
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
                         }}
-                        title="How to pay? View instructions"
                       >
-                        <HelpCircle size={16} />
+                        <Send size={13} />
+                        <span>Telegram</span>
                       </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Account Details Box */}
-                <div
-                  style={{
-                    background: '#152132',
-                    border: '1px solid #1E293B',
-                    borderRadius: 12,
-                    padding: '12px 14px',
-                    marginBottom: 14,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Name:</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
-                      {currentMethod.accountName}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Number:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 900, color: '#10B981', letterSpacing: '0.04em' }}>
-                        {currentMethod.accountNumber}
-                      </span>
-                      <button
+                      {/* <button
                         type="button"
-                        onClick={() => copyToClipboard(currentMethod.accountNumber)}
+                        onClick={() => window.open('tel:+251930547684')}
                         style={{
-                          background: '#28374E',
-                          border: '1.5px solid #2D425E',
-                          borderRadius: 6,
-                          padding: '4px 8px',
-                          color: '#F8FAFC',
-                          cursor: 'pointer',
+                          flex: 1,
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          color: '#34D399',
+                          fontSize: 12,
+                          fontWeight: 700,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 4,
-                          fontSize: 11,
-                          fontWeight: 700,
+                          justifyContent: 'center',
+                          gap: 6,
+                          cursor: 'pointer',
                         }}
                       >
-                        {copied ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
-                        <span>{copied ? 'Copied' : 'Copy'}</span>
-                      </button>
+                        <Phone size={13} />
+                        <span>Call Agent</span>
+                      </button> */}
                     </div>
                   </div>
-                </div>
 
-                {/* Help Drawer Modal when user clicks '?' */}
-                {showHelp && (
+                  {/* Action Buttons: New Deposit & View History */}
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingDeposit(null);
+                        setTxRef('');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '11px 0',
+                        borderRadius: 10,
+                        background: 'transparent',
+                        border: '1.5px solid #334155',
+                        color: '#E2E8F0',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      New Deposit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingDeposit(null);
+                        setActiveTab('history');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '11px 0',
+                        borderRadius: 10,
+                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        border: 'none',
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: '0 3px 12px rgba(16, 185, 129, 0.4)',
+                      }}
+                    >
+                      View History
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2: Deposit Payment Instructions & Proof Reference */
+                <div>
+                  {/* Header Card: Target Amount & Provider + Timer & Help Button */}
                   <div
                     style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'rgba(10, 16, 26, 0.96)',
-                      backdropFilter: 'blur(6px)',
-                      zIndex: 30,
-                      padding: '20px 18px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      borderRadius: 20,
-                      boxSizing: 'border-box',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 12,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#FBBF24', fontSize: 13, fontWeight: 800 }}>
-                        <HelpCircle size={16} />
-                        <span>HOW TO PAY ({currentMethod.name.toUpperCase()})</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {currentMethod.image ? (
+                          <div
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              backgroundColor: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              padding: 2,
+                              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                            }}
+                          >
+                            <img
+                              src={currentMethod.image}
+                              alt={currentMethod.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                          </div>
+                        ) : null}
+                        <div>
+                          <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>Amount to Send</div>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: '#F8FAFC' }}>
+                            {depositAmount} ETB <span style={{ fontSize: 12, fontWeight: 600, color: '#10B981' }}>via {currentMethod.name}</span>
+                          </div>
+                        </div>
                       </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {/* Countdown */}
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: '#EF4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            padding: '3px 7px',
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Clock size={12} />
+                          {String(countdown.mins).padStart(2, '0')}:{String(countdown.secs).padStart(2, '0')}
+                        </span>
+
+                        {/* Help '?' Button */}
+                        <button
+                          type="button"
+                          onClick={() => setShowHelp(true)}
+                          style={{
+                            background: 'rgba(251, 191, 36, 0.12)',
+                            border: '1px solid rgba(251, 191, 36, 0.4)',
+                            borderRadius: '50%',
+                            width: 28,
+                            height: 28,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#FBBF24',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title="How to pay? View instructions"
+                        >
+                          <HelpCircle size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Details Box */}
+                  <div
+                    style={{
+                      background: '#152132',
+                      border: '1px solid #1E293B',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Name:</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
+                        {currentMethod.accountName}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Number:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 15, fontWeight: 900, color: '#10B981', letterSpacing: '0.04em' }}>
+                          {currentMethod.accountNumber}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(currentMethod.accountNumber)}
+                          style={{
+                            background: '#28374E',
+                            border: '1.5px solid #2D425E',
+                            borderRadius: 6,
+                            padding: '4px 8px',
+                            color: '#F8FAFC',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {copied ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                          <span>{copied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Help Drawer Modal when user clicks '?' */}
+                  {showHelp && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'rgba(10, 16, 26, 0.96)',
+                        backdropFilter: 'blur(6px)',
+                        zIndex: 30,
+                        padding: '20px 18px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        borderRadius: 20,
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#FBBF24', fontSize: 13, fontWeight: 800 }}>
+                          <HelpCircle size={16} />
+                          <span>HOW TO PAY ({currentMethod.name.toUpperCase()})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowHelp(false)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#94A3B8',
+                            cursor: 'pointer',
+                            padding: 4,
+                          }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <ol
+                          style={{
+                            margin: 0,
+                            paddingLeft: 18,
+                            fontSize: 12,
+                            color: '#CBD5E1',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {currentMethod.instructions.map((step: string, idx: number) => (
+                            <li key={idx}>
+                              <span style={{ color: '#F8FAFC' }}>{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+
+                        <div
+                          style={{
+                            marginTop: 16,
+                            background: 'rgba(16, 185, 129, 0.08)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            borderRadius: 10,
+                            padding: '10px 12px',
+                            fontSize: 11,
+                            color: '#86EFAC',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          💡 <strong>Tip:</strong> You can paste the entire confirmation SMS from {currentMethod.name}. Our system will automatically detect the reference number!
+                        </div>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => setShowHelp(false)}
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#94A3B8',
-                          cursor: 'pointer',
-                          padding: 4,
-                        }}
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-
-                    <div style={{ flex: 1, overflowY: 'auto' }}>
-                      <ol
-                        style={{
-                          margin: 0,
-                          paddingLeft: 18,
-                          fontSize: 12,
-                          color: '#CBD5E1',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 10,
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {currentMethod.instructions.map((step: string, idx: number) => (
-                          <li key={idx}>
-                            <span style={{ color: '#F8FAFC' }}>{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-
-                      <div
-                        style={{
-                          marginTop: 16,
-                          background: 'rgba(16, 185, 129, 0.08)',
-                          border: '1px solid rgba(16, 185, 129, 0.25)',
-                          borderRadius: 10,
-                          padding: '10px 12px',
-                          fontSize: 11,
-                          color: '#86EFAC',
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        💡 <strong>Tip:</strong> You can paste the entire confirmation SMS from {currentMethod.name}. Our system will automatically detect the reference number!
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowHelp(false)}
-                      style={{
-                        width: '100%',
-                        padding: '11px 0',
-                        borderRadius: 10,
-                        background: '#28374E',
-                        border: '1.5px solid #2D425E',
-                        color: '#F8FAFC',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        marginTop: 14,
-                      }}
-                    >
-                      Got it, Back to Payment
-                    </button>
-                  </div>
-                )}
-
-                {/* Reference Code Input or Awaiting Approval Status */}
-                {pendingDeposit?.proofSubmitted ? (
-                  <div style={{ background: '#152132', border: '1px solid #10B981', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
-                    <div style={{ display: 'inline-flex', padding: 10, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', marginBottom: 10 }}>
-                      <Check size={24} />
-                    </div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#F8FAFC', marginBottom: 4 }}>
-                      Reference Submitted & Awaiting Admin Approval
-                    </div>
-                    <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 12 }}>
-                      Ref: <strong style={{ color: '#10B981' }}>{pendingDeposit.transactionReference}</strong> • Amount: <strong>{depositAmount} ETB</strong>
-                    </div>
-                    <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 8, padding: 10, fontSize: 11, color: '#93C5FD', textAlign: 'left', lineHeight: 1.5 }}>
-                      ⏳ Real-money deposits require administrator confirmation in the <strong>Admin Console</strong> before balances are credited. This window is live-monitoring every 3s and will update your balance automatically once approved.
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => { setPendingDeposit(null); onClose(); }}
-                      style={{
-                        marginTop: 14,
-                        width: '100%',
-                        padding: '10px 0',
-                        borderRadius: 8,
-                        background: '#28374E',
-                        border: '1.5px solid #2D425E',
-                        color: '#94A3B8',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Close Window (Will credit automatically upon admin approval)
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
-                          Transaction Reference Code
-                        </label>
-                        {extractRefPreview(txRef) && (
-                          <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                            ✨ Detected Ref: {extractRefPreview(txRef)}
-                          </span>
-                        )}
-                      </div>
-                      <textarea
-                        rows={2}
-                        placeholder={`e.g. ${currentMethod.hint || 'DJJ82SWP4M'} or paste full SMS`}
-                        value={txRef}
-                        onChange={(e) => setTxRef(e.target.value)}
-                        style={{
                           width: '100%',
-                          padding: '10px 12px',
-                          borderRadius: 10,
-                          background: '#152132',
-                          border: extractRefPreview(txRef) ? '1px solid #10B981' : '1px solid #334155',
-                          color: '#F8FAFC',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          outline: 'none',
-                          boxSizing: 'border-box',
-                          resize: 'none',
-                          fontFamily: 'inherit',
-                          lineHeight: 1.4,
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button
-                        type="button"
-                        onClick={() => setPendingDeposit(null)}
-                        style={{
-                          flex: 1,
-                          padding: '12px 0',
+                          padding: '11px 0',
                           borderRadius: 10,
                           background: '#28374E',
                           border: '1.5px solid #2D425E',
-                          color: '#94A3B8',
+                          color: '#F8FAFC',
                           fontSize: 13,
                           fontWeight: 700,
                           cursor: 'pointer',
+                          marginTop: 14,
                         }}
                       >
-                        Back
-                      </button>
-                      <button
-                        type="button"
-                        disabled={submitProofMutation.isPending}
-                        onClick={() => submitProofMutation.mutate()}
-                        style={{
-                          flex: 2,
-                          padding: '12px 0',
-                          borderRadius: 10,
-                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                          border: 'none',
-                          color: '#FFFFFF',
-                          fontSize: 13,
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {submitProofMutation.isPending ? 'Verifying...' : 'Submit Reference'}
+                        Got it, Back to Payment
                       </button>
                     </div>
-                  </>
-                )}
-              </div>
+                  )}
+
+
+
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                        Transaction Reference Code
+                      </label>
+                      {extractRefPreview(txRef) && (
+                        <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          ✨ Detected Ref: {extractRefPreview(txRef)}
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      rows={2}
+                      placeholder={`e.g. ${currentMethod.hint || 'DJJ82SWP4M'} or paste full SMS`}
+                      value={txRef}
+                      onChange={(e) => setTxRef(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        background: '#152132',
+                        border: extractRefPreview(txRef) ? '1px solid #10B981' : '1px solid #334155',
+                        color: '#F8FAFC',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        resize: 'none',
+                        fontFamily: 'inherit',
+                        lineHeight: 1.4,
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeposit(null)}
+                      style={{
+                        flex: 1,
+                        padding: '12px 0',
+                        borderRadius: 10,
+                        background: '#28374E',
+                        border: '1.5px solid #2D425E',
+                        color: '#94A3B8',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitProofMutation.isPending}
+                      onClick={() => submitProofMutation.mutate()}
+                      style={{
+                        flex: 2,
+                        padding: '12px 0',
+                        borderRadius: 10,
+                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        border: 'none',
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {submitProofMutation.isPending ? 'Verifying...' : 'Submit Reference'}
+                    </button>
+                  </div>
+                </div>
+              )
             ) : (
               /* Step 1: Deposit Method & Amount Selection */
               <div>

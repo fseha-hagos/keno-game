@@ -6,11 +6,8 @@ interface KenoGridProps {
   disabled?: boolean;
 }
 
-const HOT_NUMBERS = [1, 14, 28, 35, 48, 58, 66, 75];
-const COLD_NUMBERS = [5, 16, 27, 39, 44, 50, 62, 78];
-
 export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
-  const { getActiveSlip, toggleNumber, drawnNumbers } = useGameStore();
+  const { getActiveSlip, toggleNumber, drawnNumbers, lastGameNumbers } = useGameStore();
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
 
@@ -22,6 +19,15 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
     });
     return set;
   }, [drawnNumbers]);
+
+  const lastGameSet = React.useMemo(() => {
+    const set = new Set<number>();
+    (lastGameNumbers || []).forEach((n) => {
+      const v = Number(n);
+      if (!isNaN(v) && v >= 1 && v <= 80) set.add(v);
+    });
+    return set;
+  }, [lastGameNumbers]);
 
   const selectedSet = React.useMemo(() => new Set(selectedNumbers), [selectedNumbers]);
 
@@ -48,8 +54,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
           const isSelected = selectedSet.has(num);
           const isDrawn = drawnSet.has(num);
           const isHit = isSelected && isDrawn;
-          const isHot = HOT_NUMBERS.includes(num);
-          const isCold = COLD_NUMBERS.includes(num);
+          const isLastGameDrawn = lastGameSet.has(num);
 
           let bg = KENO_COLORS.cellDefault;
           let textColor = KENO_COLORS.textDefault;
@@ -98,33 +103,19 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
             >
               <span>{num}</span>
 
-              {/* Hot indicator red dot (top-left matching mock_web .bet_board_itm.max:after) */}
-              {isHot && (
+              {/* Indicator dot on numbers drawn in the last game (hot red color) */}
+              {isLastGameDrawn && !isHit && !isDrawn && (
                 <span
+                  title={`Drawn in last game (${num})`}
                   style={{
                     position: 'absolute',
                     top: '2%',
                     left: '2%',
-                    width: 6,
-                    height: 6,
+                    width: 5.5,
+                    height: 5.5,
                     borderRadius: '50%',
                     backgroundColor: KENO_COLORS.dotHot,
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
-
-              {/* Cold indicator light blue dot (top-left matching mock_web .bet_board_itm.min:after) */}
-              {isCold && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '2%',
-                    left: '2%',
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    backgroundColor: KENO_COLORS.dotCold,
+                    boxShadow: '0 0 3.5px rgba(255, 92, 92, 0.9)',
                     pointerEvents: 'none',
                   }}
                 />

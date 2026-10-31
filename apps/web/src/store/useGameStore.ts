@@ -77,6 +77,7 @@ interface GameState {
   betSlips: BetSlip[];
   activeSlipId: string;
   drawnNumbers: number[];
+  lastGameNumbers: number[];
   isDrawing: boolean;
   currency: string;
 
@@ -102,6 +103,7 @@ interface GameState {
   resetSlips: () => void;
 
   setDrawnNumbers: (nums: (number | string)[]) => void;
+  setLastGameNumbers: (nums: (number | string)[]) => void;
   addDrawnNumber: (num: number | string) => void;
   setIsDrawing: (drawing: boolean) => void;
   resetRoundDraw: () => void;
@@ -120,6 +122,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   betSlips: [makeSlip(INITIAL_SLIP_ID)],
   activeSlipId: INITIAL_SLIP_ID,
   drawnNumbers: [],
+  lastGameNumbers: (() => {
+    try {
+      const saved = localStorage.getItem('fastkeno_last_drawn_numbers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(Number).filter((n) => !isNaN(n) && n >= 1 && n <= 80);
+        }
+      }
+    } catch { }
+    return [];
+  })(),
   isDrawing: false,
   currency: 'ETB',
 
@@ -275,23 +289,64 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
     }),
 
-  setDrawnNumbers: (drawnNumbers: (number | string)[]) =>
-    set({
-      drawnNumbers: (drawnNumbers || [])
-        .map((n) => Number(n))
-        .filter((n) => !isNaN(n) && n >= 1 && n <= 80),
-    }),
+  setLastGameNumbers: (nums: (number | string)[]) => {
+    const clean = (nums || [])
+      .map(Number)
+      .filter((n) => !isNaN(n) && n >= 1 && n <= 80);
+    if (clean.length > 0) {
+      try {
+        localStorage.setItem('fastkeno_last_drawn_numbers', JSON.stringify(clean));
+      } catch { }
+      set({ lastGameNumbers: clean });
+    }
+  },
+
+  setDrawnNumbers: (drawnNumbers: (number | string)[]) => {
+    const clean = (drawnNumbers || [])
+      .map((n) => Number(n))
+      .filter((n) => !isNaN(n) && n >= 1 && n <= 80);
+    const updates: Partial<GameState> = { drawnNumbers: clean };
+    if (clean.length >= 20) {
+      updates.lastGameNumbers = clean;
+      try {
+        localStorage.setItem('fastkeno_last_drawn_numbers', JSON.stringify(clean));
+      } catch { }
+    }
+    set(updates);
+  },
 
   addDrawnNumber: (num: number | string) => {
     const parsed = Number(num);
     if (isNaN(parsed) || parsed < 1 || parsed > 80) return;
     const { drawnNumbers } = get();
     if (!drawnNumbers.map(Number).includes(parsed)) {
-      set({ drawnNumbers: [...drawnNumbers, parsed] });
+      const next = [...drawnNumbers, parsed];
+      const updates: Partial<GameState> = { drawnNumbers: next };
+      if (next.length >= 20) {
+        updates.lastGameNumbers = next;
+        try {
+          localStorage.setItem('fastkeno_last_drawn_numbers', JSON.stringify(next));
+        } catch { }
+      }
+      set(updates);
     }
   },
 
   setIsDrawing: (isDrawing) => set({ isDrawing }),
 
-  resetRoundDraw: () => set({ drawnNumbers: [], isDrawing: false }),
+  resetRoundDraw: () => {
+    const { drawnNumbers, lastGameNumbers } = get();
+    const nextLastGameNumbers =
+      drawnNumbers.length >= 10 ? drawnNumbers : lastGameNumbers;
+    if (drawnNumbers.length >= 10) {
+      try {
+        localStorage.setItem('fastkeno_last_drawn_numbers', JSON.stringify(drawnNumbers));
+      } catch { }
+    }
+    set({
+      drawnNumbers: [],
+      isDrawing: false,
+      lastGameNumbers: nextLastGameNumbers,
+    });
+  },
 }));
