@@ -1002,9 +1002,9 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   style={{
                     position: 'absolute',
                     top: 24,
-                    left: -25,
-                    width: 62,
-                    height: 62,
+                    left: -15,
+                    width: 54,
+                    height: 54,
                     borderRadius: '50%',
                     background: 'radial-gradient(circle at 40% 30%, #173826 0%, #0d2218 55%, #06150e 100%)',
                     boxShadow: '0 0 18px rgba(81, 181, 121, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.5)',
@@ -1033,7 +1033,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                     style={{
                       position: 'relative',
                       zIndex: 3,
-                      fontSize: 29,
+                      fontSize: 24,
                       fontWeight: 900,
                       fontFamily: KENO_FONTS.numbers,
                       color: '#51b579',

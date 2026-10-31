@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Headphones, X } from 'lucide-react';
 import { KENO_FONTS } from '../theme/kenoTheme';
 
@@ -6,152 +6,79 @@ interface FloatingSupportButtonProps {
   telegramUrl?: string;
 }
 
-const STORAGE_KEY = 'fastkeno_support_button_pos';
 const BUTTON_SIZE = 44;
-const PADDING = 12;
 
 export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
   telegramUrl = 'https://t.me/Fastkenosupportteam',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Position on screen: x (left), y (top)
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
-    if (typeof window === 'undefined') {
-      return { x: 300, y: 500 };
-    }
-    const defaultX = Math.max(PADDING, window.innerWidth - BUTTON_SIZE - PADDING - 4);
-    const defaultY = Math.max(PADDING, window.innerHeight - BUTTON_SIZE - PADDING - 24);
+  // Detect virtual keyboard on mobile to ensure support button never blocks typing or jumps around
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed?.x === 'number' && typeof parsed?.y === 'number') {
-          // Clamp to current viewport
-          const maxX = Math.max(PADDING, window.innerWidth - BUTTON_SIZE - PADDING);
-          const maxY = Math.max(PADDING, window.innerHeight - BUTTON_SIZE - PADDING);
-          return {
-            x: Math.min(Math.max(PADDING, parsed.x), maxX),
-            y: Math.min(Math.max(PADDING, parsed.y), maxY),
-          };
-        }
+    // 1. Monitor visualViewport height changes
+    const initialHeight = window.innerHeight;
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        const heightDiff = initialHeight - window.visualViewport.height;
+        // Keyboard typically occupies > 140px
+        setIsKeyboardOpen(heightDiff > 140);
       }
-    } catch {
-      // Ignore JSON parse errors
-    }
-    return { x: defaultX, y: defaultY };
-  });
+    };
 
-  const clampPos = useCallback((x: number, y: number) => {
-    const maxX = Math.max(PADDING, window.innerWidth - BUTTON_SIZE - PADDING);
-    const maxY = Math.max(PADDING, window.innerHeight - BUTTON_SIZE - PADDING);
-    return {
-      x: Math.min(Math.max(PADDING, x), maxX),
-      y: Math.min(Math.max(PADDING, y), maxY),
+    // 2. Also listen for focusin / focusout on form inputs
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        setIsKeyboardOpen(true);
+      }
+    };
+
+    const handleFocusOut = () => {
+      // Small delay before restoring to prevent flickering during focus transition between inputs
+      setTimeout(() => {
+        const active = document.activeElement as HTMLElement;
+        if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && !active.isContentEditable)) {
+          setIsKeyboardOpen(false);
+        }
+      }, 150);
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+    }
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+      }
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
     };
   }, []);
 
-  // Clamp on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setPos((prev) => clampPos(prev.x, prev.y));
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [clampPos]);
-
   // Close when clicking outside
   useEffect(() => {
-      const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-          setIsOpen(false);
-        }
-      };
-
-      if (isOpen) {
-        document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('touchstart', handleClickOutside);
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
       }
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('touchstart', handleClickOutside);
-      };
-    }, [isOpen]);
+    };
 
-      // Drag handling refs
-      const dragInfoRef = useRef<{
-        startX: number;
-        startY: number;
-        btnX: number;
-        btnY: number;
-        hasMoved: boolean;
-      }>({
-        startX: 0,
-        startY: 0,
-        btnX: 0,
-        btnY: 0,
-        hasMoved: false,
-      });
-
-      const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-        // Only respond to primary mouse click or touch
-        if (e.button !== 0 && e.pointerType === 'mouse') return;
-
-        dragInfoRef.current = {
-          startX: e.clientX,
-          startY: e.clientY,
-          btnX: pos.x,
-          btnY: pos.y,
-          hasMoved: false,
-        };
-
-        setIsDragging(true);
-
-      const onPointerMove = (moveEvt: PointerEvent) => {
-        const dx = moveEvt.clientX - dragInfoRef.current.startX;
-        const dy = moveEvt.clientY - dragInfoRef.current.startY;
-
-            if (!dragInfoRef.current.hasMoved && Math.hypot(dx, dy) > 6) {
-              dragInfoRef.current.hasMoved = true;
-            }
-
-            if (dragInfoRef.current.hasMoved) {
-              const nextX = dragInfoRef.current.btnX + dx;
-              const nextY = dragInfoRef.current.btnY + dy;
-              const clamped = clampPos(nextX, nextY);
-              setPos(clamped);
-            }
-          };
-
-            const onPointerUp = (upEvt: PointerEvent) => {
-              window.removeEventListener('pointermove', onPointerMove);
-              window.removeEventListener('pointerup', onPointerUp);
-              window.removeEventListener('pointercancel', onPointerUp);
-              setIsDragging(false);
-
-                if (dragInfoRef.current.hasMoved) {
-                  const dx = upEvt.clientX - dragInfoRef.current.startX;
-                  const dy = upEvt.clientY - dragInfoRef.current.startY;
-                  const finalPos = clampPos(dragInfoRef.current.btnX + dx, dragInfoRef.current.btnY + dy);
-                  setPos(finalPos);
-                  try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(finalPos));
-                  } catch {
-                    // ignore localStorage errors
-                  }
-                } else {
-                  // Simple tap / click without drag: toggle popover
-                  setIsOpen((prev) => !prev);
-                }
-            };
-
-            window.addEventListener('pointermove', onPointerMove, { passive: true });
-            window.addEventListener('pointerup', onPointerUp);
-            window.addEventListener('pointercancel', onPointerUp);
-          };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const handleTelegramClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -159,26 +86,25 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
     setIsOpen(false);
   };
 
-  // Determine popup positioning based on button's current screen position
-  const isNearBottom = pos.y > (typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400);
-  const isNearRight = pos.x > (typeof window !== 'undefined' ? window.innerWidth * 0.5 : 200);
-
   return (
     <div
       ref={containerRef}
       style={{
         position: 'fixed',
-        left: pos.x,
-        top: pos.y,
+        bottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
+        right: 14,
         zIndex: 9999,
         userSelect: 'none',
-        touchAction: 'none', // Prevents screen scrolling while dragging the button
         display: 'flex',
         flexDirection: 'column',
-        alignItems: isNearRight ? 'flex-end' : 'flex-start',
+        alignItems: 'flex-end',
+        opacity: isKeyboardOpen ? 0 : 1,
+        transform: isKeyboardOpen ? 'translateY(16px)' : 'translateY(0)',
+        pointerEvents: isKeyboardOpen ? 'none' : 'auto',
+        transition: 'opacity 0.2s ease, transform 0.2s ease',
       }}
     >
-      {/* Floating Telegram Action Pill */}
+      {/* Floating Telegram Action Pill positioned right above the button */}
       <div
         onClick={handleTelegramClick}
         role="button"
@@ -191,8 +117,8 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
         title="Open Telegram Support @Fastkenosupportteam"
         style={{
           position: 'absolute',
-          [isNearBottom ? 'bottom' : 'top']: BUTTON_SIZE + 10,
-          [isNearRight ? 'right' : 'left']: 0,
+          bottom: BUTTON_SIZE + 10,
+          right: 0,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -203,21 +129,17 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
           cursor: 'pointer',
           transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           opacity: isOpen ? 1 : 0,
-          transform: isOpen
-            ? 'scale(1)'
-            : isNearBottom
-              ? 'translateY(12px) scale(0.85)'
-              : 'translateY(-12px) scale(0.85)',
+          transform: isOpen ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.85)',
           pointerEvents: isOpen ? 'auto' : 'none',
           whiteSpace: 'nowrap',
           zIndex: 10000,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.03)';
+          e.currentTarget.style.transform = 'translateY(0) scale(1.03)';
           e.currentTarget.style.filter = 'brightness(1.08)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = isOpen ? 'scale(1)' : 'scale(0.85)';
+          e.currentTarget.style.transform = isOpen ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.85)';
           e.currentTarget.style.filter = 'none';
         }}
       >
@@ -263,45 +185,35 @@ export const FloatingSupportButton: React.FC<FloatingSupportButtonProps> = ({
         </span>
       </div>
 
-      {/* Draggable Customer Support Trigger Button */}
+      {/* Stacked Customer Support Trigger Button */}
       <button
         type="button"
-        onPointerDown={handlePointerDown}
-        aria-label={isOpen ? 'Close Customer Support' : 'Hold to drag, click for Support'}
-        title="Hold & drag to move • Click for Support"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={isOpen ? 'Close Customer Support' : 'Customer Support'}
+        title="Customer Support @Fastkenosupportteam"
         style={{
           width: BUTTON_SIZE,
           height: BUTTON_SIZE,
           borderRadius: '50%',
-          background: isDragging
-            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-            : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
           border: '1.5px solid rgba(113, 206, 150, 0.5)',
-          boxShadow: isDragging
-            ? '0 8px 24px rgba(16, 185, 129, 0.6), 0 3px 10px rgba(0, 0, 0, 0.6)'
-            : '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0, 0, 0, 0.45)',
+          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: isDragging ? 'grabbing' : 'grab',
+          cursor: 'pointer',
           padding: 0,
           color: '#FFFFFF',
-          transition: isDragging ? 'none' : 'transform 0.18s ease, box-shadow 0.18s ease',
-          transform: isDragging ? 'scale(1.12)' : 'scale(1)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease',
           outline: 'none',
-          touchAction: 'none',
         }}
         onMouseEnter={(e) => {
-          if (!isDragging) {
-            e.currentTarget.style.transform = 'scale(1.08)';
-            e.currentTarget.style.background = 'linear-gradient(135deg, #34D399 0%, #10B981 100%)';
-          }
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.background = 'linear-gradient(135deg, #34D399 0%, #10B981 100%)';
         }}
         onMouseLeave={(e) => {
-          if (!isDragging) {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
-          }
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
         }}
       >
         {isOpen ? (
