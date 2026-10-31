@@ -73,6 +73,7 @@ class SocketService {
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
       queryClient.invalidateQueries({ queryKey: ['currentRound'] });
+      queryClient.invalidateQueries({ queryKey: ['roundResults'] });
     });
 
     this.socket.on(WebSocketEvents.DRAW_STARTED, () => {
@@ -98,13 +99,15 @@ class SocketService {
 
     this.socket.on(WebSocketEvents.ROUND_COMPLETED, (data) => {
       useGameStore.getState().setIsDrawing(false);
-      if (data.drawResult) {
+      if (data.drawResult && Array.isArray(data.drawResult) && data.drawResult.length > 0) {
         useGameStore.getState().setDrawnNumbers(data.drawResult);
+        useGameStore.getState().setLastGameNumbers(data.drawResult);
       }
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
       queryClient.invalidateQueries({ queryKey: ['recentBets'] });
       queryClient.invalidateQueries({ queryKey: ['currentRound'] });
+      queryClient.invalidateQueries({ queryKey: ['roundResults'] });
     });
 
     this.socket.on(
@@ -174,6 +177,5 @@ class SocketService {
     }
   }
 }
-
 
 export const socketService = new SocketService();
