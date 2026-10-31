@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
-import { KENO_COLORS } from '../theme/kenoTheme';
 
 export const PaytableSidebar = () => {
   const { getActiveSlip } = useGameStore();
@@ -16,7 +15,7 @@ export const PaytableSidebar = () => {
         <View style={styles.emptyBadge}>
           <Text style={styles.emptyBadgeText}>PAYTABLE</Text>
         </View>
-        <Text style={styles.emptyText}>Pick 1–10 numbers to view potential multipliers & payouts</Text>
+        <Text style={styles.emptyText}>Pick 1–5 numbers to view potential multipliers & payouts</Text>
       </View>
     );
   }
@@ -57,7 +56,7 @@ export const PaytableSidebar = () => {
             <View key={r.hits} style={[styles.card, isMax && styles.cardMax]}>
               <Text style={[styles.hits, isMax && styles.hitsMax]}>{r.hits} {r.hits === 1 ? 'hit' : 'hits'}</Text>
               <Text style={[styles.mult, isMax && styles.multMax]}>{r.mult}×</Text>
-              <Text style={[styles.pay, isMax && styles.payMax]}>${r.payout}</Text>
+              <Text style={[styles.pay, isMax && styles.payMax]}>{r.payout} ETB</Text>
             </View>
           );
         })}
@@ -75,15 +74,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(34, 197, 94, 0.25)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   emptyBadgeText: {
-    color: '#F59E0B',
+    color: '#22C55E',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
@@ -118,18 +117,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#22C55E',
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
   },
   spotNumber: {
-    color: '#0F172A',
+    color: '#0F1923',
     fontSize: 11,
     fontWeight: '900',
   },
   spotLabel: {
-    color: '#0F172A',
+    color: '#0F1923',
     fontSize: 8,
     fontWeight: '900',
   },
@@ -139,7 +138,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   maxMultVal: {
-    color: '#10B981',
+    color: '#22C55E',
     fontWeight: '900',
   },
   list: {
@@ -147,18 +146,18 @@ const styles = StyleSheet.create({
     paddingRight: 2,
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E2A38',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2A3A4A',
     alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
     minWidth: 54,
   },
   cardMax: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: '#10B981',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderColor: '#22C55E',
   },
   hits: {
     color: '#94A3B8',
@@ -169,13 +168,13 @@ const styles = StyleSheet.create({
     color: '#34D399',
   },
   mult: {
-    color: '#F59E0B',
+    color: '#22C55E',
     fontSize: 11,
     fontWeight: '900',
     marginTop: 1,
   },
   multMax: {
-    color: '#FBBF24',
+    color: '#4ADE80',
   },
   pay: {
     color: '#CBD5E1',
@@ -188,4 +187,3 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
-

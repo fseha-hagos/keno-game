@@ -12,7 +12,7 @@ export const PaytablePreview: React.FC = () => {
   if (spots === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Select 1 to 10 numbers to view paytable & payouts</Text>
+        <Text style={styles.emptyText}>Select 1 to 5 numbers to view paytable & payouts</Text>
       </View>
     );
   }
@@ -38,7 +38,7 @@ export const PaytablePreview: React.FC = () => {
             <View key={r.hits} style={styles.cell}>
               <Text style={styles.hitsText}>{r.hits} HITS</Text>
               <Text style={styles.multText}>{r.mult}x</Text>
-              <Text style={styles.payoutText}>${r.payout}</Text>
+              <Text style={styles.payoutText}>{r.payout} ETB</Text>
             </View>
           ))}
         </View>
@@ -49,12 +49,12 @@ export const PaytablePreview: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#141C28',
     borderRadius: 12,
     padding: 12,
     marginVertical: 8,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#1E2A38',
   },
   emptyContainer: {
     padding: 0,
@@ -77,11 +77,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  headerRtp: {
-    color: '#10B981',
-    fontSize: 11,
-    fontWeight: '700',
-  },
   rowScroll: {
     flexDirection: 'row',
   },
@@ -90,14 +85,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cell: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E2A38',
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
     alignItems: 'center',
     minWidth: 70,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2A3A4A',
   },
   hitsText: {
     color: '#94A3B8',
@@ -105,7 +100,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   multText: {
-    color: '#FBBF24',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '800',
     marginVertical: 2,

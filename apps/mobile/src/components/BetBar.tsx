@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
@@ -20,23 +21,51 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
     betSlips,
     incrementAllStakes,
     decrementAllStakes,
+    setStakeMinor,
   } = useGameStore();
 
-  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '500';
+  const referenceStakeMinor = betSlips[0]?.stakeMinor ?? '200';
   const stake = Number(referenceStakeMinor) / 100;
-  const stakesMixed =
-    betSlips.length > 1 &&
-    betSlips.some((s) => s.stakeMinor !== referenceStakeMinor);
+
+  const [inputText, setInputText] = useState(stake.toFixed(2));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setInputText(stake.toFixed(2));
+    }
+  }, [stake, isFocused]);
+
+  const handleTextChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
+    setInputText(sanitized);
+
+    const val = parseFloat(sanitized);
+    if (!isNaN(val) && val > 0) {
+      const minor = Math.round(val * 100);
+      setStakeMinor(String(minor));
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const val = parseFloat(inputText);
+    if (isNaN(val) || val < 2) {
+      setStakeMinor('200'); // minimum 2.00 ETB
+      setInputText('2.00');
+    } else {
+      const clamped = Math.min(Math.max(val, 2), 4000);
+      const minor = Math.round(clamped * 100);
+      setStakeMinor(String(minor));
+      setInputText(clamped.toFixed(2));
+    }
+  };
 
   const totalStake = betSlips
     .filter((s) => s.selectedNumbers.length > 0)
     .reduce((sum, s) => sum + Number(s.stakeMinor) / 100, 0);
-  const totalWin = betSlips.reduce((sum, s) => {
-    const sp = s.selectedNumbers.length;
-    if (sp === 0) return sum;
-    const mult = getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, sp, sp);
-    return sum + (Number(s.stakeMinor) / 100) * mult;
-  }, 0);
 
   const readySlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
   const canBet = readySlips.length > 0 && !disabled && !isLoading;
@@ -44,123 +73,130 @@ export const BetBar = ({ onPlaceBet, isLoading, disabled }: BetBarProps) => {
   const fmt = (n: number) =>
     n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const handleDoubleStake = () => {
+    const current = Number(referenceStakeMinor);
+    const doubled = Math.min(current * 2, 400000); // cap at 4000.00
+    setStakeMinor(String(doubled));
+  };
+
+  const handleMaxStake = () => {
+    setStakeMinor('400000'); // 4000.00
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.actionRow}>
-        <View style={styles.slipInfo}>
-          <Text style={styles.activeHint}>Stake for all slips</Text>
-          <View style={styles.stakeStepper}>
-            <TouchableOpacity
-              onPress={decrementAllStakes}
-              style={[styles.stepBtn, styles.stepMinus]}
-            >
-              <Text style={styles.stepBtnText}>−</Text>
-            </TouchableOpacity>
+      {/* Stake Controls Row */}
+      <View style={styles.stakeRow}>
+        {/* Minus button */}
+        <TouchableOpacity
+          onPress={decrementAllStakes}
+          style={styles.stepBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.stepBtnText}>−</Text>
+        </TouchableOpacity>
 
-            <View style={styles.stakeDisplay}>
-              <Text style={styles.stakeAmount}>
-                {stakesMixed ? '≈ ' : ''}${fmt(stake)}
-              </Text>
-              {stakesMixed && (
-                <Text style={styles.stakeWin}>Per-slip stakes differ</Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              onPress={incrementAllStakes}
-              style={[styles.stepBtn, styles.stepPlus]}
-            >
-              <Text style={styles.stepBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Stake display - Editable TextInput for manual bet modification */}
+        <View style={[styles.stakeDisplay, isFocused && styles.stakeDisplayFocused]}>
+          <TextInput
+            style={styles.stakeInput}
+            value={isFocused ? inputText : fmt(stake)}
+            onChangeText={handleTextChange}
+            onFocus={() => {
+              setIsFocused(true);
+              setInputText(stake > 0 ? String(stake) : '');
+            }}
+            onBlur={handleBlur}
+            keyboardType="numeric"
+            selectTextOnFocus
+            placeholder="5.00"
+            placeholderTextColor="#64748B"
+          />
         </View>
 
-        <View style={styles.vertDivider} />
+        {/* Plus button */}
+        <TouchableOpacity
+          onPress={incrementAllStakes}
+          style={styles.stepBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.stepBtnText}>+</Text>
+        </TouchableOpacity>
 
-        <View style={styles.betSection}>
-          <View style={styles.totalsRow}>
-            <View>
-              <Text style={styles.totalLabel}>TOTAL STAKE</Text>
-              <Text style={styles.totalValue}>${fmt(totalStake)}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.totalLabel}>TO WIN</Text>
-              <Text style={[styles.totalValue, styles.totalWinValue]}>${fmt(totalWin)}</Text>
-            </View>
-          </View>
+        {/* Divider */}
+        <View style={styles.divider} />
 
-          <TouchableOpacity
-            onPress={onPlaceBet}
-            disabled={!canBet}
-            style={[styles.betBtn, !canBet && styles.betBtnDisabled]}
-            activeOpacity={0.8}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#0A0F1D" size="small" />
-            ) : (
-              <Text style={styles.betBtnText}>
-                PLACE {readySlips.length > 1 ? `${readySlips.length} BETS` : 'BET'}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        {/* X2 button */}
+        <TouchableOpacity
+          onPress={handleDoubleStake}
+          style={styles.actionBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.actionBtnText}>X2</Text>
+        </TouchableOpacity>
+
+        {/* MAX button */}
+        <TouchableOpacity
+          onPress={handleMaxStake}
+          style={styles.actionBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.actionBtnText}>MAX</Text>
+        </TouchableOpacity>
+
+        {/* Settings */}
+        <TouchableOpacity
+          style={styles.settingsBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.settingsIcon}>⚙</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* BET button */}
+      <TouchableOpacity
+        onPress={onPlaceBet}
+        disabled={!canBet}
+        style={[styles.betBtn, !canBet && styles.betBtnDisabled]}
+        activeOpacity={0.8}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#0F1923" size="small" />
+        ) : (
+          <Text style={[styles.betBtnText, !canBet && styles.betBtnTextDisabled]}>
+            {readySlips.length > 1 ? `BET (${readySlips.length} slips)` : 'BET'}
+          </Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0F172A',
-    borderTopWidth: 1,
-    borderTopColor: '#1E293B',
-    paddingHorizontal: 8,
-    paddingTop: 7,
+    backgroundColor: '#0F1923',
+    paddingHorizontal: 10,
+    paddingTop: 6,
     paddingBottom: 8,
-    marginTop: 6,
-    borderRadius: 10,
-    marginHorizontal: 6,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  actionRow: {
-    flexDirection: 'row',
     gap: 8,
-    alignItems: 'stretch',
   },
-  slipInfo: {
-    flex: 1,
-    gap: 4,
-    justifyContent: 'center',
-  },
-  activeHint: {
-    color: '#64748B',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  stakeStepper: {
+  stakeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   stepBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: '#1E2A38',
+    borderWidth: 1,
+    borderColor: '#2A3A4A',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepMinus: {
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  stepPlus: {
-    backgroundColor: '#D97706',
-  },
   stepBtnText: {
-    color: '#F1F5F9',
+    color: '#E2E8F0',
     fontSize: 20,
     fontWeight: '700',
     lineHeight: 22,
@@ -168,76 +204,96 @@ const styles = StyleSheet.create({
   },
   stakeDisplay: {
     flex: 1,
-    backgroundColor: '#1E293B',
-    borderWidth: 1.5,
-    borderColor: '#F59E0B',
-    borderRadius: 8,
+    backgroundColor: '#1E2A38',
+    borderWidth: 1,
+    borderColor: '#2A3A4A',
+    borderRadius: 6,
     alignItems: 'center',
-    paddingVertical: 4,
+    justifyContent: 'center',
+    height: 40,
+    paddingHorizontal: 4,
+  },
+  stakeDisplayFocused: {
+    borderColor: '#00E5FF',
+    backgroundColor: '#162230',
+  },
+  stakeInput: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    width: '100%',
+    height: '100%',
+    padding: 0,
   },
   stakeAmount: {
-    color: '#F1F5F9',
-    fontSize: 17,
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '900',
-    lineHeight: 20,
+    lineHeight: 22,
   },
-  stakeWin: {
-    color: '#34D399',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  vertDivider: {
+  divider: {
     width: 1,
-    backgroundColor: '#1E293B',
-    marginVertical: 2,
+    height: 24,
+    backgroundColor: '#2A3A4A',
   },
-  betSection: {
-    width: 130,
-    gap: 6,
+  actionBtn: {
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    backgroundColor: '#1E2A38',
+    borderWidth: 1,
+    borderColor: '#2A3A4A',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  totalsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-  },
-  totalLabel: {
-    color: '#475569',
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  totalValue: {
-    color: '#F1F5F9',
-    fontSize: 12,
+  actionBtnText: {
+    color: '#22C55E',
+    fontSize: 13,
     fontWeight: '900',
   },
-  totalWinValue: {
-    color: '#34D399',
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: '#1E2A38',
+    borderWidth: 1,
+    borderColor: '#2A3A4A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsIcon: {
+    fontSize: 18,
+    color: '#94A3B8',
   },
   betBtn: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 9,
-    paddingVertical: 10,
+    backgroundColor: '#487652',
+    borderWidth: 1,
+    borderColor: '#52865D',
+    borderRadius: 8,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowColor: '#487652',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 3,
   },
   betBtnDisabled: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#324D38',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#3A5841',
     shadowOpacity: 0,
     elevation: 0,
   },
   betBtnText: {
-    color: '#0A0F1D',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  betBtnTextDisabled: {
+    color: '#9EC0A6',
   },
 });

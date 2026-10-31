@@ -3,6 +3,9 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
+  ConnectedSocket,
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -21,10 +24,28 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
+    const userId = client.handshake.query?.userId || client.handshake.auth?.userId;
+    if (userId && typeof userId === 'string') {
+      client.join(`user_${userId}`);
+      this.logger.log(`Client ${client.id} joined room user_${userId}`);
+    }
   }
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+  }
+
+  @SubscribeMessage('authenticate')
+  handleAuthenticate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userId?: string; token?: string },
+  ) {
+    if (data?.userId) {
+      client.join(`user_${data.userId}`);
+      this.logger.log(`Client ${client.id} authenticated and joined room user_${data.userId}`);
+      return { status: 'ok', joined: `user_${data.userId}` };
+    }
+    return { status: 'error', message: 'No userId provided' };
   }
 
   broadcastRoundOpened(round: any) {
@@ -58,8 +79,24 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   sendBalanceUpdate(userId: string, newBalanceMinor: string) {
-    this.server.to(`user_${userId}`).emit(WebSocketEvents.WALLET_BALANCE_UPDATED, {
+    const payload = {
+      userId,
       balanceMinor: newBalanceMinor,
-    });
+    };
+    this.server.to(`user_${userId}`).emit(WebSocketEvents.WALLET_BALANCE_UPDATED, payload);
+    this.server.emit(WebSocketEvents.WALLET_BALANCE_UPDATED, payload);
+  }
+
+  broadcastChatMessage(message: any) {
+    if (this.server) {
+      this.server.emit(WebSocketEvents.CHAT_MESSAGE_CREATED, message);
+    }
+  }
+
+  broadcastChatLiked(messageId: string, upvotes: number) {
+    if (this.server) {
+      this.server.emit(WebSocketEvents.CHAT_MESSAGE_LIKED, { messageId, upvotes });
+    }
   }
 }
+

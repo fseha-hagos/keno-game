@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 
@@ -7,6 +7,61 @@ const MAX_SLIPS = 5;
 
 const fmt = (n: number) =>
   n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const SlipStakeInput = ({ slipId, stakeMinor }: { slipId: string; stakeMinor: string }) => {
+  const { setStakeForSlip } = useGameStore();
+  const stake = Number(stakeMinor) / 100;
+  const [text, setText] = useState(stake.toFixed(2));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setText(stake.toFixed(2));
+    }
+  }, [stake, focused]);
+
+  const handleChange = (val: string) => {
+    const cleaned = val.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned;
+    setText(sanitized);
+
+    const parsed = parseFloat(sanitized);
+    if (!isNaN(parsed) && parsed > 0) {
+      setStakeForSlip(slipId, String(Math.round(parsed * 100)));
+    }
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    const parsed = parseFloat(text);
+    if (isNaN(parsed) || parsed <= 0) {
+      setStakeForSlip(slipId, '100');
+      setText('1.00');
+    } else {
+      const clamped = Math.min(Math.max(parsed, 1), 50000);
+      setStakeForSlip(slipId, String(Math.round(clamped * 100)));
+      setText(clamped.toFixed(2));
+    }
+  };
+
+  return (
+    <TextInput
+      style={styles.slipStakeInput}
+      value={focused ? text : stake.toFixed(2)}
+      onChangeText={handleChange}
+      onFocus={() => {
+        setFocused(true);
+        setText(stake > 0 ? String(stake) : '');
+      }}
+      onBlur={handleBlur}
+      keyboardType="numeric"
+      selectTextOnFocus
+      placeholder="5.00"
+      placeholderTextColor="#64748B"
+    />
+  );
+};
 
 export const BetSlipsPanel = () => {
   const {
@@ -16,7 +71,17 @@ export const BetSlipsPanel = () => {
     setActiveSlip,
     incrementStakeForSlip,
     decrementStakeForSlip,
+    drawnNumbers,
   } = useGameStore();
+
+  const liveDrawnSet = React.useMemo(() => {
+    const set = new Set<number>();
+    (drawnNumbers || []).forEach((n) => {
+      const v = Number(n);
+      if (!isNaN(v) && v > 0) set.add(v);
+    });
+    return set;
+  }, [drawnNumbers]);
 
   const filledSlips = betSlips.filter((s) => s.selectedNumbers.length > 0);
   const showSlips = betSlips.filter(
@@ -40,11 +105,17 @@ export const BetSlipsPanel = () => {
           const stake = Number(slip.stakeMinor) / 100;
           const maxMult =
             spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
-          const maxWin = stake * maxMult;
-          const numbersText =
-            spots > 0
-              ? slip.selectedNumbers.map((n) => (n < 10 ? `0${n}` : String(n))).join('  ')
-              : 'Select numbers on the board';
+          const maxWin = Math.min(30000, stake * maxMult);
+
+          const cleanSlipNums = slip.selectedNumbers.map(Number).filter((n) => !isNaN(n));
+          const hitCount = cleanSlipNums.filter((n) => liveDrawnSet.has(n)).length;
+          const currentMult =
+            spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
+          const currentWin = Math.min(30000, stake * currentMult);
+
+          // Build 10 slots
+          const slots: (number | null)[] = [...slip.selectedNumbers];
+          while (slots.length < 10) slots.push(null);
 
           return (
             <View key={slip.id} style={[styles.row, isActive && styles.rowActive]}>
@@ -55,20 +126,47 @@ export const BetSlipsPanel = () => {
               >
                 <View style={styles.rowTop}>
                   <Text style={[styles.slipLabel, isActive && styles.slipLabelActive]}>
-                    Slip {idx + 1}
-                    {isActive ? ' · editing' : ''}
+                    {isActive ? `Slip ${idx + 1} · editing` : `Slip ${idx + 1}`}
                   </Text>
                   {spots > 0 && (
                     <Text style={styles.spotsTag}>{spots} spot{spots !== 1 ? 's' : ''}</Text>
                   )}
                 </View>
 
-                <Text style={styles.numbersLine} numberOfLines={2}>
-                  {numbersText}
-                </Text>
+                {/* 10 number slots grid with hit highlight */}
+                <View style={styles.slotsRow}>
+                  {slots.map((num, i) => {
+                    const numVal = Number(num);
+                    const isHit = num !== null && !isNaN(numVal) && liveDrawnSet.has(numVal);
+
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.slotBox,
+                          num === null
+                            ? styles.slotBoxEmpty
+                            : isHit
+                              ? styles.slotBoxHit
+                              : styles.slotBoxFilled,
+                        ]}
+                      >
+                        {num !== null && (
+                          <Text style={isHit ? styles.slotHitText : styles.slotText}>
+                            {num}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
 
                 {spots > 0 && (
-                  <Text style={styles.winLine}>Max win ${fmt(maxWin)}</Text>
+                  <Text style={[styles.winLine, currentWin > 0 && styles.winLineWon]}>
+                    {currentWin > 0
+                      ? `Win ${fmt(currentWin)} ETB (Max ${fmt(maxWin)} ETB)`
+                      : `Max win ${fmt(maxWin)} ETB`}
+                  </Text>
                 )}
               </TouchableOpacity>
 
@@ -82,7 +180,7 @@ export const BetSlipsPanel = () => {
                   >
                     <Text style={styles.stepBtnText}>−</Text>
                   </TouchableOpacity>
-                  <Text style={styles.stakeAmount}>${fmt(stake)}</Text>
+                  <SlipStakeInput slipId={slip.id} stakeMinor={slip.stakeMinor} />
                   <TouchableOpacity
                     onPress={() => incrementStakeForSlip(slip.id)}
                     style={[styles.stepBtn, styles.stepBtnPlus]}
@@ -123,16 +221,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#1E2A38',
   },
   rowActive: {
     borderLeftWidth: 3,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: '#22C55E',
     paddingLeft: 8,
+    backgroundColor: 'rgba(34, 197, 94, 0.05)',
   },
   rowMain: {
     flex: 1,
-    gap: 3,
+    gap: 4,
     minWidth: 0,
   },
   rowTop: {
@@ -146,23 +245,65 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   slipLabelActive: {
-    color: '#F59E0B',
+    color: '#22C55E',
   },
   spotsTag: {
     color: '#475569',
     fontSize: 9,
     fontWeight: '700',
   },
-  numbersLine: {
-    color: '#E2E8F0',
+  slotsRow: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  slotBox: {
+    flex: 1,
+    height: 24,
+    borderRadius: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  slotBoxFilled: {
+    backgroundColor: '#243044',
+    borderWidth: 1,
+    borderColor: '#2E4058',
+  },
+  slotBoxHit: {
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#34D399',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  slotBoxEmpty: {
+    backgroundColor: '#0F1923',
+    borderWidth: 1,
+    borderColor: '#1E2A38',
+  },
+  slotText: {
+    color: '#F8FAFC',
     fontSize: 10,
-    fontWeight: '600',
-    lineHeight: 14,
+    fontWeight: '800',
+  },
+  slotHitText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   winLine: {
-    color: '#34D399',
+    color: '#22C55E',
     fontSize: 9,
     fontWeight: '700',
+  },
+  winLineWon: {
+    color: '#4ADE80',
+    fontWeight: '900',
   },
   stakeCol: {
     alignItems: 'center',
@@ -183,15 +324,14 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 6,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1E2A38',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#2A3A4A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepBtnPlus: {
-    backgroundColor: '#92400E',
-    borderColor: '#D97706',
+    borderColor: '#22C55E',
   },
   stepBtnText: {
     color: '#F1F5F9',
@@ -200,11 +340,24 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   stakeAmount: {
-    color: '#FBBF24',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '900',
     minWidth: 52,
     textAlign: 'center',
+  },
+  slipStakeInput: {
+    color: '#22C55E',
+    fontSize: 12,
+    fontWeight: '900',
+    minWidth: 52,
+    textAlign: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+    borderRadius: 4,
+    backgroundColor: '#0F1923',
   },
   addSlipBtn: {
     paddingVertical: 8,
@@ -213,7 +366,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   addSlipText: {
-    color: '#38BDF8',
+    color: '#22C55E',
     fontSize: 12,
     fontWeight: '800',
   },

@@ -58,16 +58,25 @@ export class PaymentRequest {
   @Column({ type: 'varchar', length: 255, nullable: true })
   adminNote?: string;
 
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  matchedEvidenceId?: string;
+
+  @Column({ type: 'int', nullable: true })
+  matchConfidence?: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  matchReason?: string;
+
   @Column({ type: 'uuid', nullable: true })
   approvedBy?: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   approvedAt?: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   expiresAt?: Date;
 
-  @Index({ unique: true, sparse: true })
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   idempotencyKey?: string;
 

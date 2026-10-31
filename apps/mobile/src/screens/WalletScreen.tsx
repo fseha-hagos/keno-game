@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Clipboard,
 } from 'react-native';
+import { toastSuccess, toastError } from '../services/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Header } from '../components/Header';
@@ -18,7 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PAYMENT_METHODS = [
-  { id: 'telebirr', name: 'Telebirr', icon: '📱', accountNumber: '0978614151', accountName: 'Amdom desta' },
+  { id: 'telebirr', name: 'Telebirr', icon: '📱', accountNumber: '0948491265', accountName: 'Fseha Hagos' },
   { id: 'cbe_birr', name: 'CBE Birr', icon: '🏦', accountNumber: '1000234567891', accountName: 'Amdom desta' },
   { id: 'mobile_money', name: 'Mobile Money', icon: '💸', accountNumber: '0911000123', accountName: 'Amdom desta' },
   { id: 'card', name: 'Bank Card', icon: '💳', accountNumber: '1000234567890000', accountName: 'Amdom desta' },
@@ -122,7 +123,7 @@ export const WalletScreen = () => {
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || err.message || 'Could not create deposit request');
+      toastError('Deposit Error', err.response?.data?.message || err.message || 'Could not create deposit request');
     },
   });
 
@@ -136,15 +137,17 @@ export const WalletScreen = () => {
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert(
-        '✅ Proof Submitted!',
-        'Your payment reference has been submitted. Our team will verify and approve your deposit shortly.',
-        [{ text: 'OK', onPress: () => { setView('main'); setTxRef(''); setPendingDepositData(null); } }],
+      toastSuccess(
+        'Proof Submitted!',
+        'Your payment reference has been submitted. Verification is in progress.',
       );
+      setView('main');
+      setTxRef('');
+      setPendingDepositData(null);
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || err.message || 'Could not submit proof');
+      toastError('Submission Error', err.response?.data?.message || err.message || 'Could not submit proof');
     },
   });
 
@@ -165,15 +168,15 @@ export const WalletScreen = () => {
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert(
-        '⏳ Withdrawal Requested',
-        'Your withdrawal request has been submitted and funds are locked pending admin approval.',
+      toastSuccess(
+        'Withdrawal Requested',
+        'Your withdrawal request has been submitted for approval.',
       );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
     },
     onError: (err: any) => {
-      Alert.alert('Withdrawal Failed', err.response?.data?.message || err.message || 'Error processing withdrawal');
+      toastError('Withdrawal Failed', err.response?.data?.message || err.message || 'Error processing withdrawal');
     },
   });
 
@@ -244,7 +247,7 @@ export const WalletScreen = () => {
                 <TouchableOpacity
                   onPress={() => {
                     Clipboard.setString(method.accountNumber);
-                    Alert.alert('Copied!', 'Account number copied to clipboard.');
+                    toastSuccess('Copied!', 'Account number copied to clipboard.');
                   }}
                   style={styles.copyBtn}
                 >

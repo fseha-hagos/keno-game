@@ -1,8 +1,34 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.228:3000';
+const getBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    return `http://${window.location.hostname}:3000`;
+  }
+
+  // Extract host IP dynamically from Expo's Metro bundler connection
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
+    (Constants as any).manifest?.debuggerHost;
+
+  if (hostUri) {
+    const hostIp = hostUri.split(':')[0];
+    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+      return `http://${hostIp}:3000`;
+    }
+  }
+
+  // Fallback to active machine IP
+  return 'http://192.168.100.228:3000';
+};
+
+export const API_BASE_URL = getBaseUrl();
 
 export async function getSecureItem(key: string): Promise<string | null> {
   try {
