@@ -198,12 +198,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       setForgotStep('otp');
-      toastSuccess('Code Sent', linked ? 'OTP sent to your Telegram bot!' : 'Click to open Telegram bot to get your OTP.');
-
-      // If user has not linked bot yet, open the deep-link in telegram
-      if (botLinkUrl && !linked) {
-        window.open(botLinkUrl, '_blank', 'noopener,noreferrer');
-      }
+      toastSuccess('Code Sent', linked ? 'OTP sent to your Telegram bot!' : 'Enter the code sent to your Telegram, or tap the bot link below.');
     } catch (err: any) {
       const errText = formatApiError(err);
       setErrorMessage(errText);
