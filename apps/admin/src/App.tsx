@@ -1091,9 +1091,7 @@ export default function App() {
         >
           {[
             { id: 'overview' as const, label: 'Overview', icon: <TrendingUp size={13} /> },
-            ...((isCreator || isOperator)
-              ? [{ id: 'payments' as const, label: `Payments${pendingCount > 0 ? ` (${pendingCount})` : ''}`, icon: <DollarSign size={13} /> }]
-              : []),
+            { id: 'payments' as const, label: `Approve / Reject${pendingCount > 0 ? ` (${pendingCount})` : ''}`, icon: <DollarSign size={13} /> },
             { id: 'audits' as const, label: 'Audits', icon: <BarChart3 size={13} /> },
             ...((isCreator || isOwner) ? [{ id: 'staff' as const, label: 'Staff', icon: <Users size={13} /> }] : []),
             { id: 'players' as const, label: 'Players', icon: <UserCheck size={13} /> },
@@ -1155,13 +1153,16 @@ export default function App() {
       <div style={{
         width: isMobile ? '280px' : '270px',
         maxWidth: isMobile ? '85vw' : '270px',
+        minWidth: isMobile ? '280px' : '270px',
+        flexShrink: 0,
         backgroundColor: '#0F172A',
         borderRight: '1px solid #1E293B',
-        position: isMobile ? 'fixed' : 'static',
+        position: isMobile ? 'fixed' : 'sticky',
         top: 0,
+        height: '100vh',
         bottom: 0,
         left: 0,
-        zIndex: isMobile ? 1000 : 1,
+        zIndex: isMobile ? 1000 : 10,
         transform: isMobile ? (mobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
         transition: isMobile ? 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
         boxShadow: isMobile && mobileMenuOpen ? '8px 0 32px rgba(0, 0, 0, 0.8)' : 'none',
@@ -1235,12 +1236,8 @@ export default function App() {
         {/* Navigation Items based on authorization */}
         {sideNavBtn('overview', <TrendingUp size={18} />, 'Dashboard Overview')}
 
-        {/* Creator & Operator have access to Payments & Withdrawals */}
-        {
-          (isCreator || isOperator) && (
-            sideNavBtn('payments', <DollarSign size={18} />, 'Payment Approvals')
-          )
-        }
+        {/* Approve / Reject (Deposits & Withdrawals) — available to all admin roles */}
+        {sideNavBtn('payments', <DollarSign size={18} />, 'Approve / Reject Requests')}
 
         {/* Profit Audits: Creator, Business Owner, and Operator (Daily only) */}
         {
@@ -1325,7 +1322,7 @@ export default function App() {
       </div >
 
       {/* Main Content Area */}
-      < div
+      <div
         style={{
           flex: 1,
           padding: isMobile ? '16px 12px' : '32px',
@@ -1334,9 +1331,122 @@ export default function App() {
           minWidth: 0,
           width: '100%',
           boxSizing: 'border-box',
-        }
-        }
+        }}
       >
+        {/* PC Top Navigation / Action Bar */}
+        {!isMobile && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#0F172A',
+            border: '1px solid #1E293B',
+            borderRadius: '12px',
+            padding: '12px 20px',
+            marginBottom: '24px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ color: '#10B981', fontSize: '13px', fontWeight: 900, letterSpacing: '0.5px' }}>
+                KENO ADMIN CONSOLE
+              </span>
+              <span style={{ color: '#334155' }}>|</span>
+              <span style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 800 }}>
+                {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'payments' && 'Deposit & Withdrawal Approvals'}
+                {activeTab === 'audits' && 'Audit Logs & Reporting'}
+                {activeTab === 'staff' && 'Staff Accounts'}
+                {activeTab === 'players' && 'Player Accounts Management'}
+                {activeTab === 'rtp' && 'RTP & Paytable Engine'}
+                {activeTab === 'system' && 'System Maintenance & Control'}
+                {activeTab === 'rounds' && 'Live Rounds Stream'}
+                {activeTab === 'paytable' && 'Certified Paytables'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Direct Quick Jump Button to Approve / Reject Queue */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('payments')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: activeTab === 'payments' ? '#10B981' : pendingCount > 0 ? '#EF4444' : '#1E293B',
+                  color: activeTab === 'payments' ? '#0F172A' : '#FFFFFF',
+                  border: pendingCount > 0 ? '1px solid #F87171' : '1px solid #334155',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontWeight: 900,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: pendingCount > 0 ? '0 0 16px rgba(239, 68, 68, 0.4)' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <CheckCircle size={15} />
+                APPROVE / REJECT QUEUE
+                {pendingCount > 0 && (
+                  <span style={{
+                    backgroundColor: activeTab === 'payments' ? '#0F172A' : '#FFFFFF',
+                    color: activeTab === 'payments' ? '#10B981' : '#EF4444',
+                    borderRadius: '999px',
+                    padding: '1px 7px',
+                    fontSize: '11px',
+                    fontWeight: 900,
+                    marginLeft: '2px',
+                  }}>
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={fetchData}
+                title="Refresh All Data"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#1E293B',
+                  color: '#94A3B8',
+                  border: '1px solid #334155',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <RefreshCw size={13} /> Refresh
+              </button>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                paddingLeft: '8px',
+                borderLeft: '1px solid #1E293B',
+              }}>
+                <span style={{ color: '#F8FAFC', fontSize: '12px', fontWeight: 800 }}>
+                  {adminUser?.username || 'Admin'}
+                </span>
+                <span style={{
+                  backgroundColor: isCreator ? '#78350F' : isOwner ? '#1E3A8A' : '#064E3B',
+                  color: isCreator ? '#FDE68A' : isOwner ? '#93C5FD' : '#A7F3D0',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                }}>
+                  {adminUser?.roles?.[0] || 'ADMIN'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ───────────────────────────────────────────────────────────── */}
         {/* TAB 1: OVERVIEW DASHBOARD                                    */}
@@ -1366,10 +1476,24 @@ export default function App() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
-                <div style={{ backgroundColor: '#0F172A', padding: '20px', borderRadius: '12px', border: '1px solid #1E293B' }}>
+                <div
+                  onClick={() => setActiveTab('payments')}
+                  style={{
+                    backgroundColor: '#0F172A', padding: '20px', borderRadius: '12px',
+                    border: pendingCount > 0 ? '1.5px solid #F59E0B' : '1px solid #1E293B',
+                    cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#10B981')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = pendingCount > 0 ? '#F59E0B' : '#1E293B')}
+                >
                   <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>PENDING PAYMENTS</p>
-                  <h3 style={{ color: '#FBBF24', fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>{pendingCount}</h3>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Requires operator decision</p>
+                  <h3 style={{ color: pendingCount > 0 ? '#FBBF24' : '#64748B', fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>
+                    {pendingCount}
+                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <p style={{ color: '#64748B', fontSize: '11px' }}>Requires approval decision</p>
+                    <span style={{ color: '#10B981', fontSize: '11px', fontWeight: 800 }}>OPEN QUEUE →</span>
+                  </div>
                 </div>
 
                 <div style={{ backgroundColor: '#0F172A', padding: '20px', borderRadius: '12px', border: '1px solid #1E293B' }}>
@@ -1391,8 +1515,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick Actions for Operator */}
-              {isOperator && pendingCount > 0 && (
+              {/* Quick Actions for All Admin Tiers */}
+              {pendingCount > 0 && (
                 <div style={{
                   backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid #F59E0B',
                   borderRadius: '12px', padding: '20px', marginBottom: '24px',
