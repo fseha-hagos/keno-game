@@ -616,35 +616,170 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private getPhoneFormats(input: string): string[] {
+    const raw = (input || '').trim();
+    if (!raw) return [];
+    const digits = raw.replace(/\D/g, '');
+    const set = new Set<string>();
+    set.add(raw);
+    if (digits) {
+      set.add(digits);
+      if (!digits.startsWith('0')) {
+        set.add(`+${digits}`);
+      }
+    }
+
+    if (/^251[79]\d{8}$/.test(digits)) {
+      const local = '0' + digits.slice(3);
+      set.add(local);
+      set.add(digits.slice(3));
+      set.add(`+${digits}`);
+      set.add(digits);
+    } else if (/^0[79]\d{8}$/.test(digits)) {
+      set.add(digits);
+      set.add(`251${digits.slice(1)}`);
+      set.add(`+251${digits.slice(1)}`);
+      set.add(digits.slice(1));
+    } else if (/^[79]\d{8}$/.test(digits)) {
+      set.add(`0${digits}`);
+      set.add(`251${digits}`);
+      set.add(`+251${digits}`);
+      set.add(digits);
+    }
+
+    return Array.from(set);
+  }
+
   /**
-   * Called by the Telegram bot webhook when a message arrives.
-   * Handles /start and /link <username> commands so admins can link
-   * their Telegram chat_id to their Fast Keno admin account.
+   * Called by the Telegram bot webhook or long-polling when a message arrives.
+   * Handles secure admin linking via native Telegram contact sharing (phone number)
+   * or authenticated /link <username> <password> command, preventing unauthorized
+   * devices from hijacking admin accounts or receiving 2FA OTP codes.
    */
   async handleTelegramWebhook(body: any): Promise<void> {
     const token = process.env['TELEGRAM_BOT_TOKEN'];
     if (!token) return;
 
     const message = body?.message;
-    if (!message || !message.text) return;
+    if (!message || (!message.text && !message.contact)) return;
 
     const chatId = String(message.chat?.id ?? '');
-    const fromUsername = message.from?.username ?? 'Unknown';
-    const text: string = message.text.trim();
+    if (!chatId) return;
 
-    const sendReply = async (replyText: string) => {
+    const fromUsername = message.from?.username
+      ? `@${message.from.username}`
+      : message.from?.first_name || 'Admin';
+
+    const sendReply = async (replyText: string, replyMarkup?: any) => {
       try {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        const payload: any = {
+          chat_id: chatId,
+          text: replyText,
+          parse_mode: 'HTML',
+        };
+        if (replyMarkup) {
+          payload.reply_markup = replyMarkup;
+        }
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: replyText, parse_mode: 'HTML' }),
+          body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          const errData = await res.text();
+          this.logger.warn(`Telegram API error (${res.status}): ${errData}`);
+        }
       } catch (e: any) {
-        this.logger.warn(`Failed to send webhook reply: ${e.message}`);
+        this.logger.warn(`Failed to send Telegram webhook reply: ${e.message}`);
       }
     };
 
-    // Handle deep-link start: /start reset_<sessionId>
+    const linkKeyboard = {
+      keyboard: [
+        [
+          {
+            text: '📱 Verify & Link Admin Phone',
+            request_contact: true,
+          },
+        ],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    };
+
+    // ──────────────── 1. NATIVE TELEGRAM CONTACT VERIFICATION ────────────────
+    if (message.contact) {
+      const contact = message.contact;
+      const senderId = message.from?.id;
+
+      // Anti-spoofing check: ensure contact belongs to sender, not a forwarded vCard
+      if (contact.user_id && senderId && Number(contact.user_id) !== Number(senderId)) {
+        await sendReply(
+          `❌ <b>Security Verification Failed</b>\n\n` +
+          `Please tap the <b>"📱 Verify & Link Admin Phone"</b> button directly. Forwarded contact cards cannot be accepted for security reasons.`,
+          linkKeyboard,
+        );
+        return;
+      }
+
+      const rawPhone = String(contact.phone_number || '').trim();
+      const phoneFormats = this.getPhoneFormats(rawPhone);
+
+      const user = await this.userRepo.findOne({
+        where: phoneFormats.map((p) => ({ phone: p })),
+      });
+
+      if (!user) {
+        await sendReply(
+          `❌ <b>Admin Phone Not Registered</b>\n\n` +
+          `Your Telegram phone number (<b>${rawPhone}</b>) does not match any administrator account in Fast Keno.\n\n` +
+          `Please ensure your admin account was created with this exact phone number.\n\n` +
+          `If you have credentials, you can link with your password:\n` +
+          `<code>/link &lt;username&gt; &lt;password&gt;</code>`,
+          linkKeyboard,
+        );
+        return;
+      }
+
+      const isAdmin = user.roles?.some((r) => ADMIN_ROLES.includes(r as UserRole));
+      if (!isAdmin) {
+        await sendReply(
+          `❌ Account <b>${user.username}</b> (${user.phone}) does not have administrator privileges. Only admin accounts can be linked for 2FA OTP codes.`,
+          { remove_keyboard: true },
+        );
+        return;
+      }
+
+      const previousChat = user.telegramChatId;
+      user.telegramChatId = chatId;
+      await this.userRepo.save(user);
+
+      this.logger.log(`Admin "${user.username}" (${user.phone}) securely linked via Telegram Contact sharing (chat_id: ${chatId})`);
+
+      await this.auditService.log({
+        actorId: user.id,
+        actorRole: user.roles[0] || 'ADMIN',
+        action: 'ADMIN_TELEGRAM_LINKED_VIA_PHONE',
+        entity: 'USER',
+        entityId: user.id,
+        metadata: { chatId, fromUsername, phone: user.phone, previousChat },
+      });
+
+      await sendReply(
+        `✅ <b>Phone Verified & Telegram Linked!</b>\n\n` +
+        `👤 Admin: <b>${user.username}</b>\n` +
+        `📱 Phone: <b>${user.phone}</b>\n` +
+        `🛡️ Role: <b>${user.roles.join(', ')}</b>\n\n` +
+        `Your Telegram account is now securely registered.\n` +
+        `2FA login OTP codes will be delivered here automatically when you sign in to the Fast Keno Admin Console.`,
+        { remove_keyboard: true },
+      );
+      return;
+    }
+
+    const text: string = (message.text || '').trim();
+
+    // ──────────────── 2. DEEP-LINK RESET: /start reset_<sessionId> ────────────────
     const resetMatch = text.match(/^\/start\s+reset_([a-zA-Z0-9-]+)$/i);
     if (resetMatch && resetMatch[1]) {
       const sessionId = resetMatch[1];
@@ -655,7 +790,6 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      // Automatically link user's telegramChatId so future OTPs are sent without /start
       const user = await this.userRepo.findOne({ where: { id: session.userId } });
       if (user && !user.telegramChatId) {
         user.telegramChatId = chatId;
@@ -672,18 +806,57 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    if (text === '/start') {
+    // ──────────────── 3. /start OR /help ────────────────
+    if (text === '/start' || text === '/help') {
       await sendReply(
-        `👋 Welcome to Fast Keno if you want help @Fastkenosupportteam`,
+        `👋 <b>Welcome to Fast Keno Admin & Security Bot</b>\n\n` +
+        `This bot delivers 2FA OTP security codes for Fast Keno administrators.\n\n` +
+        `🔐 <b>How to link your Admin account:</b>\n` +
+        `1️⃣ <b>1-Tap Phone Link (Easiest):</b> Tap the <b>"📱 Verify & Link Admin Phone"</b> button below.\n` +
+        `2️⃣ <b>Command Link:</b> <code>/link &lt;username_or_phone&gt; &lt;password&gt;</code>\n\n` +
+        `📋 <b>Available Commands:</b>\n` +
+        `• <code>/status</code> — View linked accounts\n` +
+        `• <code>/unlink &lt;username&gt; &lt;password&gt;</code> — Unlink account\n\n` +
+        `Need support? Contact @Fastkenosupportteam`,
+        linkKeyboard,
       );
       return;
     }
 
-    const linkMatch = text.match(/^\/link\s+(\S+)$/i);
-    if (linkMatch && linkMatch[1]) {
-      const identifier = linkMatch[1].trim();
+    // ──────────────── 4. /status ────────────────
+    if (text === '/status' || text === '/myinfo') {
+      const linkedAdmins = await this.userRepo.find({
+        where: { telegramChatId: chatId },
+      });
+      if (!linkedAdmins || linkedAdmins.length === 0) {
+        await sendReply(
+          `ℹ️ This Telegram account is <b>not linked</b> to any Fast Keno admin account.\n\n` +
+          `Tap the button below to link your registered phone number.`,
+          linkKeyboard,
+        );
+      } else {
+        const list = linkedAdmins.map((u) => `• <b>${u.username}</b> (${u.phone}) — <i>${u.roles.join(', ')}</i>`).join('\n');
+        await sendReply(
+          `✅ <b>Linked Fast Keno Admin Account(s):</b>\n\n${list}\n\n` +
+          `2FA OTP codes for these accounts will be delivered to this chat.`,
+        );
+      }
+      return;
+    }
+
+    // ──────────────── 5. /link <username_or_phone> <password> ────────────────
+    const linkWithPassMatch = text.match(/^\/link\s+(\S+)\s+(.+)$/i);
+    if (linkWithPassMatch && linkWithPassMatch[1] && linkWithPassMatch[2]) {
+      const identifier = linkWithPassMatch[1].trim();
+      const password = linkWithPassMatch[2].trim();
+      const candidatePhones = this.getPhoneFormats(identifier);
+
       const user = await this.userRepo.findOne({
-        where: [{ username: identifier }, { phone: identifier }],
+        where: [
+          { username: identifier },
+          { phone: identifier },
+          ...candidatePhones.map((p) => ({ phone: p })),
+        ],
       });
 
       if (!user) {
@@ -697,25 +870,133 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        await sendReply(`❌ Incorrect password for admin <b>${user.username}</b>. Linking rejected.`);
+        return;
+      }
+
+      if (user.telegramChatId && user.telegramChatId !== chatId) {
+        await sendReply(
+          `⚠️ <b>Security Notice</b>\n\n` +
+          `Admin account <b>${user.username}</b> was previously linked to another Telegram device.\n\n` +
+          `Ownership has been verified via password and updated to this device.`,
+        );
+      }
+
+      const previousChat = user.telegramChatId;
       user.telegramChatId = chatId;
       await this.userRepo.save(user);
 
-      this.logger.log(`Admin "${user.username}" (${user.phone}) linked Telegram chat_id: ${chatId} (Telegram: @${fromUsername})`);
+      this.logger.log(`Admin "${user.username}" (${user.phone}) securely linked via password to chat_id: ${chatId}`);
+
+      await this.auditService.log({
+        actorId: user.id,
+        actorRole: user.roles[0] || 'ADMIN',
+        action: 'ADMIN_TELEGRAM_LINKED_VIA_PASSWORD',
+        entity: 'USER',
+        entityId: user.id,
+        metadata: { chatId, fromUsername, phone: user.phone, previousChat },
+      });
 
       await sendReply(
-        `✅ <b>Telegram linked successfully!</b>\n\n` +
-        `Admin: <b>${user.username}</b>\n` +
-        `Phone: <b>${user.phone}</b>\n` +
-        `Role: <b>${user.roles.join(', ')}</b>\n` +
-        `Telegram: @${fromUsername}\n\n` +
-        `From now on, your 2FA OTP codes will be sent here when you log in to the Fast Keno Admin Console.`,
+        `✅ <b>Telegram Linked Successfully!</b>\n\n` +
+        `👤 Admin: <b>${user.username}</b>\n` +
+        `📱 Phone: <b>${user.phone}</b>\n` +
+        `🛡️ Role: <b>${user.roles.join(', ')}</b>\n\n` +
+        `2FA login OTP codes will now be sent here whenever you log in to the Fast Keno Admin Console.`,
+        { remove_keyboard: true },
       );
       return;
     }
 
-    // Unknown command
+    // ──────────────── 6. BLOCKED UNPROTECTED /link <identifier> ────────────────
+    const linkOnlyMatch = text.match(/^\/link(\s+(\S+))?$/i);
+    if (linkOnlyMatch) {
+      const identifier = linkOnlyMatch[2]?.trim();
+      const targetText = identifier ? `for account <b>${identifier}</b>` : '';
+
+      await sendReply(
+        `🔒 <b>Authentication Required</b>\n\n` +
+        `To protect admin accounts from unauthorized access, linking ${targetText} requires verification.\n\n` +
+        `👉 <b>Option 1 (Instant):</b> Tap the <b>"📱 Verify & Link Admin Phone"</b> button below.\n\n` +
+        `👉 <b>Option 2:</b> Provide your admin password:\n` +
+        `<code>/link ${identifier || '&lt;username&gt;'} &lt;password&gt;</code>`,
+        linkKeyboard,
+      );
+      return;
+    }
+
+    // ──────────────── 7. /unlink <username_or_phone> <password> ────────────────
+    const unlinkWithPassMatch = text.match(/^\/unlink\s+(\S+)\s+(.+)$/i);
+    if (unlinkWithPassMatch && unlinkWithPassMatch[1] && unlinkWithPassMatch[2]) {
+      const identifier = unlinkWithPassMatch[1].trim();
+      const password = unlinkWithPassMatch[2].trim();
+      const candidatePhones = this.getPhoneFormats(identifier);
+
+      const user = await this.userRepo.findOne({
+        where: [
+          { username: identifier },
+          { phone: identifier },
+          ...candidatePhones.map((p) => ({ phone: p })),
+        ],
+      });
+
+      if (!user) {
+        await sendReply(`❌ Account <b>${identifier}</b> not found.`);
+        return;
+      }
+
+      const isAdmin = user.roles?.some((r) => ADMIN_ROLES.includes(r as UserRole));
+      if (!isAdmin) {
+        await sendReply(`❌ Account <b>${user.username}</b> is not an administrator.`);
+        return;
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        await sendReply(`❌ Incorrect password for admin <b>${user.username}</b>. Unlinking rejected.`);
+        return;
+      }
+
+      user.telegramChatId = null;
+      await this.userRepo.save(user);
+
+      await this.auditService.log({
+        actorId: user.id,
+        actorRole: user.roles[0] || 'ADMIN',
+        action: 'ADMIN_TELEGRAM_UNLINKED',
+        entity: 'USER',
+        entityId: user.id,
+        metadata: { chatId, fromUsername },
+      });
+
+      await sendReply(
+        `✅ <b>Telegram Unlinked Successfully</b>\n\n` +
+        `Admin account <b>${user.username}</b> is no longer linked to this Telegram account.`,
+        { remove_keyboard: true },
+      );
+      return;
+    }
+
+    const unlinkOnlyMatch = text.match(/^\/unlink(\s+(\S+))?$/i);
+    if (unlinkOnlyMatch) {
+      const identifier = unlinkOnlyMatch[2]?.trim();
+      await sendReply(
+        `🔒 <b>Password Required to Unlink</b>\n\n` +
+        `To unlink an admin account, please provide your password:\n` +
+        `<code>/unlink ${identifier || '&lt;username&gt;'} &lt;password&gt;</code>`,
+      );
+      return;
+    }
+
+    // ──────────────── 8. UNKNOWN COMMAND ────────────────
     await sendReply(
-      `👋 Welcome to Fast Keno if you want help @Fastkenosupportteam`,
+      `👋 <b>Welcome to Fast Keno Admin Bot</b>\n\n` +
+      `Tap the button below to link your admin phone, or use:\n` +
+      `<code>/link &lt;username&gt; &lt;password&gt;</code>\n\n` +
+      `For help, contact @Fastkenosupportteam`,
+      linkKeyboard,
     );
   }
 }
