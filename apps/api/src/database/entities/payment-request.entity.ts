@@ -56,6 +56,9 @@ export class PaymentRequest {
   status!: PaymentRequestStatus;
 
   @Column({ type: 'text', nullable: true })
+  rawSmsText?: string;
+
+  @Column({ type: 'text', nullable: true })
   adminNote?: string;
 
   @Index()

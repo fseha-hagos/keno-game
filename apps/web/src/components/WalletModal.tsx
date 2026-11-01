@@ -312,7 +312,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       const cleanRef = detected || raw;
       const res = await apiClient.patch(`/api/v1/wallet/deposit/${pendingDeposit?.id}/proof`, {
         transactionReference: cleanRef,
-        rawSmsText: raw !== cleanRef ? raw : undefined,
+        rawSmsText: raw,
       });
       return res.data;
     },

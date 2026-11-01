@@ -237,7 +237,8 @@ export class WalletService {
       accountNumber: input.accountNumber || '0948491265',
       accountName: input.accountName || 'Fseha Hagos',
       transactionReference: initialRef,
-      adminNote: initialSnippet ? `SMS: ${initialSnippet}` : undefined,
+      rawSmsText: (input as any).rawSmsText || initialSnippet,
+      adminNote: initialSnippet ? `SMS: ${initialSnippet.substring(0, 500)}` : undefined,
       proofImageUrl: input.proofImageUrl || undefined,
       status: PaymentRequestStatus.PENDING,
       expiresAt,
@@ -694,8 +695,11 @@ export class WalletService {
       const extracted = this.extractTransactionReference(inputRef);
       request.transactionReference = (extracted.reference || inputRef).substring(0, 100);
       const snippet = proof.rawSmsText || extracted.rawSnippet;
-      if (snippet && !request.adminNote) {
-        request.adminNote = `SMS: ${snippet.substring(0, 500)}`;
+      if (snippet) {
+        request.rawSmsText = snippet;
+        if (!request.adminNote) {
+          request.adminNote = `SMS: ${snippet.substring(0, 500)}`;
+        }
       }
     }
     if (proof.proofImageUrl) {

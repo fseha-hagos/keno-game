@@ -77,6 +77,9 @@ export class DatabaseModule implements OnModuleInit {
         await this.dataSource.query(
           `ALTER TABLE "payment_requests" ALTER COLUMN "adminNote" TYPE text;`
         );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "rawSmsText" text;`
+        );
         this.logger.log('Database schema check: "telegramChatId" column verified/added successfully.');
       }
     } catch (err: any) {
