@@ -3,8 +3,10 @@ import { useGameStore } from '../store/useGameStore';
 import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
 import { HelpCircle } from 'lucide-react';
 import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
+import { usePlacedBetNumbers } from '../hooks/usePlacedBetNumbers';
 
 interface KenoPlayStageProps {
+  roundId?: string;
   roundNumber?: number | string;
   timeLeft?: number;
   bettingOpen?: boolean;
@@ -17,6 +19,7 @@ interface QueueItem {
 }
 
 export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
+  roundId,
   roundNumber,
   timeLeft = 0,
   bettingOpen = false,
@@ -32,6 +35,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const spots = selectedNumbers.length;
+  const placedBetNumbers = usePlacedBetNumbers(roundId);
 
   interface CallingBallInfo {
     id: number;
@@ -559,13 +563,13 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: selectedNumbers.includes(b.num)
+                  background: placedBetNumbers.has(b.num)
                     ? 'radial-gradient(circle at 45% 28%, #4ADE80 0%, #16A34A 45%, #064E3B 80%, #022C22 100%)'
                     : 'radial-gradient(circle at 45% 28%, #36495b 0%, #1c2a38 40%, #0d1620 75%, #050a0f 100%)',
-                  boxShadow: selectedNumbers.includes(b.num)
+                  boxShadow: placedBetNumbers.has(b.num)
                     ? '0 0 22px rgba(34, 197, 94, 0.95), inset 0 2px 3px rgba(255, 255, 255, 0.7)'
                     : '0 6px 14px rgba(0, 0, 0, 0.8), inset 0 1.5px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.6)',
-                  border: selectedNumbers.includes(b.num)
+                  border: placedBetNumbers.has(b.num)
                     ? '1.5px solid #86EFAC'
                     : '1px solid rgba(255, 255, 255, 0.2)',
                   animation:
@@ -653,7 +657,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               {Array.from({ length: 10 }).map((_, col) => {
                 const slotIdx = 10 + col;
                 const ballNum = settledBalls[slotIdx];
-                const isHit = ballNum !== undefined && selectedNumbers.includes(ballNum);
+                const isHit = ballNum !== undefined && placedBetNumbers.has(ballNum);
 
                 return (
                   <div
@@ -762,7 +766,7 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
               {Array.from({ length: 10 }).map((_, col) => {
                 const slotIdx = col;
                 const ballNum = settledBalls[slotIdx];
-                const isHit = ballNum !== undefined && selectedNumbers.includes(ballNum);
+                const isHit = ballNum !== undefined && placedBetNumbers.has(ballNum);
 
                 return (
                   <div

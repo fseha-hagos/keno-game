@@ -1,12 +1,16 @@
 import React from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { KENO_COLORS, KENO_FONTS } from '../theme/kenoTheme';
+import { usePlacedBetNumbers } from '../hooks/usePlacedBetNumbers';
 
 interface KenoGridProps {
   disabled?: boolean;
+  roundId?: string;
+  isGameRunning?: boolean;
 }
 
-export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
+export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false, roundId, isGameRunning = false }) => {
+  const placedBetNumbers = usePlacedBetNumbers(roundId);
   const { getActiveSlip, toggleNumber, drawnNumbers, lastGameNumbers } = useGameStore();
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
@@ -53,7 +57,8 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ disabled = false }) => {
           const num = i + 1;
           const isSelected = selectedSet.has(num);
           const isDrawn = drawnSet.has(num);
-          const isHit = isSelected && isDrawn;
+          const isBetPlaced = placedBetNumbers.has(num);
+          const isHit = isBetPlaced && isDrawn;
           const isLastGameDrawn = lastGameSet.has(num);
 
           let bg = KENO_COLORS.cellDefault;

@@ -462,6 +462,7 @@ export const App: React.FC = () => {
           >
             {/* Central Play Stage (Timer / 3D Spheres in Countdown, or Radar & Calling Ball in Draw) */}
             <KenoPlayStage
+              roundId={round?.id}
               roundNumber={round?.roundNumber}
               timeLeft={timeLeft}
               bettingOpen={bettingOpen}
@@ -479,7 +480,11 @@ export const App: React.FC = () => {
                 display: isGameRunning && isMobile ? 'none' : 'block',
               }}
             >
-              <KenoGrid disabled={!bettingOpen} />
+              <KenoGrid
+                disabled={!bettingOpen}
+                roundId={round?.id}
+                isGameRunning={isGameRunning}
+              />
             </div>
 
             {/* BetBar: Always visible on desktop; on mobile hidden when the game starts/draws */}
