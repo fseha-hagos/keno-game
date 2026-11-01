@@ -58,6 +58,12 @@ function formatDate(d: string) {
   return new Date(d).toLocaleString();
 }
 
+function extractUrl(text?: string): string | null {
+  if (!text) return null;
+  const match = text.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0].replace(/[.,;)]+$/, '') : null;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
     PENDING: { bg: '#713F12', text: '#FDE68A' },
@@ -1754,6 +1760,138 @@ export default function App() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* Full SMS / Proof Text Submitted by Player */}
+                            {(() => {
+                              const userText =
+                                r.rawSmsText ||
+                                (r.adminNote?.startsWith('SMS:')
+                                  ? r.adminNote.replace(/^SMS:\s*/, '')
+                                  : null);
+                              const receiptUrl = extractUrl(userText);
+                              if (!userText && !r.proofImageUrl) return null;
+
+                              return (
+                                <div
+                                  style={{
+                                    backgroundColor: '#0F172A',
+                                    border: '1.5px solid #334155',
+                                    borderRadius: '10px',
+                                    padding: '12px 14px',
+                                    marginTop: '12px',
+                                    marginBottom: '14px',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      marginBottom: '8px',
+                                      flexWrap: 'wrap',
+                                      gap: '8px',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: '11px',
+                                        fontWeight: 800,
+                                        color: '#38BDF8',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                      }}
+                                    >
+                                      <FileText size={13} /> Full SMS / Payment Proof Submitted by Player
+                                    </span>
+
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      {receiptUrl && (
+                                        <a
+                                          href={receiptUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            backgroundColor: '#0284C7',
+                                            color: '#FFFFFF',
+                                            borderRadius: '6px',
+                                            padding: '4px 10px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            textDecoration: 'none',
+                                            boxShadow: '0 2px 6px rgba(2, 132, 199, 0.4)',
+                                          }}
+                                        >
+                                          Verify Receipt on Ethio Telecom ↗
+                                        </a>
+                                      )}
+                                      {userText && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            navigator.clipboard?.writeText(userText);
+                                            alert('Copied full SMS text to clipboard!');
+                                          }}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            backgroundColor: '#1E293B',
+                                            color: '#94A3B8',
+                                            border: '1px solid #334155',
+                                            borderRadius: '6px',
+                                            padding: '4px 10px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          <Copy size={11} /> Copy Full Text
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {userText && (
+                                    <div
+                                      style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '12px',
+                                        color: '#F1F5F9',
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        lineHeight: 1.5,
+                                        backgroundColor: '#020617',
+                                        padding: '12px 14px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #1E293B',
+                                        userSelect: 'text',
+                                      }}
+                                    >
+                                      {userText}
+                                    </div>
+                                  )}
+
+                                  {r.proofImageUrl && (
+                                    <div style={{ marginTop: '10px' }}>
+                                      <a
+                                        href={r.proofImageUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#38BDF8', fontSize: '12px', fontWeight: 700, textDecoration: 'underline' }}
+                                      >
+                                        View Uploaded Proof Screenshot ↗
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Action Row */}
                             {r.status === 'PENDING' && (
