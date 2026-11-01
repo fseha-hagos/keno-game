@@ -4,6 +4,7 @@ import { WalletAccount } from '../../database/entities/wallet-account.entity';
 import { LedgerModule } from '../ledger/ledger.module';
 import { WalletService } from './wallet.service';
 import { WalletController } from './wallet.controller';
+import { TelegramNotificationService } from './telegram-notification.service';
 
 import { PaymentRequest } from '../../database/entities/payment-request.entity';
 import { PaymentEvidence } from '../../database/entities/payment-evidence.entity';
@@ -16,7 +17,7 @@ import { PaymentsModule } from '../payments/payments.module';
     forwardRef(() => PaymentsModule),
   ],
   controllers: [WalletController],
-  providers: [WalletService],
-  exports: [WalletService],
+  providers: [WalletService, TelegramNotificationService],
+  exports: [WalletService, TelegramNotificationService],
 })
-export class WalletModule {}
+export class WalletModule { }

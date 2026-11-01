@@ -21,6 +21,7 @@ import {
   PaymentEvidence,
   PaymentEvidenceStatus,
 } from '../../database/entities/payment-evidence.entity';
+import { TelegramNotificationService } from './telegram-notification.service';
 import { TransactionType, LedgerReferenceType } from '@keno/shared-types';
 import { GAME_CONFIG } from '@keno/config';
 import { AuditService } from '../audit/audit.service';
@@ -64,6 +65,7 @@ export class WalletService {
     @Inject(forwardRef(() => DepositMatchingService))
     private readonly matchingService: DepositMatchingService,
     private readonly parserRegistry: PaymentParserRegistry,
+    private readonly telegramNotification: TelegramNotificationService,
   ) {}
 
   /**
@@ -251,6 +253,10 @@ export class WalletService {
       `Deposit Request #${saved.id} created (PENDING approval) for User ${userId}, Amount: ${saved.amountMinor} ${saved.currency}`,
     );
 
+    this.telegramNotification
+      .notify(saved, 'DEPOSIT_CREATED')
+      .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
     // Run matching against existing unmatched evidence
     const matched = await this.matchingService.matchPendingDeposit(saved);
     const depositMinor = matched.amountMinor ? BigInt(matched.amountMinor) : 0n;
@@ -352,6 +358,10 @@ export class WalletService {
         `Withdrawal Request #${saved.id} created (PENDING approval) for User ${userId}, Amount: ${saved.amountMinor} ${saved.currency}`,
       );
 
+      this.telegramNotification
+        .notify(saved, 'WITHDRAWAL_CREATED')
+        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
       return saved;
     });
   }
@@ -432,6 +442,10 @@ export class WalletService {
         `ADMIN APPROVED Deposit #${saved.id} for User ${request.userId}. Credited: ${request.amountMinor} ${request.currency}`,
       );
 
+      this.telegramNotification
+        .notify(saved, 'REQUEST_APPROVED', { approverId: adminUserId, note: adminNote })
+        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
       // 6. Record immutable audit log
       try {
         await this.auditService.log({
@@ -505,6 +519,10 @@ export class WalletService {
       this.logger.log(
         `ADMIN REJECTED Deposit #${saved.id} for User ${request.userId}. Reason: ${request.adminNote}`,
       );
+
+      this.telegramNotification
+        .notify(saved, 'REQUEST_REJECTED', { approverId: adminUserId, note: adminNote })
+        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
 
       try {
         await this.auditService.log({
@@ -602,6 +620,10 @@ export class WalletService {
         `ADMIN APPROVED Withdrawal #${saved.id} for User ${request.userId}. Amount: ${request.amountMinor}`,
       );
 
+      this.telegramNotification
+        .notify(saved, 'REQUEST_APPROVED', { approverId: adminUserId, note: adminNote })
+        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
       return saved;
     });
   }
@@ -653,6 +675,10 @@ export class WalletService {
       this.logger.log(
         `ADMIN REJECTED Withdrawal #${saved.id} for User ${request.userId}. Locked funds returned.`,
       );
+
+      this.telegramNotification
+        .notify(saved, 'REQUEST_REJECTED', { approverId: adminUserId, note: adminNote })
+        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
 
       return saved;
     });
@@ -711,6 +737,10 @@ export class WalletService {
     this.logger.log(
       `Deposit #${saved.id} proof updated by User ${userId}. Ref: ${saved.transactionReference}`,
     );
+
+    this.telegramNotification
+      .notify(saved, 'DEPOSIT_PROOF_SUBMITTED')
+      .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
 
     // Auto-match after user provides or updates reference code
     const matched = await this.matchingService.matchPendingDeposit(saved);
