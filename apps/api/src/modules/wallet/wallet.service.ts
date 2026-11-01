@@ -742,19 +742,40 @@ export class WalletService {
       order: { createdAt: 'DESC' },
     });
 
-    // Enrich requests with user details (phone, username, fullName)
-    const userIds = [...new Set(requests.map((r) => r.userId).filter(Boolean))];
+    // Enrich requests with user details & approver details
+    const userIds = requests.map((r) => r.userId).filter(Boolean);
+    const approverIds = requests
+      .map((r) => r.approvedBy)
+      .filter((id): id is string => Boolean(id) && id !== '00000000-0000-0000-0000-000000000000');
+    const allUserIds = [...new Set([...userIds, ...approverIds])];
+
     let userMap = new Map<string, any>();
-    if (userIds.length > 0) {
+    if (allUserIds.length > 0) {
       try {
         const users = await this.paymentRepo.manager.query(
-          `SELECT "id", "username", "phone", "fullName" FROM "users" WHERE "id" = ANY($1)`,
-          [userIds],
+          `SELECT "id", "username", "phone", "email", "roles" FROM "users" WHERE "id" = ANY($1)`,
+          [allUserIds],
         );
         userMap = new Map(users.map((u: any) => [u.id, u]));
       } catch (err: any) {
         this.logger.warn(`Could not enrich users: ${err.message}`);
       }
+    }
+
+    const approverMap = new Map<string, any>();
+    approverMap.set('00000000-0000-0000-0000-000000000000', {
+      id: '00000000-0000-0000-0000-000000000000',
+      username: 'SYSTEM',
+      phone: 'AUTO-ENGINE',
+      role: 'SYSTEM',
+      label: 'MacroDroid Auto-Approval Engine',
+    });
+
+    for (const [id, u] of userMap.entries()) {
+      approverMap.set(id, {
+        ...u,
+        label: u.phone ? `${u.username || 'Staff'} (${u.phone})` : u.username || 'Staff Admin',
+      });
     }
 
     // Enrich requests with matched evidence if present
@@ -773,6 +794,7 @@ export class WalletService {
     return requests.map((req) => ({
       ...req,
       user: userMap.get(req.userId) || null,
+      approver: req.approvedBy ? approverMap.get(req.approvedBy) || { username: 'Staff', label: 'Staff Admin' } : null,
       matchedEvidence: req.matchedEvidenceId ? evidenceMap.get(req.matchedEvidenceId) || null : null,
     }));
   }
