@@ -135,10 +135,13 @@ const extractRefPreview = (text: string): string => {
   const match =
     t.match(/(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Za-z0-9]{6,25})/i) ||
     t.match(/(?:receipt\/|receipt\?id=)([A-Za-z0-9]{6,25})/i) ||
+    t.match(/\b(DK[0-9A-Za-z]{6,16})\b/i) ||
     t.match(/\b(DJ[0-9A-Za-z]{6,16})\b/i) ||
     t.match(/\b(CI[0-9A-Za-z]{6,16})\b/i) ||
     t.match(/\b(DA[0-9A-Za-z]{6,16})\b/i) ||
     t.match(/\b(TB[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(CW[0-9A-Za-z]{6,16})\b/i) ||
+    t.match(/\b(NW[0-9A-Za-z]{6,16})\b/i) ||
     t.match(/\b(NL[0-9A-Za-z]{6,16})\b/i) ||
     t.match(/\b(FT[0-9A-Za-z]{6,16})\b/i);
   return match && match[1] ? match[1].toUpperCase() : '';
@@ -303,13 +306,20 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   // Step 2: Submit proof mutation
   const submitProofMutation = useMutation({
     mutationFn: async () => {
-      if (!txRef.trim()) throw new Error('Please enter the transaction reference code or paste SMS text');
+      const raw = txRef.trim();
+      if (!raw) throw new Error('Please enter the transaction reference code or paste SMS text');
+      const detected = extractRefPreview(raw);
+      const cleanRef = detected || raw;
       const res = await apiClient.patch(`/api/v1/wallet/deposit/${pendingDeposit?.id}/proof`, {
-        transactionReference: txRef.trim(),
+        transactionReference: cleanRef,
+        rawSmsText: raw !== cleanRef ? raw : undefined,
       });
       return res.data;
     },
     onSuccess: (updated) => {
+      const raw = txRef.trim();
+      const detected = extractRefPreview(raw);
+      const cleanRef = detected || raw;
       if (updated.status === 'APPROVED') {
         toastSuccess('Deposit Auto-Approved! 🎉', 'Your payment was instantly verified and credited to your wallet!');
         setPendingDeposit(null);
@@ -321,7 +331,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           ...prev,
           ...updated,
           proofSubmitted: true,
-          transactionReference: updated.transactionReference || txRef.trim(),
+          transactionReference: updated.transactionReference || cleanRef,
         }));
       }
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });

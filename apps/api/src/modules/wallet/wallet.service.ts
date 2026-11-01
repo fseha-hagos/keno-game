@@ -94,6 +94,7 @@ export class WalletService {
     const fallbackRegexes = [
       /(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Za-z0-9]{6,25})/i,
       /(?:receipt\/|receipt\?id=)([A-Za-z0-9]{6,25})/i,
+      /\b(DK[0-9A-Za-z]{6,16})\b/i,
       /\b(DJ[0-9A-Za-z]{6,16})\b/i,
       /\b(CI[0-9A-Za-z]{6,16})\b/i,
       /\b(DA[0-9A-Za-z]{6,16})\b/i,
@@ -668,7 +669,7 @@ export class WalletService {
   async submitDepositProof(
     userId: string,
     requestId: string,
-    proof: { transactionReference?: string; proofImageUrl?: string },
+    proof: { transactionReference?: string; proofImageUrl?: string; rawSmsText?: string },
   ): Promise<PaymentRequest> {
     const request = await this.paymentRepo.findOne({
       where: { id: requestId, userId },
@@ -688,11 +689,13 @@ export class WalletService {
       throw new BadRequestException('Target request is not a deposit');
     }
 
-    if (proof.transactionReference) {
-      const extracted = this.extractTransactionReference(proof.transactionReference);
-      request.transactionReference = extracted.reference;
-      if (extracted.rawSnippet && !request.adminNote) {
-        request.adminNote = `SMS: ${extracted.rawSnippet}`;
+    if (proof.transactionReference || proof.rawSmsText) {
+      const inputRef = (proof.transactionReference || proof.rawSmsText || '').trim();
+      const extracted = this.extractTransactionReference(inputRef);
+      request.transactionReference = (extracted.reference || inputRef).substring(0, 100);
+      const snippet = proof.rawSmsText || extracted.rawSnippet;
+      if (snippet && !request.adminNote) {
+        request.adminNote = `SMS: ${snippet.substring(0, 500)}`;
       }
     }
     if (proof.proofImageUrl) {

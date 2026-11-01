@@ -55,7 +55,7 @@ export class PaymentRequest {
   @Column({ type: 'simple-enum', enum: PaymentRequestStatus, default: PaymentRequestStatus.PENDING })
   status!: PaymentRequestStatus;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'text', nullable: true })
   adminNote?: string;
 
   @Index()
