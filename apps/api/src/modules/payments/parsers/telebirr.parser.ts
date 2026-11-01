@@ -68,6 +68,7 @@ export class TelebirrParser implements PaymentParser {
     const refRegexes = [
       /(?:Your\s+)?(?:transaction\s*(?:number|no|id|code)|txn\s*(?:id|no|code|number)?|trans\s*id|reference|ref|የግብይት\s*ቁጥር|የግብይት\s*መለያ|መለያ\s*ቁጥር|ግብይት\s*ቁጥር)(?:\s+is|\s*[:=-]|\s+)\s*([A-Z0-9]{6,20})/i,
       /(?:receipt\/|receipt\?id=)([A-Z0-9]{6,20})/i,
+      /\b(DK[0-9A-Z]{6,16})\b/i,
       /\b(DJ[0-9A-Z]{6,16})\b/i,
       /\b(CI[0-9A-Z]{6,16})\b/i,
       /\b(DA[0-9A-Z]{6,16})\b/i,
