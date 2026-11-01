@@ -57,6 +57,7 @@ export class WalletController {
       accountName: body.accountName,
       transactionReference: body.transactionReference,
       proofImageUrl: body.proofImageUrl,
+      rawSmsText: body.rawSmsText,
       idempotencyKey: body.idempotencyKey,
     });
   }
@@ -93,6 +94,7 @@ export class WalletController {
     return this.walletService.submitDepositProof(req.user.id, id, {
       transactionReference: body.transactionReference,
       proofImageUrl: body.proofImageUrl,
+      rawSmsText: body.rawSmsText,
     });
   }
 

@@ -1751,7 +1751,7 @@ export default function App() {
                                 <div style={{ color: '#64748B', fontSize: '12px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                                   <span>Provider: <strong style={{ color: '#F1F5F9' }}>{r.paymentMethod?.toUpperCase()}</strong></span>
                                   <span>Request ID: <code style={{ color: '#94A3B8' }}>{r.id.slice(0, 8)}</code></span>
-                                  <span>User ID: <code style={{ color: '#94A3B8' }}>{r.userId.slice(0, 8)}</code></span>
+                                  <span>User: <strong style={{ color: '#F1F5F9' }}>{r.user?.phone ? `${r.user.phone} (${r.user.username || r.userId.slice(0, 8)})` : r.userId.slice(0, 8)}</strong></span>
                                   <span>Submitted: {formatDate(r.createdAt)}</span>
                                   {r.accountNumber && <span>Target Account: <strong style={{ color: '#FBBF24' }}>{r.accountNumber}</strong></span>}
                                   {r.transactionReference && (
@@ -1761,15 +1761,22 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* Full SMS / Proof Text Submitted by Player */}
+                            {/* Full SMS / Proof Text & Verification */}
                             {(() => {
                               const userText =
                                 r.rawSmsText ||
                                 (r.adminNote?.startsWith('SMS:')
                                   ? r.adminNote.replace(/^SMS:\s*/, '')
+                                  : null) ||
+                                (r.adminNote && !r.adminNote.startsWith('Auto-approved') && !r.adminNote.startsWith('Verified') ? r.adminNote : null);
+                              const isTelebirr = (r.paymentMethod || '').toLowerCase().includes('telebirr');
+                              const receiptUrl =
+                                extractUrl(userText) ||
+                                (isTelebirr && r.transactionReference
+                                  ? `https://transactioninfo.ethiotelecom.et/receipt/${r.transactionReference}`
                                   : null);
-                              const receiptUrl = extractUrl(userText);
-                              if (!userText && !r.proofImageUrl) return null;
+
+                              if (!userText && !r.proofImageUrl && !r.transactionReference) return null;
 
                               return (
                                 <div
@@ -1804,7 +1811,7 @@ export default function App() {
                                         gap: '6px',
                                       }}
                                     >
-                                      <FileText size={13} /> Full SMS / Payment Proof Submitted by Player
+                                      <FileText size={13} /> {userText ? 'Full SMS / Payment Proof Submitted by Player' : 'Payment Reference & Verification'}
                                     </span>
 
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1830,34 +1837,33 @@ export default function App() {
                                           Verify Receipt on Ethio Telecom ↗
                                         </a>
                                       )}
-                                      {userText && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            navigator.clipboard?.writeText(userText);
-                                            alert('Copied full SMS text to clipboard!');
-                                          }}
-                                          style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            backgroundColor: '#1E293B',
-                                            color: '#94A3B8',
-                                            border: '1px solid #334155',
-                                            borderRadius: '6px',
-                                            padding: '4px 10px',
-                                            fontSize: '11px',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                          }}
-                                        >
-                                          <Copy size={11} /> Copy Full Text
-                                        </button>
-                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const textToCopy = userText || r.transactionReference || '';
+                                          navigator.clipboard?.writeText(textToCopy);
+                                          alert('Copied to clipboard!');
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          backgroundColor: '#1E293B',
+                                          color: '#94A3B8',
+                                          border: '1px solid #334155',
+                                          borderRadius: '6px',
+                                          padding: '4px 10px',
+                                          fontSize: '11px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        <Copy size={11} /> {userText ? 'Copy Full Text' : 'Copy Ref'}
+                                      </button>
                                     </div>
                                   </div>
 
-                                  {userText && (
+                                  {userText ? (
                                     <div
                                       style={{
                                         fontFamily: 'monospace',
@@ -1875,7 +1881,33 @@ export default function App() {
                                     >
                                       {userText}
                                     </div>
-                                  )}
+                                  ) : r.transactionReference ? (
+                                    <div
+                                      style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '12px',
+                                        color: '#E2E8F0',
+                                        backgroundColor: '#020617',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #1E293B',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: '8px',
+                                      }}
+                                    >
+                                      <span>
+                                        Registered Ref Code: <strong style={{ color: '#10B981', fontSize: '13px' }}>{r.transactionReference}</strong>
+                                      </span>
+                                      {receiptUrl && (
+                                        <span style={{ color: '#38BDF8', fontSize: '11px' }}>
+                                          Official Ethio Telecom receipt available
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : null}
 
                                   {r.proofImageUrl && (
                                     <div style={{ marginTop: '10px' }}>
