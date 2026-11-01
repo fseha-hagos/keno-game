@@ -482,6 +482,9 @@ export default function App() {
   const [actionNote, setActionNote] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
+  const [filterType, setFilterType] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAWAL'>('ALL');
+  const [filterVerification, setFilterVerification] = useState<'ALL' | 'AUTO' | 'MANUAL'>('ALL');
+  const [paymentSearch, setPaymentSearch] = useState('');
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Payments sub-navigation
@@ -921,9 +924,46 @@ export default function App() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const filteredRequests = paymentRequests.filter((r) =>
-    filterStatus === 'ALL' ? true : r.status === filterStatus
-  );
+  const filteredRequests = paymentRequests.filter((r) => {
+    // 1. Status Filter
+    if (filterStatus !== 'ALL' && r.status !== filterStatus) return false;
+
+    // 2. Type Filter (DEPOSIT / WITHDRAWAL)
+    if (filterType !== 'ALL' && r.requestType !== filterType) return false;
+
+    // 3. Verification Method Filter
+    if (filterVerification === 'AUTO') {
+      if (r.approvedBy !== '00000000-0000-0000-0000-000000000000' && !r.matchedEvidenceId) return false;
+    } else if (filterVerification === 'MANUAL') {
+      if (r.approvedBy === '00000000-0000-0000-0000-000000000000') return false;
+    }
+
+    // 4. Free-text Search
+    if (paymentSearch.trim()) {
+      const q = paymentSearch.trim().toLowerCase();
+      const matchPlayer =
+        r.user?.phone?.toLowerCase().includes(q) ||
+        r.user?.username?.toLowerCase().includes(q) ||
+        r.user?.email?.toLowerCase().includes(q) ||
+        r.accountName?.toLowerCase().includes(q) ||
+        r.accountNumber?.toLowerCase().includes(q) ||
+        r.userId?.toLowerCase().includes(q);
+      const matchApprover =
+        r.approver?.phone?.toLowerCase().includes(q) ||
+        r.approver?.username?.toLowerCase().includes(q) ||
+        r.approver?.label?.toLowerCase().includes(q) ||
+        r.approvedBy?.toLowerCase().includes(q);
+      const matchRef = r.transactionReference?.toLowerCase().includes(q);
+      const matchId = r.id?.toLowerCase().includes(q);
+      const matchNote = r.adminNote?.toLowerCase().includes(q) || r.rawSmsText?.toLowerCase().includes(q);
+
+      if (!matchPlayer && !matchApprover && !matchRef && !matchId && !matchNote) {
+        return false;
+      }
+    }
+
+    return true;
+  });
   const pendingCount = paymentRequests.filter((r) => r.status === 'PENDING').length;
 
   const sideNavBtn = (tab: TabType, icon: React.ReactNode, label: string) => (
@@ -1678,23 +1718,140 @@ export default function App() {
               {/* SUB-TAB: QUEUE */}
               {paymentsSubTab === 'queue' && (
                 <div>
-                  {/* Filter Selector */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const).map((st) => (
-                        <button
-                          key={st}
-                          onClick={() => setFilterStatus(st)}
+                  {/* Filter Selector & Search Toolbar */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' }}>
+                    {/* Search Bar */}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <Search
+                          size={16}
+                          style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Search player phone, username, reference code (e.g. DK19K143OH), approver, or request ID..."
+                          value={paymentSearch}
+                          onChange={(e) => setPaymentSearch(e.target.value)}
                           style={{
-                            backgroundColor: filterStatus === st ? '#1E293B' : 'transparent',
-                            color: filterStatus === st ? '#FBBF24' : '#64748B',
-                            border: `1px solid ${filterStatus === st ? '#FBBF24' : '#334155'}`,
-                            padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer',
+                            width: '100%',
+                            backgroundColor: '#0F172A',
+                            border: '1px solid #334155',
+                            borderRadius: '8px',
+                            padding: '10px 38px 10px 36px',
+                            color: '#F8FAFC',
+                            fontSize: '13px',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                        {paymentSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setPaymentSearch('')}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#94A3B8',
+                              cursor: 'pointer',
+                              padding: '4px',
+                            }}
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Filter Pills Row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      {/* Status Pills */}
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {[
+                          { id: 'PENDING', label: 'Pending', count: paymentRequests.filter((r) => r.status === 'PENDING').length, color: '#FBBF24' },
+                          { id: 'APPROVED', label: 'Approved', count: paymentRequests.filter((r) => r.status === 'APPROVED').length, color: '#10B981' },
+                          { id: 'REJECTED', label: 'Rejected', count: paymentRequests.filter((r) => r.status === 'REJECTED').length, color: '#EF4444' },
+                          { id: 'ALL', label: 'All Statuses', count: paymentRequests.length, color: '#94A3B8' },
+                        ].map((st) => (
+                          <button
+                            key={st.id}
+                            onClick={() => setFilterStatus(st.id as any)}
+                            style={{
+                              backgroundColor: filterStatus === st.id ? '#1E293B' : 'transparent',
+                              color: filterStatus === st.id ? st.color : '#64748B',
+                              border: `1.5px solid ${filterStatus === st.id ? st.color : '#334155'}`,
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {st.label}
+                            <span
+                              style={{
+                                backgroundColor: filterStatus === st.id ? st.color : '#334155',
+                                color: filterStatus === st.id ? '#0F172A' : '#CBD5E1',
+                                borderRadius: '999px',
+                                fontSize: '10px',
+                                fontWeight: 900,
+                                padding: '1px 6px',
+                              }}
+                            >
+                              {st.count}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Type & Verification Pills */}
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {/* Type Filter */}
+                        <select
+                          value={filterType}
+                          onChange={(e) => setFilterType(e.target.value as any)}
+                          style={{
+                            backgroundColor: '#1E293B',
+                            color: '#F8FAFC',
+                            border: '1px solid #334155',
+                            borderRadius: '8px',
+                            padding: '6px 10px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
                           }}
                         >
-                          {st}
-                        </button>
-                      ))}
+                          <option value="ALL">All Types</option>
+                          <option value="DEPOSIT">Deposits Only</option>
+                          <option value="WITHDRAWAL">Withdrawals Only</option>
+                        </select>
+
+                        {/* Verification Filter */}
+                        <select
+                          value={filterVerification}
+                          onChange={(e) => setFilterVerification(e.target.value as any)}
+                          style={{
+                            backgroundColor: '#1E293B',
+                            color: '#F8FAFC',
+                            border: '1px solid #334155',
+                            borderRadius: '8px',
+                            padding: '6px 10px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <option value="ALL">All Approvers</option>
+                          <option value="AUTO">🤖 Auto-Approved (SMS)</option>
+                          <option value="MANUAL">👤 Operator Approved</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1751,13 +1908,115 @@ export default function App() {
                                 <div style={{ color: '#64748B', fontSize: '12px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                                   <span>Provider: <strong style={{ color: '#F1F5F9' }}>{r.paymentMethod?.toUpperCase()}</strong></span>
                                   <span>Request ID: <code style={{ color: '#94A3B8' }}>{r.id.slice(0, 8)}</code></span>
-                                  <span>User: <strong style={{ color: '#F1F5F9' }}>{r.user?.phone ? `${r.user.phone} (${r.user.username || r.userId.slice(0, 8)})` : r.userId.slice(0, 8)}</strong></span>
                                   <span>Submitted: {formatDate(r.createdAt)}</span>
-                                  {r.accountNumber && <span>Target Account: <strong style={{ color: '#FBBF24' }}>{r.accountNumber}</strong></span>}
                                   {r.transactionReference && (
                                     <span>User Ref: <strong style={{ color: '#10B981', fontFamily: 'monospace' }}>{r.transactionReference}</strong></span>
                                   )}
                                 </div>
+                              </div>
+                            </div>
+
+                            {/* Audit Stamp: Who deposited & who verified/approved it */}
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                gap: '12px',
+                                backgroundColor: '#1E293B',
+                                borderRadius: '10px',
+                                padding: '12px 16px',
+                                marginTop: '12px',
+                                marginBottom: '12px',
+                                border: '1px solid #334155',
+                              }}
+                            >
+                              {/* Depositor Info */}
+                              <div style={{ fontSize: '12px', color: '#94A3B8' }}>
+                                <div style={{ color: '#38BDF8', fontWeight: 800, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <User size={13} /> {isWithdrawal ? 'WITHDRAWAL REQUESTED BY' : 'DEPOSITED BY (PLAYER)'}
+                                </div>
+                                <div style={{ color: '#F1F5F9', fontWeight: 800, fontSize: '13px' }}>
+                                  {r.user?.phone ? `${r.user.phone} (${r.user.username || 'Player'})` : (r.accountName || r.userId.slice(0, 8))}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '3px' }}>
+                                  Target Account: <strong style={{ color: '#FBBF24' }}>{r.accountNumber || r.user?.phone || '—'}</strong>
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '1px' }}>
+                                  Submitted at: {formatDate(r.createdAt)}
+                                </div>
+                              </div>
+
+                              {/* Approver / Verification Info */}
+                              <div style={{ fontSize: '12px', color: '#94A3B8', borderLeft: '1px solid #334155', paddingLeft: '12px' }}>
+                                <div
+                                  style={{
+                                    color: r.status === 'APPROVED' ? '#34D399' : r.status === 'REJECTED' ? '#F87171' : '#FBBF24',
+                                    fontWeight: 800,
+                                    marginBottom: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                  }}
+                                >
+                                  {r.status === 'APPROVED' ? (
+                                    <><ShieldCheck size={13} /> VERIFIED & APPROVED BY</>
+                                  ) : r.status === 'REJECTED' ? (
+                                    <><XCircle size={13} /> REJECTED BY</>
+                                  ) : (
+                                    <><Clock size={13} /> VERIFICATION AUDIT STATUS</>
+                                  )}
+                                </div>
+
+                                {r.status === 'APPROVED' && (
+                                  <>
+                                    <div style={{ color: '#34D399', fontWeight: 800, fontSize: '13px' }}>
+                                      {r.approvedBy === '00000000-0000-0000-0000-000000000000'
+                                        ? '🤖 MacroDroid SMS Auto-Matching Engine'
+                                        : (r.approver?.label || r.approver?.username || 'Staff Operator')}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
+                                      Approved at: {formatDate(r.approvedAt || r.updatedAt)}
+                                    </div>
+                                    {r.adminNote && (
+                                      <div style={{ fontSize: '11px', color: '#CBD5E1', marginTop: '2px', fontStyle: 'italic' }}>
+                                        Decision Note: "{r.adminNote}"
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {r.status === 'REJECTED' && (
+                                  <>
+                                    <div style={{ color: '#F87171', fontWeight: 800, fontSize: '13px' }}>
+                                      {r.approver?.label || r.approver?.username || 'Staff Operator'}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
+                                      Rejected at: {formatDate(r.approvedAt || r.updatedAt)}
+                                    </div>
+                                    {r.adminNote && (
+                                      <div style={{ fontSize: '11px', color: '#FCA5A5', marginTop: '2px', fontStyle: 'italic' }}>
+                                        Rejection Reason: "{r.adminNote}"
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {r.status === 'PENDING' && (
+                                  <>
+                                    <div style={{ color: '#FBBF24', fontWeight: 700 }}>
+                                      ⏳ Pending Operator Verification
+                                    </div>
+                                    {r.matchedEvidenceId ? (
+                                      <div style={{ fontSize: '11px', color: '#34D399', marginTop: '3px' }}>
+                                        ✨ MacroDroid SMS Evidence linked ({r.matchConfidence || 100}%)
+                                      </div>
+                                    ) : (
+                                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
+                                        Awaiting operator manual or SMS auto-match
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             </div>
 
