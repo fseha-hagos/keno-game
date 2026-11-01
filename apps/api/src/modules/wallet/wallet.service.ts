@@ -35,6 +35,7 @@ export interface CreateDepositRequestInput {
   accountName?: string;
   transactionReference?: string;
   proofImageUrl?: string;
+  rawSmsText?: string;
   idempotencyKey?: string;
 }
 
@@ -741,22 +742,37 @@ export class WalletService {
       order: { createdAt: 'DESC' },
     });
 
+    // Enrich requests with user details (phone, username, fullName)
+    const userIds = [...new Set(requests.map((r) => r.userId).filter(Boolean))];
+    let userMap = new Map<string, any>();
+    if (userIds.length > 0) {
+      try {
+        const users = await this.paymentRepo.manager.query(
+          `SELECT "id", "username", "phone", "fullName" FROM "users" WHERE "id" = ANY($1)`,
+          [userIds],
+        );
+        userMap = new Map(users.map((u: any) => [u.id, u]));
+      } catch (err: any) {
+        this.logger.warn(`Could not enrich users: ${err.message}`);
+      }
+    }
+
     // Enrich requests with matched evidence if present
     const evidenceIds = requests
       .map((r) => r.matchedEvidenceId)
       .filter((id): id is string => Boolean(id));
 
-    if (evidenceIds.length === 0) {
-      return requests;
+    let evidenceMap = new Map<string, any>();
+    if (evidenceIds.length > 0) {
+      const evidences = await this.evidenceRepo.find({
+        where: evidenceIds.map((id) => ({ id })),
+      });
+      evidenceMap = new Map(evidences.map((e) => [e.id, e]));
     }
-
-    const evidences = await this.evidenceRepo.find({
-      where: evidenceIds.map((id) => ({ id })),
-    });
-    const evidenceMap = new Map(evidences.map((e) => [e.id, e]));
 
     return requests.map((req) => ({
       ...req,
+      user: userMap.get(req.userId) || null,
       matchedEvidence: req.matchedEvidenceId ? evidenceMap.get(req.matchedEvidenceId) || null : null,
     }));
   }
