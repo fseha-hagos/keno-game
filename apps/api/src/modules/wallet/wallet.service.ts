@@ -753,7 +753,7 @@ export class WalletService {
     if (allUserIds.length > 0) {
       try {
         const users = await this.paymentRepo.manager.query(
-          `SELECT "id", "username", "phone", "email", "roles" FROM "users" WHERE "id" = ANY($1)`,
+          `SELECT "id"::text as id, "username", "phone", "email", "roles" FROM "users" WHERE "id"::text = ANY($1)`,
           [allUserIds],
         );
         userMap = new Map(users.map((u: any) => [u.id, u]));
@@ -766,15 +766,21 @@ export class WalletService {
     approverMap.set('00000000-0000-0000-0000-000000000000', {
       id: '00000000-0000-0000-0000-000000000000',
       username: 'SYSTEM',
-      phone: 'AUTO-ENGINE',
-      role: 'SYSTEM',
+      phone: 'AUTOMATION',
+      role: 'MACRODROID_SMS',
       label: 'MacroDroid Auto-Approval Engine',
     });
 
     for (const [id, u] of userMap.entries()) {
+      const roleStr = Array.isArray(u.roles) ? u.roles.join(', ') : (u.roles || 'OPERATOR');
       approverMap.set(id, {
-        ...u,
-        label: u.phone ? `${u.username || 'Staff'} (${u.phone})` : u.username || 'Staff Admin',
+        id: u.id,
+        username: u.username,
+        phone: u.phone,
+        email: u.email,
+        roles: u.roles,
+        role: roleStr,
+        label: u.phone ? `${u.username || 'Staff'} (${u.phone})` : u.username || 'Staff',
       });
     }
 
@@ -794,7 +800,7 @@ export class WalletService {
     return requests.map((req) => ({
       ...req,
       user: userMap.get(req.userId) || null,
-      approver: req.approvedBy ? approverMap.get(req.approvedBy) || { username: 'Staff', label: 'Staff Admin' } : null,
+      approver: req.approvedBy ? approverMap.get(req.approvedBy) || null : null,
       matchedEvidence: req.matchedEvidenceId ? evidenceMap.get(req.matchedEvidenceId) || null : null,
     }));
   }

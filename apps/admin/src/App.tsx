@@ -485,6 +485,8 @@ export default function App() {
   const [filterType, setFilterType] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAWAL'>('ALL');
   const [filterVerification, setFilterVerification] = useState<'ALL' | 'AUTO' | 'MANUAL'>('ALL');
   const [paymentSearch, setPaymentSearch] = useState('');
+  const [expandedAudit, setExpandedAudit] = useState<Record<string, boolean>>({});
+  const toggleAudit = (id: string) => setExpandedAudit((prev) => ({ ...prev, [id]: !prev[id] }));
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Payments sub-navigation
@@ -1955,15 +1957,42 @@ export default function App() {
                                     marginBottom: '4px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '5px',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: '6px',
                                   }}
                                 >
-                                  {r.status === 'APPROVED' ? (
-                                    <><ShieldCheck size={13} /> VERIFIED & APPROVED BY</>
-                                  ) : r.status === 'REJECTED' ? (
-                                    <><XCircle size={13} /> REJECTED BY</>
-                                  ) : (
-                                    <><Clock size={13} /> VERIFICATION AUDIT STATUS</>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    {r.status === 'APPROVED' ? (
+                                      <><ShieldCheck size={13} /> VERIFIED & APPROVED BY</>
+                                    ) : r.status === 'REJECTED' ? (
+                                      <><XCircle size={13} /> REJECTED BY</>
+                                    ) : (
+                                      <><Clock size={13} /> VERIFICATION AUDIT STATUS</>
+                                    )}
+                                  </span>
+
+                                  {/* Confidential Detail Button (Owner & Creator only) */}
+                                  {(isCreator || isOwner) && (r.status === 'APPROVED' || r.status === 'REJECTED') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleAudit(r.id)}
+                                      style={{
+                                        backgroundColor: expandedAudit[r.id] ? '#1E3A8A' : '#0F172A',
+                                        color: expandedAudit[r.id] ? '#93C5FD' : '#38BDF8',
+                                        border: `1px solid ${expandedAudit[r.id] ? '#3B82F6' : '#334155'}`,
+                                        borderRadius: '6px',
+                                        padding: '2px 8px',
+                                        fontSize: '10px',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                      }}
+                                    >
+                                      <Eye size={11} /> {expandedAudit[r.id] ? 'Hide Details' : 'View Approver Details'}
+                                    </button>
                                   )}
                                 </div>
 
@@ -1972,7 +2001,9 @@ export default function App() {
                                     <div style={{ color: '#34D399', fontWeight: 800, fontSize: '13px' }}>
                                       {r.approvedBy === '00000000-0000-0000-0000-000000000000'
                                         ? '🤖 MacroDroid SMS Auto-Matching Engine'
-                                        : (r.approver?.label || r.approver?.username || 'Staff Operator')}
+                                        : (isCreator || isOwner)
+                                          ? (r.approver?.phone ? `${r.approver.username || 'Staff'} (${r.approver.phone})` : r.approver?.username || 'Staff Operator')
+                                          : 'Staff Operator'}
                                     </div>
                                     <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
                                       Approved at: {formatDate(r.approvedAt || r.updatedAt)}
@@ -1988,7 +2019,9 @@ export default function App() {
                                 {r.status === 'REJECTED' && (
                                   <>
                                     <div style={{ color: '#F87171', fontWeight: 800, fontSize: '13px' }}>
-                                      {r.approver?.label || r.approver?.username || 'Staff Operator'}
+                                      {(isCreator || isOwner)
+                                        ? (r.approver?.phone ? `${r.approver.username || 'Staff'} (${r.approver.phone})` : r.approver?.username || 'Staff Operator')
+                                        : 'Staff Operator'}
                                     </div>
                                     <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
                                       Rejected at: {formatDate(r.approvedAt || r.updatedAt)}
@@ -2017,8 +2050,66 @@ export default function App() {
                                     )}
                                   </>
                                 )}
-                              </div>
-                            </div>
+
+                                {/* Confidential Approver Audit Drawer (Creator / Owner Eyes Only) */}
+                                {(isCreator || isOwner) && expandedAudit[r.id] && (
+                                  <div
+                                    style={{
+                                      backgroundColor: '#0A0F1D',
+                                      border: '1.5px solid #3B82F6',
+                                      borderRadius: '8px',
+                                      padding: '10px 12px',
+                                      marginTop: '10px',
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                      <span style={{ fontSize: '10px', fontWeight: 900, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        🛡️ Confidential Approver Record (Owner / Creator Only)
+                                      </span>
+                                      <span style={{ fontSize: '9px', backgroundColor: '#1E3A8A', color: '#93C5FD', padding: '1px 6px', borderRadius: '4px', fontWeight: 900 }}>
+                                        CONFIDENTIAL
+                                      </span>
+                                    </div>
+
+                                    {r.approvedBy === '00000000-0000-0000-0000-000000000000' ? (
+                                      <div style={{ fontSize: '11px', color: '#CBD5E1', lineHeight: 1.5 }}>
+                                        <div>Engine: <strong style={{ color: '#34D399' }}>Automated Background Worker</strong></div>
+                                        <div>Trigger: <strong style={{ color: '#FBBF24' }}>MacroDroid Android SMS Gateway</strong></div>
+                                        {r.matchedEvidenceId && <div>Linked Evidence ID: <code style={{ color: '#94A3B8' }}>{r.matchedEvidenceId}</code></div>}
+                                      </div>
+                                    ) : (
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '6px', fontSize: '11px', lineHeight: 1.4 }}>
+                                        <div>
+                                          <span style={{ color: '#64748B' }}>Approver Name: </span>
+                                          <strong style={{ color: '#F8FAFC' }}>{r.approver?.username || 'Staff'}</strong>
+                                        </div>
+                                        <div>
+                                          <span style={{ color: '#64748B' }}>Phone Number: </span>
+                                          <strong style={{ color: '#34D399' }}>{r.approver?.phone || 'No phone registered'}</strong>
+                                        </div>
+                                        <div>
+                                          <span style={{ color: '#64748B' }}>Staff Role: </span>
+                                          <strong style={{ color: '#FBBF24' }}>{r.approver?.role || 'OPERATOR'}</strong>
+                                        </div>
+                                        <div>
+                                          <span style={{ color: '#64748B' }}>Audit Timestamp: </span>
+                                          <strong style={{ color: '#E2E8F0' }}>{formatDate(r.approvedAt || r.updatedAt)}</strong>
+                                        </div>
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                          <span style={{ color: '#64748B' }}>Staff Account UUID: </span>
+                                          <code style={{ color: '#94A3B8', fontSize: '10px' }}>{r.approvedBy}</code>
+                                        </div>
+                                        {r.approver?.email && (
+                                          <div>
+                                            <span style={{ color: '#64748B' }}>Email: </span>
+                                            <span style={{ color: '#E2E8F0' }}>{r.approver.email}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>                            </div>
 
                             {/* Full SMS / Proof Text & Verification */}
                             {(() => {
