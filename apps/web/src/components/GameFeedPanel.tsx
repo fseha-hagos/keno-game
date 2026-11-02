@@ -314,44 +314,100 @@ export const GameFeedPanel: React.FC = () => {
 
   // Group historical user bets by round for HISTORY tab
   const groupedHistory: HistoryDrawGroup[] = React.useMemo(() => {
-    if (!Array.isArray(userBetHistory) || userBetHistory.length === 0) return [];
-
     const groupsMap = new Map<string, HistoryDrawGroup>();
-    userBetHistory.forEach((bet: any) => {
-      const roundNumber =
-        bet.round?.roundNumber ?? (bet.roundId ? bet.roundId.slice(0, 6) : '—');
-      const groupKey = String(roundNumber);
-      const roundDrawn = parseDrawnNumbers(bet.round);
 
-      if (!groupsMap.has(groupKey)) {
-        groupsMap.set(groupKey, {
-          roundId: bet.roundId || bet.round?.id || groupKey,
-          roundNumber,
-          drawResult: roundDrawn,
-          tickets: [],
+    if (Array.isArray(userBetHistory) && userBetHistory.length > 0) {
+      userBetHistory.forEach((bet: any) => {
+        const roundNumber =
+          bet.round?.roundNumber ?? (bet.roundId ? bet.roundId.slice(0, 6) : '—');
+        const groupKey = String(roundNumber);
+        const roundDrawn = parseDrawnNumbers(bet.round);
+
+        if (!groupsMap.has(groupKey)) {
+          groupsMap.set(groupKey, {
+            roundId: bet.roundId || bet.round?.id || groupKey,
+            roundNumber,
+            drawResult: roundDrawn,
+            tickets: [],
+          });
+        }
+
+        const cleanNumbers = (bet.selectedNumbers || [])
+          .map((n: any) => Number(n))
+          .filter((n: number) => !isNaN(n));
+
+        const stake = Math.round(Number(bet.stakeMinor || 0) / 100) || 5;
+        const payoutMinor = Number(bet.payoutMinor || 0);
+        const payout = payoutMinor > 0 ? payoutMinor / 100 : 0;
+
+        // A bet is settled ONLY if bet.status is 'SETTLED' or round is 'SETTLED'/'CLOSED'
+        const isSettled =
+          bet.status === 'SETTLED' ||
+          bet.round?.status === 'SETTLED' ||
+          bet.round?.status === 'CLOSED';
+
+        const isWon = isSettled && payout > 0;
+        const statusLabel = isSettled ? (isWon ? 'Won' : 'Lost') : 'Pending';
+
+        groupsMap.get(groupKey)!.tickets.push({
+          id: bet.id,
+          numbers: cleanNumbers,
+          stake,
+          payout,
+          status: statusLabel,
+          createdAt: bet.createdAt,
         });
-      }
-
-      const cleanNumbers = (bet.selectedNumbers || [])
-        .map((n: any) => Number(n))
-        .filter((n: number) => !isNaN(n));
-
-      const stake = Math.round(Number(bet.stakeMinor || 0) / 100) || 5;
-      const payoutMinor = Number(bet.payoutMinor || 0);
-      const payout = payoutMinor > 0 ? payoutMinor / 100 : 0;
-
-      groupsMap.get(groupKey)!.tickets.push({
-        id: bet.id,
-        numbers: cleanNumbers,
-        stake,
-        payout,
-        status: bet.status === 'SETTLED' ? (payout > 0 ? 'Won' : 'Lost') : 'Waiting',
-        createdAt: bet.createdAt,
       });
+    }
+
+    // Also include locally confirmed tickets if not yet returned by server history
+    if (Array.isArray(confirmedTickets) && confirmedTickets.length > 0) {
+      const activeRoundNum = currentRound?.roundNumber ?? '—';
+      const activeRoundId = currentRound?.id ?? 'current';
+      const groupKey = String(activeRoundNum);
+
+      confirmedTickets.forEach((ct: any) => {
+        let alreadyExists = false;
+        for (const g of groupsMap.values()) {
+          if (g.tickets.some((t) => t.id === ct.id)) {
+            alreadyExists = true;
+            break;
+          }
+        }
+        if (!alreadyExists) {
+          if (!groupsMap.has(groupKey)) {
+            groupsMap.set(groupKey, {
+              roundId: activeRoundId,
+              roundNumber: activeRoundNum,
+              drawResult: parseDrawnNumbers(currentRound),
+              tickets: [],
+            });
+          }
+          const cleanNumbers = (ct.selectedNumbers || [])
+            .map((n: any) => Number(n))
+            .filter((n: number) => !isNaN(n));
+          const stake = Math.round(Number(ct.stakeMinor || 0) / 100) || 5;
+          groupsMap.get(groupKey)!.tickets.push({
+            id: ct.id,
+            numbers: cleanNumbers,
+            stake,
+            payout: 0,
+            status: 'Pending',
+            createdAt: ct.createdAt || new Date().toISOString(),
+          });
+        }
+      });
+    }
+
+    const groups = Array.from(groupsMap.values());
+    groups.sort((a, b) => {
+      const numA = Number(a.roundNumber) || 0;
+      const numB = Number(b.roundNumber) || 0;
+      return numB - numA;
     });
 
-    return Array.from(groupsMap.values());
-  }, [userBetHistory]);
+    return groups;
+  }, [userBetHistory, confirmedTickets, currentRound]);
 
   return (
     <div
@@ -581,7 +637,15 @@ export const GameFeedPanel: React.FC = () => {
             </div>
           ) : (
             groupedHistory.map((group) => {
+              const isCurrentRound =
+                (currentRoundId && group.roundId === currentRoundId) ||
+                (currentRoundNum && String(group.roundNumber) === String(currentRoundNum));
+
               const drawSet = new Set(group.drawResult);
+              if (isCurrentRound) {
+                liveDrawnSet.forEach((n) => drawSet.add(n));
+              }
+
               return (
                 <div
                   key={group.roundId}
@@ -603,8 +667,8 @@ export const GameFeedPanel: React.FC = () => {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {group.tickets.map((t) => {
-                      const hitCount = t.numbers.filter((n) => drawSet.has(n)).length;
-                      const isWon = t.payout > 0;
+                      const isPending = t.status === 'Pending' || t.status === 'Waiting';
+                      const isWon = !isPending && (t.status === 'Won' || t.payout > 0);
                       return (
                         <div
                           key={t.id}
@@ -614,6 +678,7 @@ export const GameFeedPanel: React.FC = () => {
                             padding: '6px 8px',
                             display: 'flex',
                             justifyContent: 'space-between',
+                            alignItems: 'center',
                             fontSize: 13,
                           }}
                         >
@@ -630,8 +695,14 @@ export const GameFeedPanel: React.FC = () => {
                               </span>
                             ))}
                           </div>
-                          <div style={{ fontWeight: 800, color: isWon ? '#22C55E' : '#EF4444' }}>
-                            {isWon ? `+${t.payout.toFixed(2)} ETB` : 'Lost'}
+                          <div
+                            style={{
+                              fontWeight: 800,
+                              color: isWon ? '#22C55E' : isPending ? '#FBBF24' : '#EF4444',
+                              fontSize: 12.5,
+                            }}
+                          >
+                            {isWon ? `+${t.payout.toFixed(2)} ETB` : isPending ? 'Pending' : 'Lost'}
                           </div>
                         </div>
                       );
