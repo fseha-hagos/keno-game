@@ -83,6 +83,19 @@ export class WalletController {
     return this.walletService.getUserPaymentRequests(req.user.id);
   }
 
+  /** Player: Cancel own pending deposit or withdrawal request */
+  @Patch('payment-requests/:id/cancel')
+  @ApiOperation({ summary: 'Cancel own pending deposit or withdrawal request' })
+  async cancelPaymentRequest(@Request() req: any, @Param('id') id: string) {
+    return this.walletService.cancelPaymentRequest(req.user.id, id);
+  }
+
+  @Post('payment-requests/:id/cancel')
+  @ApiOperation({ summary: 'Cancel own pending deposit or withdrawal request' })
+  async cancelPaymentRequestPost(@Request() req: any, @Param('id') id: string) {
+    return this.walletService.cancelPaymentRequest(req.user.id, id);
+  }
+
   /** Player: Submit proof/transaction reference for a pending deposit */
   @Patch('deposit/:id/proof')
   @ApiOperation({ summary: 'Submit transaction reference/proof for a pending deposit request' })

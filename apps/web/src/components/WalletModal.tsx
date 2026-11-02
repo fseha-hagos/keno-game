@@ -390,6 +390,30 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     },
   });
 
+  // Step 3: Cancel pending request mutation
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await apiClient.post(`/api/v1/wallet/payment-requests/${requestId}/cancel`);
+      return res.data;
+    },
+    onSuccess: (data: any) => {
+      toastSuccess(
+        'Request Cancelled',
+        data.requestType === 'WITHDRAWAL'
+          ? 'Withdrawal cancelled and locked funds refunded to your balance.'
+          : 'Deposit request has been cancelled.',
+      );
+      setPendingDeposit(null);
+      setTxRef('');
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+    },
+    onError: (err: any) => {
+      toastError('Cancellation Error', err.response?.data?.message || err.message || 'Could not cancel request');
+    },
+  });
+
   if (!isOpen) return null;
 
   const currentMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
@@ -1223,20 +1247,28 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button
                       type="button"
-                      onClick={() => setPendingDeposit(null)}
+                      onClick={() => {
+                        if (pendingDeposit?.id) {
+                          cancelRequestMutation.mutate(pendingDeposit.id);
+                        } else {
+                          setPendingDeposit(null);
+                          setTxRef('');
+                        }
+                      }}
+                      disabled={cancelRequestMutation.isPending}
                       style={{
                         flex: 1,
                         padding: '12px 0',
                         borderRadius: 10,
-                        background: '#28374E',
-                        border: '1.5px solid #2D425E',
-                        color: '#94A3B8',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1.5px solid rgba(239, 68, 68, 0.3)',
+                        color: '#F87171',
                         fontSize: 13,
                         fontWeight: 700,
                         cursor: 'pointer',
                       }}
                     >
-                      Back
+                      {cancelRequestMutation.isPending ? 'Cancelling...' : 'Cancel Deposit'}
                     </button>
                     <button
                       type="button"
@@ -2059,8 +2091,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                                     )}
                                   </div>
 
-                                  {req.adminNote && status === 'REJECTED' && (
-                                    <div style={{ fontSize: 11, color: '#EF4444', marginTop: 3 }}>
+                                  {req.adminNote && (status === 'REJECTED' || status === 'CANCELLED' || status === 'EXPIRED') && (
+                                    <div style={{ fontSize: 11, color: status === 'REJECTED' ? '#EF4444' : '#94A3B8', marginTop: 3 }}>
                                       Note: {req.adminNote}
                                     </div>
                                   )}
@@ -2082,14 +2114,58 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
                                 {/* Status Badge: PENDING or APPROVED or REJECTED */}
                                 {status === 'PENDING' && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 3,
+                                        background: 'rgba(245, 158, 11, 0.15)',
+                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                        color: '#F59E0B',
+                                        padding: '2px 7px',
+                                        borderRadius: 6,
+                                        fontSize: 10,
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.04em',
+                                      }}
+                                    >
+                                      <Clock size={10} strokeWidth={2.8} /> Pending
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (confirm(`Cancel this pending ${isDeposit ? 'deposit' : 'withdrawal'}?${!isDeposit ? ' Locked funds will be refunded to your balance.' : ''}`)) {
+                                          cancelRequestMutation.mutate(req.id);
+                                        }
+                                      }}
+                                      disabled={cancelRequestMutation.isPending}
+                                      style={{
+                                        background: 'rgba(239, 68, 68, 0.12)',
+                                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                                        color: '#F87171',
+                                        padding: '2px 8px',
+                                        borderRadius: 6,
+                                        fontSize: 10,
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
+
+                                {status === 'CANCELLED' && (
                                   <span
                                     style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       gap: 3,
-                                      background: 'rgba(245, 158, 11, 0.15)',
-                                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                                      color: '#F59E0B',
+                                      background: 'rgba(148, 163, 184, 0.15)',
+                                      border: '1px solid rgba(148, 163, 184, 0.3)',
+                                      color: '#94A3B8',
                                       padding: '2px 7px',
                                       borderRadius: 6,
                                       fontSize: 10,
@@ -2098,7 +2174,28 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                                       letterSpacing: '0.04em',
                                     }}
                                   >
-                                    <Clock size={10} strokeWidth={2.8} /> Pending
+                                    <X size={10} strokeWidth={3} /> Cancelled
+                                  </span>
+                                )}
+
+                                {status === 'EXPIRED' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      background: 'rgba(244, 63, 94, 0.15)',
+                                      border: '1px solid rgba(244, 63, 94, 0.35)',
+                                      color: '#FB7185',
+                                      padding: '2px 7px',
+                                      borderRadius: 6,
+                                      fontSize: 10,
+                                      fontWeight: 800,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                    }}
+                                  >
+                                    <Clock size={10} strokeWidth={2.8} /> Expired
                                   </span>
                                 )}
 

@@ -3,9 +3,11 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Logger,
   Inject,
   forwardRef,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
@@ -50,7 +52,14 @@ export interface CreateWithdrawalRequestInput {
 }
 
 @Injectable()
-export class WalletService {
+export class WalletService implements OnModuleInit {
+  onModuleInit() {
+    setInterval(() => {
+      this.expireOverdueRequests().catch((e) =>
+        this.logger.warn(`Periodic expireOverdueRequests error: ${e.message}`),
+      );
+    }, 30_000);
+  }
   private readonly logger = new Logger(WalletService.name);
 
   constructor(
@@ -685,6 +694,7 @@ export class WalletService {
   }
 
   async getUserPaymentRequests(userId: string): Promise<PaymentRequest[]> {
+    await this.expireOverdueRequests();
     return this.paymentRepo.find({
       where: { userId },
       order: { createdAt: 'DESC' },
@@ -768,6 +778,7 @@ export class WalletService {
   }
 
   async getAllPendingRequests(): Promise<any[]> {
+    await this.expireOverdueRequests();
     const requests = await this.paymentRepo.find({
       order: { createdAt: 'DESC' },
     });
@@ -839,4 +850,114 @@ export class WalletService {
     const wallet = await this.getOrCreateWallet(userId, currency);
     return this.ledgerService.getTransactions(wallet.id);
   }
+
+  /**
+   * Allows player to cancel their own pending deposit or withdrawal request before it expires.
+   * If cancelling a withdrawal, locked funds are immediately unlocked and refunded to available balance.
+   */
+  async cancelPaymentRequest(userId: string, requestId: string): Promise<PaymentRequest> {
+    return this.paymentRepo.manager.transaction(async (manager: EntityManager) => {
+      const request = await manager.findOne(PaymentRequest, {
+        where: { id: requestId },
+      });
+
+      if (!request) {
+        throw new NotFoundException(`Payment request #${requestId} not found`);
+      }
+
+      if (request.userId !== userId) {
+        throw new ForbiddenException('You are not authorized to cancel this payment request');
+      }
+
+      if (request.status !== PaymentRequestStatus.PENDING) {
+        throw new BadRequestException(`Cannot cancel a payment request that is already ${request.status}`);
+      }
+
+      if (request.requestType === PaymentRequestType.WITHDRAWAL) {
+        const wallet = await manager.findOne(WalletAccount, {
+          where: { userId: request.userId, currency: request.currency },
+        });
+
+        if (wallet) {
+          const withdrawAmount = BigInt(request.amountMinor);
+          const currentLocked = BigInt(wallet.lockedMinor);
+          wallet.lockedMinor = (currentLocked > withdrawAmount ? currentLocked - withdrawAmount : 0n).toString();
+          wallet.balanceMinor = (BigInt(wallet.balanceMinor) + withdrawAmount).toString();
+          await manager.save(wallet);
+        }
+
+        request.status = PaymentRequestStatus.CANCELLED;
+        request.adminNote = 'Cancelled by user - Locked funds refunded to balance';
+      } else {
+        request.status = PaymentRequestStatus.CANCELLED;
+        request.adminNote = 'Cancelled by user';
+      }
+
+      const saved = await manager.save(request);
+      this.logger.log(`Payment Request #${saved.id} (${saved.requestType}) CANCELLED by user ${userId}`);
+
+      this.telegramNotification
+        .notify(saved, 'REQUEST_CANCELLED', { approverId: userId, note: request.adminNote })
+        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
+      return saved;
+    });
+  }
+
+  /**
+   * Automatically expires overdue pending requests where expiresAt <= NOW().
+   * For expired withdrawals, locked funds are safely refunded back to player balance.
+   */
+  async expireOverdueRequests(): Promise<number> {
+    const now = new Date();
+    const overdue = await this.paymentRepo
+      .createQueryBuilder('pr')
+      .where('pr.status = :status', { status: PaymentRequestStatus.PENDING })
+      .andWhere('pr.expiresAt IS NOT NULL')
+      .andWhere('pr.expiresAt <= :now', { now })
+      .getMany();
+
+    if (overdue.length === 0) return 0;
+
+    let expiredCount = 0;
+    for (const req of overdue) {
+      try {
+        await this.paymentRepo.manager.transaction(async (manager: EntityManager) => {
+          const current = await manager.findOne(PaymentRequest, { where: { id: req.id } });
+          if (!current || current.status !== PaymentRequestStatus.PENDING) return;
+
+          if (current.requestType === PaymentRequestType.WITHDRAWAL) {
+            const wallet = await manager.findOne(WalletAccount, {
+              where: { userId: current.userId, currency: current.currency },
+            });
+            if (wallet) {
+              const withdrawAmount = BigInt(current.amountMinor);
+              const currentLocked = BigInt(wallet.lockedMinor);
+              wallet.lockedMinor = (currentLocked > withdrawAmount ? currentLocked - withdrawAmount : 0n).toString();
+              wallet.balanceMinor = (BigInt(wallet.balanceMinor) + withdrawAmount).toString();
+              await manager.save(wallet);
+            }
+            current.status = PaymentRequestStatus.EXPIRED;
+            current.adminNote = 'Auto-expired: Processing time limit exceeded. Locked funds refunded.';
+          } else {
+            current.status = PaymentRequestStatus.EXPIRED;
+            current.adminNote = 'Auto-expired: Payment proof not submitted/verified within expiration window.';
+          }
+
+          const saved = await manager.save(current);
+          expiredCount++;
+          this.logger.log(`Payment Request #${saved.id} (${saved.requestType}) AUTO-EXPIRED`);
+
+          this.telegramNotification
+            .notify(saved, 'REQUEST_EXPIRED', { note: current.adminNote })
+            .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+        });
+      } catch (err: any) {
+        this.logger.error(`Error auto-expiring payment request #${req.id}: ${err.message}`);
+      }
+    }
+
+    return expiredCount;
+  }
+
 }

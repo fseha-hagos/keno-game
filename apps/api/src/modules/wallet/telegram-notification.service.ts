@@ -7,13 +7,15 @@ export type PaymentNotificationEvent =
   | 'DEPOSIT_PROOF_SUBMITTED'
   | 'WITHDRAWAL_CREATED'
   | 'REQUEST_APPROVED'
-  | 'REQUEST_REJECTED';
+  | 'REQUEST_REJECTED'
+  | 'REQUEST_CANCELLED'
+  | 'REQUEST_EXPIRED';
 
 @Injectable()
 export class TelegramNotificationService {
   private readonly logger = new Logger(TelegramNotificationService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource) { }
 
   private escapeHtml(str?: string): string {
     if (!str) return '';
@@ -196,6 +198,30 @@ export class TelegramNotificationService {
           (extra?.note ? `📝 <b>Decision Note:</b> <i>"${this.escapeHtml(extra.note)}"</i>\n` : '') +
           `🆔 <b>Request ID:</b> <code>${request.id.slice(0, 8)}</code>\n` +
           `⏰ <b>Settled At:</b> ${timeStr}`;
+        break;
+
+      case 'REQUEST_CANCELLED':
+        messageHtml =
+          `🚫 <b>${request.requestType} CANCELLED BY USER</b>\n\n` +
+          `👤 <b>Player:</b> ${this.escapeHtml(player.username || 'Player')} (<code>${this.escapeHtml(player.phone || 'No phone')}</code>)\n` +
+          `💵 <b>Amount:</b> <b>${amountFormatted}</b>\n` +
+          `🏦 <b>Provider:</b> ${this.escapeHtml((request.paymentMethod || 'TELEBIRR').toUpperCase())}\n` +
+          `⏱ <b>Status:</b> CANCELLED\n` +
+          (extra?.note ? `📝 <b>Note:</b> <i>"${this.escapeHtml(extra.note)}"</i>\n` : '') +
+          `🆔 <b>Request ID:</b> <code>${request.id.slice(0, 8)}</code>\n` +
+          `⏰ <b>Timestamp:</b> ${timeStr}`;
+        break;
+
+      case 'REQUEST_EXPIRED':
+        messageHtml =
+          `⌛ <b>${request.requestType} AUTO-EXPIRED & SETTLED</b>\n\n` +
+          `👤 <b>Player:</b> ${this.escapeHtml(player.username || 'Player')} (<code>${this.escapeHtml(player.phone || 'No phone')}</code>)\n` +
+          `💵 <b>Amount:</b> <b>${amountFormatted}</b>\n` +
+          `🏦 <b>Provider:</b> ${this.escapeHtml((request.paymentMethod || 'TELEBIRR').toUpperCase())}\n` +
+          `⏱ <b>Status:</b> EXPIRED\n` +
+          (extra?.note ? `📝 <b>Note:</b> <i>"${this.escapeHtml(extra.note)}"</i>\n` : '') +
+          `🆔 <b>Request ID:</b> <code>${request.id.slice(0, 8)}</code>\n` +
+          `⏰ <b>Timestamp:</b> ${timeStr}`;
         break;
 
       case 'REQUEST_REJECTED':

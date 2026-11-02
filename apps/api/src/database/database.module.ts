@@ -80,6 +80,12 @@ export class DatabaseModule implements OnModuleInit {
         await this.dataSource.query(
           `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "rawSmsText" text;`
         );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "expiresAt" timestamp with time zone;`
+        );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" DROP CONSTRAINT IF EXISTS "payment_requests_status_check";`
+        );
         this.logger.log('Database schema check: "telegramChatId" column verified/added successfully.');
       }
     } catch (err: any) {
