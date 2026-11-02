@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { KenoGrid } from './KenoGrid';
 import { useGameStore } from '../store/useGameStore';
+import { usePlacedBetNumbers } from '../hooks/usePlacedBetNumbers';
 import { DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
 import { KENO_COLORS } from '../theme/kenoTheme';
 import { toastError, toastInfo, alertSuccess } from '../services/toast';
@@ -43,6 +44,7 @@ export const KenoPlayStage = ({
     drawnNumbers,
     isDrawing,
   } = useGameStore();
+  const placedBetNumbers = usePlacedBetNumbers();
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const spots = selectedNumbers.length;
@@ -352,7 +354,7 @@ export const KenoPlayStage = ({
             {Array.from({ length: 10 }, (_, col) => {
               const num = settledBalls[10 + col];
               if (num !== null && num !== undefined) {
-                const isHit = selectedNumbers.includes(num);
+                const isHit = placedBetNumbers.has(num);
                 return (
                   <View key={`slot-r2-${col}-${num}`} style={[styles.trayBall3D, isHit && styles.trayBallHit]}>
                     <View style={styles.trayBallHighlight} />
@@ -373,7 +375,7 @@ export const KenoPlayStage = ({
             {Array.from({ length: 10 }, (_, col) => {
               const num = settledBalls[col];
               if (num !== null && num !== undefined) {
-                const isHit = selectedNumbers.includes(num);
+                const isHit = placedBetNumbers.has(num);
                 return (
                   <View key={`slot-r1-${col}-${num}`} style={[styles.trayBall3D, isHit && styles.trayBallHit]}>
                     <View style={styles.trayBallHighlight} />

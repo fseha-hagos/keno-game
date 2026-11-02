@@ -322,7 +322,15 @@ export const GameFeedPanel = () => {
       const stake = Math.round(Number(bet.stakeMinor || 0) / 100) || bet.stake || 5;
       const payoutMinor = Number(bet.payoutMinor || 0);
       const payout = payoutMinor > 0 ? payoutMinor / 100 : 0;
-      const isWin = payout > 0;
+
+      // A bet is settled ONLY if bet.status is 'SETTLED' or round is 'SETTLED'/'CLOSED'
+      const isSettled =
+        bet.status === 'SETTLED' ||
+        bet.round?.status === 'SETTLED' ||
+        bet.round?.status === 'CLOSED';
+
+      const isWin = isSettled && payout > 0;
+      const statusLabel = isSettled ? (isWin ? 'Won' : 'Lost') : 'Pending';
 
       const cleanNumbers = (bet.selectedNumbers || [])
         .map((n: any) => Number(n))
@@ -337,7 +345,7 @@ export const GameFeedPanel = () => {
         numbers: cleanNumbers,
         stake,
         payout,
-        status: bet.status,
+        status: statusLabel,
         createdAt: bet.createdAt,
         hitNumbers: cleanHits,
         isWin,
@@ -633,11 +641,15 @@ export const GameFeedPanel = () => {
                           <Text
                             style={[
                               styles.statusLabelText,
-                              isWon ? styles.statusWonText : styles.statusLostText,
+                              isWon
+                                ? styles.statusWonText
+                                : ticket.status === 'Pending'
+                                  ? styles.statusPendingText
+                                  : styles.statusLostText,
                             ]}
                             numberOfLines={1}
                           >
-                            {isWon ? 'Won' : 'Lost'}
+                            {isWon ? 'Won' : ticket.status === 'Pending' ? 'Pending' : 'Lost'}
                           </Text>
                         </View>
                       </View>
@@ -1023,6 +1035,9 @@ const styles = StyleSheet.create({
   },
   statusLostText: {
     color: '#94A3B8',
+  },
+  statusPendingText: {
+    color: '#FACC15',
   },
 
   /* History Tab Specific Styles */

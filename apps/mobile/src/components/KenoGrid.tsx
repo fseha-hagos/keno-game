@@ -9,6 +9,7 @@ import {
   Easing,
 } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
+import { usePlacedBetNumbers } from '../hooks/usePlacedBetNumbers';
 import { KENO_COLORS } from '../theme/kenoTheme';
 
 const COLS = 10;
@@ -160,6 +161,7 @@ interface KenoGridProps {
 
 export const KenoGrid: React.FC<KenoGridProps> = ({ bettingOpen = true }) => {
   const { toggleNumber, drawnNumbers, getActiveSlip } = useGameStore();
+  const placedBetNumbers = usePlacedBetNumbers();
   const activeSlip = getActiveSlip();
   const selectedNumbers = activeSlip?.selectedNumbers ?? [];
   const drawnSet = new Set(drawnNumbers);
@@ -195,7 +197,7 @@ export const KenoGrid: React.FC<KenoGridProps> = ({ bettingOpen = true }) => {
           {numbers.map((num) => {
             const isSelected = selectedNumbers.includes(num);
             const isDrawn = drawnSet.has(num);
-            const isHit = isSelected && isDrawn;
+            const isHit = placedBetNumbers.has(num) && isDrawn;
 
             return (
               <GridCell
