@@ -151,6 +151,30 @@ export const WalletScreen = () => {
     },
   });
 
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await apiClient.post(`/api/v1/wallet/payment-requests/${requestId}/cancel`);
+      return res.data;
+    },
+    onSuccess: (data: any) => {
+      toastSuccess(
+        'Request Cancelled',
+        data.requestType === 'WITHDRAWAL'
+          ? 'Withdrawal cancelled and locked funds refunded to your balance.'
+          : 'Deposit request has been cancelled.',
+      );
+      setView('main');
+      setTxRef('');
+      setPendingDepositData(null);
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+    },
+    onError: (err: any) => {
+      toastError('Cancellation Error', err.response?.data?.message || err.message || 'Could not cancel request');
+    },
+  });
+
   const withdrawMutation = useMutation({
     mutationFn: async () => {
       const amountNum = parseFloat(withdrawAmount);
@@ -304,6 +328,25 @@ export const WalletScreen = () => {
               <Text style={styles.submitProofBtnText}>SUBMIT TRANSACTION REFERENCE</Text>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.submitProofBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#EF4444', marginTop: 10 }]}
+            onPress={() => {
+              if (pendingDepositData?.id) {
+                cancelRequestMutation.mutate(pendingDepositData.id);
+              } else {
+                setView('main');
+                setPendingDepositData(null);
+              }
+            }}
+            disabled={cancelRequestMutation.isPending}
+          >
+            {cancelRequestMutation.isPending ? (
+              <ActivityIndicator color="#EF4444" />
+            ) : (
+              <Text style={[styles.submitProofBtnText, { color: '#EF4444' }]}>CANCEL DEPOSIT</Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -441,8 +484,17 @@ export const WalletScreen = () => {
                   <Text style={styles.reqAmount}>
                     {(Number(r.amountMinor) / 100).toFixed(2)} ETB
                   </Text>
-                  <View style={styles.pendingBadge}>
-                    <Text style={styles.pendingBadgeText}>PENDING</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>PENDING</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => cancelRequestMutation.mutate(r.id)}
+                      disabled={cancelRequestMutation.isPending}
+                      style={[styles.pendingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: '#EF4444', borderWidth: 1 }]}
+                    >
+                      <Text style={[styles.pendingBadgeText, { color: '#F87171' }]}>Cancel</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -467,8 +519,20 @@ export const WalletScreen = () => {
                     <Text style={styles.reqAmount}>
                       {(Number(r.amountMinor) / 100).toFixed(2)} ETB
                     </Text>
-                    <View style={[styles.pendingBadge, approved ? styles.approvedBadge : styles.rejectedBadge]}>
-                      <Text style={styles.pendingBadgeText}>{r.status}</Text>
+                    <View style={[
+                      styles.pendingBadge,
+                      approved
+                        ? styles.approvedBadge
+                        : r.status === 'CANCELLED'
+                          ? { backgroundColor: 'rgba(148, 163, 184, 0.15)', borderColor: '#64748B' }
+                          : r.status === 'EXPIRED'
+                            ? { backgroundColor: 'rgba(244, 63, 94, 0.15)', borderColor: '#F43F5E' }
+                            : styles.rejectedBadge
+                    ]}>
+                      <Text style={[
+                        styles.pendingBadgeText,
+                        r.status === 'CANCELLED' ? { color: '#94A3B8' } : r.status === 'EXPIRED' ? { color: '#FB7185' } : {}
+                      ]}>{r.status}</Text>
                     </View>
                   </View>
                 </View>

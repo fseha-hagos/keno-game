@@ -69,6 +69,8 @@ function StatusBadge({ status }: { status: string }) {
     PENDING: { bg: '#713F12', text: '#FDE68A' },
     APPROVED: { bg: '#064E3B', text: '#34D399' },
     REJECTED: { bg: '#7F1D1D', text: '#FCA5A5' },
+    CANCELLED: { bg: '#334155', text: '#94A3B8' },
+    EXPIRED: { bg: '#881337', text: '#FDA4AF' },
     ACTIVE: { bg: '#064E3B', text: '#34D399' },
     FROZEN: { bg: '#1E3A5F', text: '#93C5FD' },
     SUSPENDED: { bg: '#7F1D1D', text: '#FCA5A5' },
@@ -481,7 +483,7 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [actionNote, setActionNote] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'>('PENDING');
   const [filterType, setFilterType] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAWAL'>('ALL');
   const [filterVerification, setFilterVerification] = useState<'ALL' | 'AUTO' | 'MANUAL'>('ALL');
   const [paymentSearch, setPaymentSearch] = useState('');
@@ -1776,7 +1778,9 @@ export default function App() {
                           { id: 'PENDING', label: 'Pending', count: paymentRequests.filter((r) => r.status === 'PENDING').length, color: '#FBBF24' },
                           { id: 'APPROVED', label: 'Approved', count: paymentRequests.filter((r) => r.status === 'APPROVED').length, color: '#10B981' },
                           { id: 'REJECTED', label: 'Rejected', count: paymentRequests.filter((r) => r.status === 'REJECTED').length, color: '#EF4444' },
-                          { id: 'ALL', label: 'All Statuses', count: paymentRequests.length, color: '#94A3B8' },
+                          { id: 'CANCELLED', label: 'Cancelled', count: paymentRequests.filter((r) => r.status === 'CANCELLED').length, color: '#94A3B8' },
+                          { id: 'EXPIRED', label: 'Expired', count: paymentRequests.filter((r) => r.status === 'EXPIRED').length, color: '#FB7185' },
+                          { id: 'ALL', label: 'All Statuses', count: paymentRequests.length, color: '#38BDF8' },
                         ].map((st) => (
                           <button
                             key={st.id}
