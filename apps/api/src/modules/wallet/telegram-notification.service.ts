@@ -46,11 +46,31 @@ export class TelegramNotificationService {
     const token = process.env['TELEGRAM_BOT_TOKEN'];
     if (!token) return [];
 
-    // 1. Static fallback from .env if provided
-    const envChatId = process.env['TELEGRAM_ADMIN_CHAT_ID'];
-    if (envChatId && !seenChats.has(envChatId)) {
-      targets.push({ chatId: envChatId, username: 'EnvAdmin' });
-      seenChats.add(envChatId);
+    // 1. Static fallback from .env if provided (supports multiple comma-separated IDs or @channel handles)
+    const envChatIds = (process.env['TELEGRAM_ADMIN_CHAT_ID'] || '')
+      .split(/[,;\s]+/)
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    for (const cId of envChatIds) {
+      if (!seenChats.has(cId)) {
+        targets.push({ chatId: cId, username: cId.startsWith('@') ? cId : 'EnvAdmin' });
+        seenChats.add(cId);
+      }
+    }
+
+    // 2. Extra designated targets/channels (e.g. @Fastkenosupportteam)
+    const extraTargetsRaw = process.env['TELEGRAM_NOTIFICATION_TARGETS'] || '@Fastkenosupportteam';
+    const extraTargets = extraTargetsRaw
+      .split(/[,;\s]+/)
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    for (const eTarget of extraTargets) {
+      if (!seenChats.has(eTarget)) {
+        targets.push({ chatId: eTarget, username: eTarget });
+        seenChats.add(eTarget);
+      }
     }
 
     try {
@@ -68,9 +88,12 @@ export class TelegramNotificationService {
       `;
       const params: any[] = [];
 
+      const searchUsernames = [...designatedPhones, 'Fastkenosupportteam', '@Fastkenosupportteam'];
       if (designatedPhones.length > 0) {
-        query += ` AND ("phone" = ANY($1) OR "username" = ANY($1))`;
-        params.push(designatedPhones);
+        query += ` AND ("phone" = ANY($1) OR "username" = ANY($1) OR LOWER("username") = LOWER('Fastkenosupportteam'))`;
+        params.push(searchUsernames);
+      } else {
+        query += ` AND (LOWER("username") = LOWER('Fastkenosupportteam') OR "roles"::text ILIKE '%CREATOR%' OR "roles"::text ILIKE '%OPERATOR%' OR "roles"::text ILIKE '%BUSINESS_OWNER%' OR "roles"::text ILIKE '%SUPER_ADMIN%')`;
       }
 
       const rows: any[] = await this.dataSource.query(query, params);
