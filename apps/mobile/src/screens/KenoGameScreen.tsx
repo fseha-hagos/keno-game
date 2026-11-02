@@ -35,11 +35,16 @@ export const KenoGameScreen = () => {
     return () => socketService.disconnect();
   }, []);
 
+  const serverTimeOffsetRef = React.useRef<number>(0);
+
   // Fetch active game round
   const { data: round } = useQuery({
     queryKey: ['currentRound'],
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/keno/rounds/current');
+      if (res.data?.serverTime) {
+        serverTimeOffsetRef.current = new Date(res.data.serverTime).getTime() - Date.now();
+      }
       return res.data;
     },
     refetchInterval: 2000,
@@ -88,11 +93,16 @@ export const KenoGameScreen = () => {
     if (round.status === 'OPEN') {
       const currentDrawn = useGameStore.getState().drawnNumbers;
       if (currentDrawn.length > 0) {
-        // Allow draw animation to finish all 20 balls and show results
-        const timer = setTimeout(() => {
+        const nowServer = Date.now() + serverTimeOffsetRef.current;
+        const remaining = round.closedAt ? Math.floor((new Date(round.closedAt).getTime() - nowServer) / 1000) : 0;
+        if (remaining > 5) {
           useGameStore.getState().resetRoundDraw();
-        }, 3000);
-        return () => clearTimeout(timer);
+        } else {
+          const timer = setTimeout(() => {
+            useGameStore.getState().resetRoundDraw();
+          }, 2000);
+          return () => clearTimeout(timer);
+        }
       } else {
         useGameStore.getState().resetRoundDraw();
       }
@@ -117,9 +127,10 @@ export const KenoGameScreen = () => {
     }
 
     const computeTime = () => {
+      const nowServer = Date.now() + serverTimeOffsetRef.current;
       const remaining = Math.max(
         0,
-        Math.floor((new Date(round.closedAt).getTime() - Date.now()) / 1000),
+        Math.floor((new Date(round.closedAt).getTime() - nowServer) / 1000),
       );
       setTimeLeft(remaining);
     };

@@ -122,6 +122,8 @@ export const KenoPlayStage: React.FC<KenoPlayStageProps> = ({
       setSettledBalls([...drawnNumbers]);
       nextSlotIdxRef.current = drawnNumbers.length;
       setCompletedHoldActive(true);
+      const t = setTimeout(() => setCompletedHoldActive(false), 3000);
+      timersRef.current.push(t);
       return;
     }
 

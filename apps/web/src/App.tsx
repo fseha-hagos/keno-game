@@ -117,10 +117,15 @@ export const App: React.FC = () => {
   }, [user?.id]);
 
   // Fetch active game round
+  const serverTimeOffsetRef = useRef<number>(0);
+
   const { data: round } = useQuery({
     queryKey: ['currentRound'],
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/keno/rounds/current');
+      if (res.data?.serverTime) {
+        serverTimeOffsetRef.current = new Date(res.data.serverTime).getTime() - Date.now();
+      }
       return res.data;
     },
     refetchInterval: 2000,
@@ -200,10 +205,16 @@ export const App: React.FC = () => {
     if (round.status === 'OPEN') {
       const currentDrawn = useGameStore.getState().drawnNumbers;
       if (currentDrawn.length > 0) {
-        const timer = setTimeout(() => {
+        const nowServer = Date.now() + serverTimeOffsetRef.current;
+        const remaining = round.closedAt ? Math.floor((new Date(round.closedAt).getTime() - nowServer) / 1000) : 0;
+        if (remaining > 5) {
           resetRoundDraw();
-        }, 3000);
-        return () => clearTimeout(timer);
+        } else {
+          const timer = setTimeout(() => {
+            resetRoundDraw();
+          }, 2000);
+          return () => clearTimeout(timer);
+        }
       } else {
         resetRoundDraw();
       }
@@ -228,9 +239,10 @@ export const App: React.FC = () => {
     }
 
     const computeTime = () => {
+      const nowServer = Date.now() + serverTimeOffsetRef.current;
       const remaining = Math.max(
         0,
-        Math.floor((new Date(round.closedAt).getTime() - Date.now()) / 1000),
+        Math.floor((new Date(round.closedAt).getTime() - nowServer) / 1000),
       );
       setTimeLeft(remaining);
     };

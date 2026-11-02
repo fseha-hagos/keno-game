@@ -10,7 +10,11 @@ export class GameRoundsController {
   @Get('current')
   @ApiOperation({ summary: 'Get current active open betting round' })
   async getCurrentRound() {
-    return this.roundsService.getCurrentRound();
+    const round = await this.roundsService.getCurrentRound();
+    return {
+      ...round,
+      serverTime: new Date().toISOString(),
+    };
   }
 
   @Get('recent')
