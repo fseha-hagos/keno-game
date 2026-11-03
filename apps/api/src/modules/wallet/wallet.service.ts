@@ -58,7 +58,7 @@ export class WalletService implements OnModuleInit {
       this.expireOverdueRequests().catch((e) =>
         this.logger.warn(`Periodic expireOverdueRequests error: ${e.message}`),
       );
-    }, 30_000);
+    }, 10_000);
   }
   private readonly logger = new Logger(WalletService.name);
 
@@ -350,6 +350,9 @@ export class WalletService implements OnModuleInit {
       wallet.lockedMinor = (BigInt(wallet.lockedMinor) + amountToWithdraw).toString();
       await manager.save(wallet);
 
+      const withdrawExpireHours = Number(process.env.WITHDRAWAL_EXPIRE_HOURS || '2');
+      const expiresAt = new Date(Date.now() + withdrawExpireHours * 60 * 60 * 1000);
+
       const request = manager.create(PaymentRequest, {
         userId,
         requestType: PaymentRequestType.WITHDRAWAL,
@@ -359,6 +362,7 @@ export class WalletService implements OnModuleInit {
         accountNumber: input.destinationAccount || undefined,
         accountName: input.accountName || undefined,
         status: PaymentRequestStatus.PENDING,
+        expiresAt,
         idempotencyKey: input.idempotencyKey,
       });
 
