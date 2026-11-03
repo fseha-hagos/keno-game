@@ -695,10 +695,18 @@ export class WalletService implements OnModuleInit {
 
   async getUserPaymentRequests(userId: string): Promise<PaymentRequest[]> {
     await this.expireOverdueRequests();
-    return this.paymentRepo.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+    return this.paymentRepo
+      .createQueryBuilder('pr')
+      .where('pr.userId = :userId', { userId })
+      .andWhere(
+        '(pr.status != :cancelled OR pr.requestType != :depositType OR (pr.transactionReference IS NOT NULL AND TRIM(pr.transactionReference) != \'\'))',
+        {
+          cancelled: PaymentRequestStatus.CANCELLED,
+          depositType: PaymentRequestType.DEPOSIT,
+        },
+      )
+      .orderBy('pr.createdAt', 'DESC')
+      .getMany();
   }
 
   /**
@@ -888,19 +896,39 @@ export class WalletService implements OnModuleInit {
 
         request.status = PaymentRequestStatus.CANCELLED;
         request.adminNote = 'Cancelled by user - Locked funds refunded to balance';
+        const saved = await manager.save(request);
+        this.logger.log(`Payment Request #${saved.id} (WITHDRAWAL) CANCELLED by user ${userId}`);
+
+        this.telegramNotification
+          .notify(saved, 'REQUEST_CANCELLED', { approverId: userId, note: request.adminNote })
+          .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
+        return saved;
       } else {
-        request.status = PaymentRequestStatus.CANCELLED;
-        request.adminNote = 'Cancelled by user';
+        const hasReference = !!(request.transactionReference && request.transactionReference.trim());
+        if (!hasReference) {
+          // Discard empty deposit cancellation so it does not clutter player or admin history
+          await manager.remove(request);
+          this.logger.log(`Payment Request #${requestId} (DEPOSIT without ref) discarded upon user cancellation`);
+          return {
+            ...request,
+            id: requestId,
+            status: PaymentRequestStatus.CANCELLED,
+            adminNote: 'Cancelled by user before reference entry',
+          } as PaymentRequest;
+        } else {
+          request.status = PaymentRequestStatus.CANCELLED;
+          request.adminNote = 'Cancelled by user';
+          const saved = await manager.save(request);
+          this.logger.log(`Payment Request #${saved.id} (DEPOSIT with ref ${saved.transactionReference}) CANCELLED by user ${userId}`);
+
+          this.telegramNotification
+            .notify(saved, 'REQUEST_CANCELLED', { approverId: userId, note: request.adminNote })
+            .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
+
+          return saved;
+        }
       }
-
-      const saved = await manager.save(request);
-      this.logger.log(`Payment Request #${saved.id} (${saved.requestType}) CANCELLED by user ${userId}`);
-
-      this.telegramNotification
-        .notify(saved, 'REQUEST_CANCELLED', { approverId: userId, note: request.adminNote })
-        .catch((e) => this.logger.warn(`Telegram notification error: ${e.message}`));
-
-      return saved;
     });
   }
 
@@ -940,8 +968,16 @@ export class WalletService implements OnModuleInit {
             current.status = PaymentRequestStatus.EXPIRED;
             current.adminNote = 'Auto-expired: Processing time limit exceeded. Locked funds refunded.';
           } else {
-            current.status = PaymentRequestStatus.EXPIRED;
-            current.adminNote = 'Auto-expired: Payment proof not submitted/verified within expiration window.';
+            const hasRef = !!(current.transactionReference && current.transactionReference.trim());
+            if (!hasRef) {
+              await manager.remove(current);
+              expiredCount++;
+              this.logger.log(`Payment Request #${current.id} (DEPOSIT without ref) discarded upon expiration`);
+              return;
+            } else {
+              current.status = PaymentRequestStatus.EXPIRED;
+              current.adminNote = 'Auto-expired: Payment proof not submitted/verified within expiration window.';
+            }
           }
 
           const saved = await manager.save(current);
