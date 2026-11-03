@@ -272,6 +272,7 @@ export class TelegramNotificationService {
     for (const target of targets) {
       try {
         const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          signal: AbortSignal.timeout(5000),
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -148,6 +148,44 @@ const extractRefPreview = (text: string): string => {
   return match && match[1] ? match[1].toUpperCase() : '';
 };
 
+const PENDING_DEPOSIT_STORAGE_KEY = 'keno_active_pending_deposit';
+
+const getStoredPendingDeposit = (userId?: string) => {
+  try {
+    const userKey = userId ? `${PENDING_DEPOSIT_STORAGE_KEY}_${userId}` : null;
+    let raw = userKey ? localStorage.getItem(userKey) : null;
+    if (!raw) {
+      raw = localStorage.getItem(PENDING_DEPOSIT_STORAGE_KEY);
+    }
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data) return null;
+    const expiresAt = data.expiresAt ? new Date(data.expiresAt).getTime() : 0;
+    if (expiresAt && expiresAt <= Date.now()) {
+      if (userKey) localStorage.removeItem(userKey);
+      localStorage.removeItem(PENDING_DEPOSIT_STORAGE_KEY);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const storePendingDeposit = (userId?: string, data?: any) => {
+  try {
+    const userKey = userId ? `${PENDING_DEPOSIT_STORAGE_KEY}_${userId}` : null;
+    if (!data) {
+      if (userKey) localStorage.removeItem(userKey);
+      localStorage.removeItem(PENDING_DEPOSIT_STORAGE_KEY);
+    } else {
+      const serialized = JSON.stringify(data);
+      if (userKey) localStorage.setItem(userKey, serialized);
+      localStorage.setItem(PENDING_DEPOSIT_STORAGE_KEY, serialized);
+    }
+  } catch {}
+};
+
 export const WalletModal: React.FC<WalletModalProps> = ({
   isOpen,
   onClose,
@@ -164,32 +202,32 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [withdrawName, setWithdrawName] = useState('');
   const [isManualAccount, setIsManualAccount] = useState(false);
   const [isManualName, setIsManualName] = useState(false);
-  const [historySegment, setHistorySegment] = useState<'payments' | 'bets'>('payments');
   const [txRef, setTxRef] = useState('');
-  const [pendingDeposit, setPendingDeposit] = useState<any>(null);
+  const [pendingDeposit, setPendingDepositState] = useState<any>(() => getStoredPendingDeposit(user?.id));
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState({ mins: 15, secs: 0 });
   const [confirmCancelRequest, setConfirmCancelRequest] = useState<any | null>(null);
-
-  // Live Authoritative Game Bet History query
-  const {
-    data: betHistory,
-    isLoading: isBetsLoading,
-    isFetching: isBetsFetching,
-  } = useQuery({
-    queryKey: ['walletBetHistory'],
-    queryFn: async () => {
-      try {
-        const res = await apiClient.get('/api/v1/keno/bets/history');
-        return Array.isArray(res.data) ? res.data : [];
-      } catch {
-        return [];
-      }
-    },
-    enabled: isOpen && activeTab === 'history',
-    refetchInterval: 2500,
-  });
   const [showHelp, setShowHelp] = useState(false);
+
+  const setPendingDeposit = (data: any) => {
+    setPendingDepositState(data);
+    storePendingDeposit(user?.id, data);
+  };
+
+  // Restore stored pending deposit on user change
+  useEffect(() => {
+    if (!user?.id) return;
+    const stored = getStoredPendingDeposit(user.id);
+    if (stored) {
+      if (new Date(stored.expiresAt).getTime() > Date.now()) {
+        setPendingDepositState(stored);
+        if (stored.paymentMethod) setSelectedMethod(stored.paymentMethod);
+        if (stored.transactionReference) setTxRef(stored.transactionReference);
+      } else {
+        storePendingDeposit(user.id, null);
+      }
+    }
+  }, [user?.id]);
 
   // Sync tab & registered phone/name when modal opens or user profile loads
   useEffect(() => {
@@ -206,51 +244,84 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     }
   }, [isOpen, initialTab, user?.phone, user?.username]);
 
-  // 15-minute countdown timer for pending deposit
+  // Countdown timer for pending deposit
   useEffect(() => {
     if (!pendingDeposit) return;
     const expiresAt = pendingDeposit.expiresAt
       ? new Date(pendingDeposit.expiresAt).getTime()
       : Date.now() + 15 * 60 * 1000;
 
-    const interval = setInterval(() => {
+    const tick = () => {
       const remaining = Math.max(0, expiresAt - Date.now());
       const totalSecs = Math.floor(remaining / 1000);
       setCountdown({ mins: Math.floor(totalSecs / 60), secs: totalSecs % 60 });
-      if (remaining <= 0) clearInterval(interval);
-    }, 1000);
+      if (remaining <= 0) {
+        setPendingDeposit(null);
+        toastInfo('Deposit Expired', 'The deposit time window has expired. You can initiate a new deposit.');
+      }
+    };
 
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [pendingDeposit]);
+  }, [pendingDeposit?.expiresAt, pendingDeposit?.id]);
 
-  // Live polling for pending deposit status (detects SMS matching & admin approval in real-time)
+  // Live Authoritative Pending Deposit Query: restores active deposit even after refresh/re-entry, and monitors approval
   useQuery({
-    queryKey: ['activePendingDeposit', pendingDeposit?.id],
+    queryKey: ['activePendingDepositServer', user?.id],
     queryFn: async () => {
-      if (!pendingDeposit?.id) return null;
+      if (!user?.id) return null;
       try {
         const res = await apiClient.get('/api/v1/wallet/payment-requests');
-        const found = res.data?.find((r: any) => r.id === pendingDeposit.id);
-        if (found) {
-          if (found.status === 'APPROVED') {
-            toastSuccess('Deposit Approved!', 'Your payment was approved and your balance has been credited!');
-            setPendingDeposit(null);
-            queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
-            queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
-          } else if (found.status === 'REJECTED') {
-            toastError('Deposit Rejected', found.adminNote || 'Deposit was rejected');
-            setPendingDeposit(null);
-          } else if (found.matchedEvidenceId && !pendingDeposit.matchedEvidenceId) {
-            setPendingDeposit(found);
+        if (!Array.isArray(res.data)) return null;
+
+        const now = Date.now();
+        // Check for active pending deposit within expiry window
+        const active = res.data.find(
+          (r: any) =>
+            r.requestType === 'DEPOSIT' &&
+            r.status === 'PENDING' &&
+            (!r.expiresAt || new Date(r.expiresAt).getTime() > now),
+        );
+
+        if (active) {
+          const methodInfo =
+            PAYMENT_METHODS.find((m) => m.id === active.paymentMethod) || PAYMENT_METHODS[0];
+          const restored = {
+            ...active,
+            methodInfo,
+            displayAmount: (Number(active.amountMinor) / 100).toString(),
+            proofSubmitted: Boolean(
+              active.transactionReference && active.transactionReference.trim(),
+            ),
+          };
+          setPendingDeposit(restored);
+          if (active.paymentMethod) setSelectedMethod(active.paymentMethod);
+          if (active.transactionReference) setTxRef(active.transactionReference);
+          return restored;
+        } else if (pendingDeposit?.id) {
+          const matching = res.data.find((r: any) => r.id === pendingDeposit.id);
+          if (matching) {
+            if (matching.status === 'APPROVED') {
+              toastSuccess('Deposit Approved!', 'Your payment was approved and your balance has been credited!');
+              setPendingDeposit(null);
+              queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+              queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
+            } else if (matching.status === 'REJECTED') {
+              toastError('Deposit Rejected', matching.adminNote || 'Deposit was rejected');
+              setPendingDeposit(null);
+            } else if (matching.status === 'CANCELLED' || matching.status === 'EXPIRED') {
+              setPendingDeposit(null);
+            }
           }
         }
-        return found;
+        return null;
       } catch {
         return null;
       }
     },
-    enabled: !!pendingDeposit?.id,
-    refetchInterval: 3000,
+    enabled: isOpen && !!user?.id,
+    refetchInterval: pendingDeposit?.id ? 3500 : false,
   });
 
   // Balance query
@@ -261,39 +332,24 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       return res.data;
     },
     enabled: isOpen,
-    refetchInterval: 3000,
+    staleTime: 10000,
   });
 
-  // Live Payment requests query (Deposits & Withdrawals with PENDING/APPROVED/REJECTED status)
+  // Payment requests query (Deposits & Withdrawals) — No periodic polling, refreshes on demand
   const {
     data: paymentRequests,
     isLoading: isPaymentRequestsLoading,
     isFetching: isPaymentRequestsFetching,
+    isError: isPaymentRequestsError,
     refetch: refetchPaymentRequests,
   } = useQuery({
     queryKey: ['paymentRequests'],
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/wallet/payment-requests');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
     enabled: isOpen && activeTab === 'history',
-    refetchInterval: 2500, // Live real-time polling
-  });
-
-  // Live Ledger transactions query (Game bets and payouts)
-  const {
-    data: transactions,
-    isLoading: isTransactionsLoading,
-    isFetching: isTransactionsFetching,
-    refetch: refetchTransactions,
-  } = useQuery({
-    queryKey: ['walletTransactions'],
-    queryFn: async () => {
-      const res = await apiClient.get('/api/v1/wallet/transactions?currency=ETB');
-      return res.data;
-    },
-    enabled: isOpen && activeTab === 'history',
-    refetchInterval: 2500, // Live real-time polling
+    staleTime: 30000,
   });
 
   // Step 1: Initiate deposit mutation
@@ -439,7 +495,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
+  const currentMethod = (PAYMENT_METHODS.find((m) => m.id === (pendingDeposit?.paymentMethod || selectedMethod)) || PAYMENT_METHODS[0])!;
   const balance = wallet?.balanceMinor ? (Number(wallet.balanceMinor) / 100).toFixed(2) : '0.00';
 
   const copyToClipboard = (text: string) => {
@@ -546,7 +602,6 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 type="button"
                 onClick={() => {
                   setActiveTab(tab);
-                  setPendingDeposit(null);
                 }}
                 style={{
                   flex: 1,
@@ -981,7 +1036,6 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setPendingDeposit(null);
                         setActiveTab('history');
                       }}
                       style={{
@@ -1042,7 +1096,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         <div>
                           <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>Amount to Send</div>
                           <div style={{ fontSize: 15, fontWeight: 900, color: '#F8FAFC' }}>
-                            {depositAmount} ETB <span style={{ fontSize: 12, fontWeight: 600, color: '#10B981' }}>via {currentMethod.name}</span>
+                            {pendingDeposit?.displayAmount || (pendingDeposit?.amountMinor ? (Number(pendingDeposit.amountMinor) / 100).toString() : depositAmount)} ETB <span style={{ fontSize: 12, fontWeight: 600, color: '#10B981' }}>via {currentMethod.name}</span>
                           </div>
                         </div>
                       </div>
@@ -1246,7 +1300,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     </div>
                     <textarea
                       rows={2}
-                      placeholder={`e.g. ${currentMethod.hint || 'DJJ82SWP4M'} or paste full SMS`}
+                      placeholder={currentMethod.hint ? `${currentMethod.hint} or paste full SMS` : 'e.g. CI94719082 or paste full SMS'}
                       value={txRef}
                       onChange={(e) => setTxRef(e.target.value)}
                       style={{
@@ -1899,640 +1953,463 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           )}
 
           {/* ─────────────────────────────────────────────────────────── */}
-          {/* 3. TRANSACTION HISTORY TAB (LIVE & SEGMENTED)               */}
+          {/* 3. TRANSACTION HISTORY TAB                                   */}
           {/* ─────────────────────────────────────────────────────────── */}
-          {activeTab === 'history' && (() => {
-            const isPaymentsLoading = isPaymentRequestsLoading && !paymentRequests;
-            const isBetsLoading = isTransactionsLoading && !transactions;
-            const isSyncing = isPaymentRequestsFetching || isTransactionsFetching;
-
-            // Separate game bets from ledger
-            const gameBets = Array.isArray(transactions)
-              ? transactions.filter(
-                (tx: any) =>
-                  tx.transactionType === 'BET_STAKE' ||
-                  tx.transactionType === 'BET_PAYOUT' ||
-                  tx.type === 'BET_STAKE' ||
-                  tx.type === 'BET_PAYOUT'
-              )
-              : [];
-
-            return (
-              <div>
-                {/* Live Activity Header */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 10,
-                    padding: '0 2px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {activeTab === 'history' && (
+            <div>
+              {/* Header: Title & Manual Refresh */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 12,
+                  padding: '0 2px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      backgroundColor: '#10B981',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
+                    Transaction History
+                  </span>
+                  {Array.isArray(paymentRequests) && paymentRequests.length > 0 && (
                     <span
                       style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        backgroundColor: '#10B981',
-                        boxShadow: '0 0 8px #10B981',
-                        display: 'inline-block',
+                        background: 'rgba(16, 185, 129, 0.18)',
+                        color: '#10B981',
+                        fontSize: 10.5,
+                        padding: '1px 7px',
+                        borderRadius: 10,
+                        fontWeight: 800,
                       }}
-                    />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981' }}>
-                      Live Real-Time Activity
+                    >
+                      {paymentRequests.length}
                     </span>
-                    {isSyncing && (
-                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600 }}>
-                        (Syncing...)
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      refetchPaymentRequests();
-                      refetchTransactions();
-                    }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#64748B',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: 11,
-                      padding: 0,
-                      fontWeight: 600,
-                    }}
-                    title="Refresh Now"
-                  >
-                    <RefreshCw size={11} className={isSyncing ? 'spin-animation' : ''} />
-                    <span>Refresh</span>
-                  </button>
+                  )}
                 </div>
 
-                {/* Segment Filter: Deposits & Withdrawals is DEFAULT and shown right away */}
+                <button
+                  type="button"
+                  onClick={() => refetchPaymentRequests()}
+                  disabled={isPaymentRequestsFetching}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 11,
+                    padding: '4px 6px',
+                    fontWeight: 700,
+                  }}
+                  title="Refresh Transactions"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={isPaymentRequestsFetching ? 'spin-animation' : ''}
+                  />
+                  <span>{isPaymentRequestsFetching ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+              </div>
+
+              {/* Transactions List / Loading / Error */}
+              {isPaymentRequestsLoading && !paymentRequests ? (
                 <div
                   style={{
                     display: 'flex',
-                    background: '#152132',
-                    borderRadius: 8,
-                    padding: 3,
-                    marginBottom: 14,
-                    border: '1px solid #1E293B',
-                    gap: 3,
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '36px 0',
+                    gap: 12,
                   }}
                 >
+                  <Loader2 size={26} color="#10B981" className="spin-animation" />
+                  <div style={{ fontSize: 13, color: '#94A3B8', fontWeight: 700 }}>
+                    Loading transactions...
+                  </div>
+                </div>
+              ) : isPaymentRequestsError ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: '#EF4444',
+                    padding: '28px 16px',
+                    background: '#152132',
+                    borderRadius: 12,
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                  }}
+                >
+                  <AlertTriangle size={24} style={{ margin: '0 auto 8px', display: 'block' }} />
+                  <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>
+                    Failed to Load Transactions
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 12 }}>
+                    Please check your connection and try again.
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setHistorySegment('payments')}
+                    onClick={() => refetchPaymentRequests()}
                     style={{
-                      flex: 1,
-                      padding: '8px 4px',
-                      borderRadius: 6,
-                      border: 'none',
-                      background: historySegment === 'payments' ? '#28374E' : 'transparent',
-                      color: historySegment === 'payments' ? '#10B981' : '#94A3B8',
+                      background: '#28374E',
+                      border: '1px solid #3B4E68',
+                      borderRadius: 8,
+                      padding: '6px 14px',
+                      color: '#FFFFFF',
                       fontSize: 12,
-                      fontWeight: historySegment === 'payments' ? 800 : 600,
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
                     }}
                   >
-                    <span>Transactions</span>
-                    {Array.isArray(paymentRequests) && paymentRequests.length > 0 && (
-                      <span
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.2)',
-                          color: '#10B981',
-                          fontSize: 10,
-                          padding: '1px 6px',
-                          borderRadius: 8,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {paymentRequests.length}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setHistorySegment('bets')}
-                    style={{
-                      flex: 1,
-                      padding: '8px 4px',
-                      borderRadius: 6,
-                      border: 'none',
-                      background: historySegment === 'bets' ? '#28374E' : 'transparent',
-                      color: historySegment === 'bets' ? '#10B981' : '#94A3B8',
-                      fontSize: 12,
-                      fontWeight: historySegment === 'bets' ? 800 : 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span>Game Bets</span>
-                    {Array.isArray(betHistory) && betHistory.length > 0 && (
-                      <span
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10B981',
-                          fontSize: 10,
-                          padding: '1px 6px',
-                          borderRadius: 8,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {betHistory.length}
-                      </span>
-                    )}
+                    Retry
                   </button>
                 </div>
+              ) : Array.isArray(paymentRequests) && paymentRequests.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {paymentRequests.map((req: any) => {
+                    const isDeposit = req.requestType === 'DEPOSIT';
+                    const amount = (Number(req.amountMinor) / 100).toFixed(2);
+                    const status = (req.status || 'PENDING').toUpperCase();
 
-                {/* SEGMENT 1: DEPOSITS & WITHDRAWALS (Default) */}
-                {historySegment === 'payments' && (
-                  <div>
-                    {isPaymentsLoading ? (
+                    return (
                       <div
+                        key={req.id}
                         style={{
+                          background: '#152132',
+                          border: '1px solid #1E293B',
+                          borderRadius: 10,
+                          padding: '12px 14px',
                           display: 'flex',
-                          flexDirection: 'column',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '36px 0',
-                          gap: 12,
+                          justifyContent: 'space-between',
+                          transition: 'border-color 0.15s ease',
                         }}
                       >
-                        <Loader2 size={26} color="#10B981" className="spin-animation" />
-                        <div style={{ fontSize: 13, color: '#94A3B8', fontWeight: 700 }}>
-                          Loading deposit & withdrawal requests...
-                        </div>
-                        <div style={{ fontSize: 11, color: '#64748B' }}>Fetching live status from server</div>
-                      </div>
-                    ) : Array.isArray(paymentRequests) && paymentRequests.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {paymentRequests.map((req: any) => {
-                          const isDeposit = req.requestType === 'DEPOSIT';
-                          const amount = (Number(req.amountMinor) / 100).toFixed(2);
-                          const status = (req.status || 'PENDING').toUpperCase();
+                        {/* Left icon & details */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: '50%',
+                              background: isDeposit
+                                ? 'rgba(16, 185, 129, 0.15)'
+                                : 'rgba(245, 158, 11, 0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: isDeposit ? '#10B981' : '#F59E0B',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isDeposit ? (
+                              <ArrowDownLeft size={18} strokeWidth={2.8} />
+                            ) : (
+                              <ArrowUpRight size={18} strokeWidth={2.8} />
+                            )}
+                          </div>
 
-                          return (
+                          <div>
                             <div
-                              key={req.id}
                               style={{
-                                background: '#152132',
-                                border: '1px solid #1E293B',
-                                borderRadius: 10,
-                                padding: '12px 14px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                transition: 'border-color 0.15s ease',
+                                gap: 6,
+                                marginBottom: 2,
                               }}
                             >
-                              {/* Left icon & details */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div
-                                  style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: '50%',
-                                    background: isDeposit ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: isDeposit ? '#10B981' : '#F59E0B',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {isDeposit ? (
-                                    <ArrowDownLeft size={18} strokeWidth={2.8} />
-                                  ) : (
-                                    <ArrowUpRight size={18} strokeWidth={2.8} />
-                                  )}
-                                </div>
-
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
-                                      {isDeposit ? 'Deposit' : 'Withdrawal'}
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 10.5,
-                                        color: '#94A3B8',
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        padding: '1px 6px',
-                                        borderRadius: 4,
-                                        textTransform: 'capitalize',
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      {req.paymentMethod || 'Telebirr'}
-                                    </span>
-                                  </div>
-
-                                  <div style={{ fontSize: 11, color: '#64748B', display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <span>{formatTxDate(req.createdAt)}</span>
-                                    {req.accountNumber && (
-                                      <span>• Acc: {req.accountNumber}</span>
-                                    )}
-                                  </div>
-
-                                  {req.adminNote && (status === 'REJECTED' || status === 'CANCELLED' || status === 'EXPIRED') && (
-                                    <div style={{ fontSize: 11, color: status === 'REJECTED' ? '#EF4444' : '#94A3B8', marginTop: 3 }}>
-                                      Note: {req.adminNote}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Right: Amount & Status Badge */}
-                              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                                <div
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 900,
-                                    color: isDeposit ? '#10B981' : '#F8FAFC',
-                                    letterSpacing: '0.02em',
-                                  }}
-                                >
-                                  {isDeposit ? `+${amount}` : `-${amount}`} <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>ETB</span>
-                                </div>
-
-                                {/* Status Badge: PENDING or APPROVED or REJECTED */}
-                                {status === 'PENDING' && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 3,
-                                        background: 'rgba(245, 158, 11, 0.15)',
-                                        border: '1px solid rgba(245, 158, 11, 0.4)',
-                                        color: '#F59E0B',
-                                        padding: '2px 7px',
-                                        borderRadius: 6,
-                                        fontSize: 10,
-                                        fontWeight: 800,
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.04em',
-                                      }}
-                                    >
-                                      <Clock size={10} strokeWidth={2.8} /> Pending
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmCancelRequest(req)}
-                                      disabled={cancelRequestMutation.isPending}
-                                      style={{
-                                        background: 'rgba(239, 68, 68, 0.12)',
-                                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                                        color: '#F87171',
-                                        padding: '2px 8px',
-                                        borderRadius: 6,
-                                        fontSize: 10,
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                )}
-
-                                {status === 'CANCELLED' && (
-                                  <span
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 3,
-                                      background: 'rgba(148, 163, 184, 0.15)',
-                                      border: '1px solid rgba(148, 163, 184, 0.3)',
-                                      color: '#94A3B8',
-                                      padding: '2px 7px',
-                                      borderRadius: 6,
-                                      fontSize: 10,
-                                      fontWeight: 800,
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.04em',
-                                    }}
-                                  >
-                                    <X size={10} strokeWidth={3} /> Cancelled
-                                  </span>
-                                )}
-
-                                {status === 'EXPIRED' && (
-                                  <span
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 3,
-                                      background: 'rgba(244, 63, 94, 0.15)',
-                                      border: '1px solid rgba(244, 63, 94, 0.35)',
-                                      color: '#FB7185',
-                                      padding: '2px 7px',
-                                      borderRadius: 6,
-                                      fontSize: 10,
-                                      fontWeight: 800,
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.04em',
-                                    }}
-                                  >
-                                    <Clock size={10} strokeWidth={2.8} /> Expired
-                                  </span>
-                                )}
-
-                                {status === 'APPROVED' && (
-                                  <span
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 3,
-                                      background: 'rgba(16, 185, 129, 0.15)',
-                                      border: '1px solid rgba(16, 185, 129, 0.4)',
-                                      color: '#10B981',
-                                      padding: '2px 7px',
-                                      borderRadius: 6,
-                                      fontSize: 10,
-                                      fontWeight: 800,
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.04em',
-                                    }}
-                                  >
-                                    <Check size={10} strokeWidth={3} /> Approved
-                                  </span>
-                                )}
-
-                                {status === 'REJECTED' && (
-                                  <span
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 3,
-                                      background: 'rgba(239, 68, 68, 0.15)',
-                                      border: '1px solid rgba(239, 68, 68, 0.4)',
-                                      color: '#EF4444',
-                                      padding: '2px 7px',
-                                      borderRadius: 6,
-                                      fontSize: 10,
-                                      fontWeight: 800,
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.04em',
-                                    }}
-                                  >
-                                    <X size={10} strokeWidth={3} /> Rejected
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          textAlign: 'center',
-                          color: '#64748B',
-                          fontSize: 13,
-                          padding: '30px 16px',
-                          background: '#152132',
-                          borderRadius: 12,
-                          border: '1px solid #1E293B',
-                        }}
-                      >
-                        <div style={{ marginBottom: 8, fontSize: 24 }}>💳</div>
-                        <div style={{ fontWeight: 700, color: '#94A3B8', marginBottom: 4 }}>
-                          No Deposits or Withdrawals Yet
-                        </div>
-                        <div style={{ fontSize: 11, marginBottom: 14 }}>
-                          Your deposit & withdrawal requests with real-time status will show here.
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('deposit')}
-                          style={{
-                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                            border: 'none',
-                            borderRadius: 8,
-                            padding: '8px 16px',
-                            color: '#FFFFFF',
-                            fontSize: 12,
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Make a Deposit
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* SEGMENT 2: GAME BETS */}
-                {historySegment === 'bets' && (
-                  <div>
-                    {isBetsLoading ? (
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '36px 0',
-                          gap: 12,
-                        }}
-                      >
-                        <Loader2 size={26} color="#10B981" className="spin-animation" />
-                        <div style={{ fontSize: 13, color: '#94A3B8', fontWeight: 700 }}>
-                          Loading game bet history...
-                        </div>
-                      </div>
-                    ) : Array.isArray(betHistory) && betHistory.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {betHistory.map((bet: any) => {
-                          const isWon = bet.status === 'WON';
-                          const isLost = bet.status === 'LOST';
-                          const isPending = bet.status === 'PENDING' || !bet.status;
-                          const stake = (Number(bet.stakeMinor || 0) / 100).toFixed(2);
-                          const payout = bet.payoutMinor ? (Number(bet.payoutMinor) / 100).toFixed(2) : '0.00';
-                          const roundNumber = bet.round?.roundNumber || (bet.roundId ? bet.roundId.slice(0, 8) : '—');
-                          const selectedNums: number[] = Array.isArray(bet.selectedNumbers)
-                            ? bet.selectedNumbers
-                            : typeof bet.selectedNumbers === 'string'
-                              ? bet.selectedNumbers.split(',').map((n: string) => Number(n.trim())).filter((n: number) => !isNaN(n))
-                              : [];
-                          const hitNums: number[] = Array.isArray(bet.hitNumbers)
-                            ? bet.hitNumbers
-                            : typeof bet.hitNumbers === 'string'
-                              ? bet.hitNumbers.split(',').map((n: string) => Number(n.trim())).filter((n: number) => !isNaN(n))
-                              : [];
-                          const hitsCount = typeof bet.hits === 'number' ? bet.hits : hitNums.length;
-
-                          return (
-                            <div
-                              key={bet.id}
-                              style={{
-                                background: '#152132',
-                                border: isWon
-                                  ? '1px solid rgba(16, 185, 129, 0.45)'
-                                  : isLost
-                                    ? '1px solid rgba(239, 68, 68, 0.25)'
-                                    : '1px solid #1E2D42',
-                                borderRadius: 12,
-                                padding: '12px 14px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 8,
-                                boxShadow: isWon ? '0 4px 14px rgba(16, 185, 129, 0.12)' : 'none',
-                              }}
-                            >
-                              {/* Header row: Round info + status pill */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 900, color: '#F8FAFC' }}>
-                                    Round #{roundNumber}
-                                  </span>
-                                  <span style={{ fontSize: 11, color: '#64748B' }}>
-                                    • {formatTxDate(bet.createdAt)}
-                                  </span>
-                                </div>
-                                <div
-                                  style={{
-                                    padding: '3px 9px',
-                                    borderRadius: 12,
-                                    fontSize: 10.5,
-                                    fontWeight: 800,
-                                    letterSpacing: '0.03em',
-                                    background: isWon
-                                      ? 'rgba(16, 185, 129, 0.15)'
-                                      : isLost
-                                        ? 'rgba(239, 68, 68, 0.15)'
-                                        : 'rgba(245, 158, 11, 0.15)',
-                                    color: isWon ? '#10B981' : isLost ? '#EF4444' : '#F59E0B',
-                                    border: `1px solid ${
-                                      isWon
-                                        ? 'rgba(16, 185, 129, 0.35)'
-                                        : isLost
-                                          ? 'rgba(239, 68, 68, 0.35)'
-                                          : 'rgba(245, 158, 11, 0.35)'
-                                    }`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                  }}
-                                >
-                                  {isWon ? (
-                                    <>
-                                      <Sparkles size={11} />
-                                      <span>WON +{payout} ETB</span>
-                                    </>
-                                  ) : isLost ? (
-                                    <span>LOST</span>
-                                  ) : (
-                                    <>
-                                      <Clock size={11} />
-                                      <span>WAITING</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Numbers Row */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                                {selectedNums.map((num) => {
-                                  const isHit = hitNums.includes(num);
-                                  return (
-                                    <span
-                                      key={num}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        borderRadius: '50%',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: 11,
-                                        fontWeight: 900,
-                                        background: isHit ? '#10B981' : '#1E2D42',
-                                        color: isHit ? '#FFFFFF' : '#94A3B8',
-                                        border: isHit ? '1px solid #10B981' : '1px solid #2D425E',
-                                        boxShadow: isHit ? '0 0 8px rgba(16, 185, 129, 0.45)' : 'none',
-                                      }}
-                                    >
-                                      {num}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Footer row: Stake + Hits / Multiplier */}
-                              <div
+                              <span
                                 style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  borderTop: '1px solid #1A2738',
-                                  paddingTop: 6,
-                                  fontSize: 11.5,
-                                  color: '#94A3B8',
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  color: '#F8FAFC',
                                 }}
                               >
-                                <span>
-                                  Stake: <strong style={{ color: '#F8FAFC' }}>{stake} ETB</strong>
-                                </span>
-                                <span>
-                                  {hitsCount > 0 ? (
-                                    <strong style={{ color: isWon ? '#10B981' : '#94A3B8' }}>
-                                      {hitsCount}/{selectedNums.length} Hits {bet.multiplier ? `(${bet.multiplier}x)` : ''}
-                                    </strong>
-                                  ) : (
-                                    <span>{selectedNums.length} Spots</span>
-                                  )}
-                                </span>
-                              </div>
+                                {isDeposit ? 'Deposit' : 'Withdrawal'}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 10.5,
+                                  color: '#94A3B8',
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  textTransform: 'capitalize',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {req.paymentMethod || 'Telebirr'}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          textAlign: 'center',
-                          color: '#64748B',
-                          fontSize: 13,
-                          padding: '30px 16px',
-                          background: '#152132',
-                          borderRadius: 12,
-                          border: '1px solid #1E293B',
-                        }}
-                      >
-                        <div style={{ marginBottom: 6, fontSize: 24 }}>🎲</div>
-                        <div style={{ fontWeight: 700, color: '#94A3B8' }}>No Game Bets Yet</div>
-                        <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
-                          Place bets on the Keno board to see bet stakes and payouts here.
+
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: '#64748B',
+                                display: 'flex',
+                                gap: 8,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <span>{formatTxDate(req.createdAt)}</span>
+                              {req.accountNumber && (
+                                <span>• Acc: {req.accountNumber}</span>
+                              )}
+                            </div>
+
+                            {req.transactionReference && (
+                              <div
+                                style={{
+                                  fontSize: 10.5,
+                                  color: '#10B981',
+                                  marginTop: 2,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Ref: {req.transactionReference}
+                              </div>
+                            )}
+
+                            {req.adminNote &&
+                              (status === 'REJECTED' ||
+                                status === 'CANCELLED' ||
+                                status === 'EXPIRED') && (
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color:
+                                      status === 'REJECTED' ? '#EF4444' : '#94A3B8',
+                                    marginTop: 3,
+                                  }}
+                                >
+                                  Note: {req.adminNote}
+                                </div>
+                              )}
+                          </div>
+                        </div>
+
+                        {/* Right: Amount & Status Badge */}
+                        <div
+                          style={{
+                            textAlign: 'right',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-end',
+                            gap: 4,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 900,
+                              color: isDeposit ? '#10B981' : '#F8FAFC',
+                              letterSpacing: '0.02em',
+                            }}
+                          >
+                            {isDeposit ? `+${amount}` : `-${amount}`}{' '}
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: '#94A3B8',
+                              }}
+                            >
+                              ETB
+                            </span>
+                          </div>
+
+                          {/* Status Badge: PENDING or APPROVED or REJECTED */}
+                          {status === 'PENDING' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 3,
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                                  color: '#F59E0B',
+                                  padding: '2px 7px',
+                                  borderRadius: 6,
+                                  fontSize: 10,
+                                  fontWeight: 800,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                <Clock size={10} strokeWidth={2.8} /> Pending
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmCancelRequest(req)}
+                                disabled={cancelRequestMutation.isPending}
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.12)',
+                                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                                  color: '#F87171',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 10,
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+
+                          {status === 'CANCELLED' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: 'rgba(148, 163, 184, 0.15)',
+                                border: '1px solid rgba(148, 163, 184, 0.3)',
+                                color: '#94A3B8',
+                                padding: '2px 7px',
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              <X size={10} strokeWidth={3} /> Cancelled
+                            </span>
+                          )}
+
+                          {status === 'EXPIRED' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: 'rgba(244, 63, 94, 0.15)',
+                                border: '1px solid rgba(244, 63, 94, 0.35)',
+                                color: '#FB7185',
+                                padding: '2px 7px',
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              <Clock size={10} strokeWidth={2.8} /> Expired
+                            </span>
+                          )}
+
+                          {status === 'APPROVED' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid rgba(16, 185, 129, 0.4)',
+                                color: '#10B981',
+                                padding: '2px 7px',
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              <Check size={10} strokeWidth={3} /> Approved
+                            </span>
+                          )}
+
+                          {status === 'REJECTED' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                color: '#EF4444',
+                                padding: '2px 7px',
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              <X size={10} strokeWidth={3} /> Rejected
+                            </span>
+                          )}
                         </div>
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: '#64748B',
+                    fontSize: 13,
+                    padding: '30px 16px',
+                    background: '#152132',
+                    borderRadius: 12,
+                    border: '1px solid #1E293B',
+                  }}
+                >
+                  <div style={{ marginBottom: 8, fontSize: 24 }}>💳</div>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: '#94A3B8',
+                      marginBottom: 4,
+                    }}
+                  >
+                    No Transactions Yet
                   </div>
-                )}
-
-              </div>
-            );
-          })()}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: '#64748B',
+                      marginBottom: 16,
+                      maxWidth: 240,
+                      margin: '0 auto 16px',
+                    }}
+                  >
+                    You have not made any deposits or withdrawals yet.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('deposit')}
+                    style={{
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 16px',
+                      color: '#FFFFFF',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Make a Deposit
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Professional Custom In-App Confirmation Dialog (replaces browser confirm) */}
