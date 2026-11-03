@@ -698,7 +698,9 @@ export class WalletService implements OnModuleInit {
   }
 
   async getUserPaymentRequests(userId: string): Promise<PaymentRequest[]> {
-    await this.expireOverdueRequests();
+    this.expireOverdueRequests().catch((e) =>
+      this.logger.warn('Background expireOverdueRequests error: ' + e.message),
+    );
     return this.paymentRepo
       .createQueryBuilder('pr')
       .where('pr.userId = :userId', { userId })
