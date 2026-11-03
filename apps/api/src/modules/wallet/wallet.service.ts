@@ -943,15 +943,16 @@ export class WalletService implements OnModuleInit {
    * For expired withdrawals, locked funds are safely refunded back to player balance.
    */
   async expireOverdueRequests(): Promise<number> {
-    const now = new Date();
-    const overdue = await this.paymentRepo
-      .createQueryBuilder('pr')
-      .where('pr.status = :status', { status: PaymentRequestStatus.PENDING })
-      .andWhere('pr."expiresAt" IS NOT NULL')
-      .andWhere('pr."expiresAt" <= :now', { now })
-      .getMany();
+    try {
+      const pendingList = await this.paymentRepo.find({
+        where: { status: PaymentRequestStatus.PENDING },
+      });
+      const nowMs = Date.now();
+      const overdue = pendingList.filter(
+        (r) => r.expiresAt && new Date(r.expiresAt).getTime() <= nowMs,
+      );
 
-    if (overdue.length === 0) return 0;
+      if (overdue.length === 0) return 0;
 
     let expiredCount = 0;
     for (const req of overdue) {
@@ -1000,6 +1001,10 @@ export class WalletService implements OnModuleInit {
     }
 
     return expiredCount;
+    } catch (err: any) {
+      this.logger.warn(`Error in expireOverdueRequests: ${err.message}`);
+      return 0;
+    }
   }
 
 }
