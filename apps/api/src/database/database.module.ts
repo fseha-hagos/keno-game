@@ -102,6 +102,13 @@ export class DatabaseModule implements OnModuleInit {
           END \$\$;
         `);
         this.logger.log('Database schema check: "telegramChatId" column verified/added successfully.');
+        // Purge empty cancelled deposits without a reference number so they don't clutter history
+        await this.dataSource.query(`
+          DELETE FROM "payment_requests"
+          WHERE "status" = 'CANCELLED'
+            AND "requestType" = 'DEPOSIT'
+            AND ("transactionReference" IS NULL OR TRIM("transactionReference") = '');
+        `);
       }
     } catch (err: any) {
       this.logger.warn(`Could not run schema self-heal query: ${err.message}`);

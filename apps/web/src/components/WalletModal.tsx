@@ -21,6 +21,7 @@ import {
   FileCheck,
   CreditCard,
   ArrowDownCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -168,6 +169,26 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [pendingDeposit, setPendingDeposit] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState({ mins: 15, secs: 0 });
+  const [confirmCancelRequest, setConfirmCancelRequest] = useState<any | null>(null);
+
+  // Live Authoritative Game Bet History query
+  const {
+    data: betHistory,
+    isLoading: isBetsLoading,
+    isFetching: isBetsFetching,
+  } = useQuery({
+    queryKey: ['walletBetHistory'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/keno/bets/history');
+        return Array.isArray(res.data) ? res.data : [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: isOpen && activeTab === 'history',
+    refetchInterval: 2500,
+  });
   const [showHelp, setShowHelp] = useState(false);
 
   // Sync tab & registered phone/name when modal opens or user profile loads
@@ -1251,7 +1272,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       type="button"
                       onClick={() => {
                         if (pendingDeposit?.id) {
-                          cancelRequestMutation.mutate(pendingDeposit.id);
+                          setConfirmCancelRequest(pendingDeposit);
                         } else {
                           setPendingDeposit(null);
                           setTxRef('');
@@ -2024,18 +2045,18 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     }}
                   >
                     <span>Game Bets</span>
-                    {gameBets.length > 0 && (
+                    {Array.isArray(betHistory) && betHistory.length > 0 && (
                       <span
                         style={{
-                          background: 'rgba(100, 116, 139, 0.2)',
-                          color: '#94A3B8',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10B981',
                           fontSize: 10,
                           padding: '1px 6px',
                           borderRadius: 8,
-                          fontWeight: 700,
+                          fontWeight: 800,
                         }}
                       >
-                        {gameBets.length}
+                        {betHistory.length}
                       </span>
                     )}
                   </button>
@@ -2175,11 +2196,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        if (confirm(`Cancel this pending ${isDeposit ? 'deposit' : 'withdrawal'}?${!isDeposit ? ' Locked funds will be refunded to your balance.' : ''}`)) {
-                                          cancelRequestMutation.mutate(req.id);
-                                        }
-                                      }}
+                                      onClick={() => setConfirmCancelRequest(req)}
                                       disabled={cancelRequestMutation.isPending}
                                       style={{
                                         background: 'rgba(239, 68, 68, 0.12)',
@@ -2341,72 +2358,150 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       >
                         <Loader2 size={26} color="#10B981" className="spin-animation" />
                         <div style={{ fontSize: 13, color: '#94A3B8', fontWeight: 700 }}>
-                          Loading game bet transactions...
+                          Loading game bet history...
                         </div>
                       </div>
-                    ) : gameBets.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {gameBets.map((tx: any) => {
-                          const isWin = tx.transactionType === 'BET_PAYOUT' || tx.type === 'BET_PAYOUT';
-                          const amount = (Math.abs(Number(tx.amountMinor)) / 100).toFixed(2);
+                    ) : Array.isArray(betHistory) && betHistory.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {betHistory.map((bet: any) => {
+                          const isWon = bet.status === 'WON';
+                          const isLost = bet.status === 'LOST';
+                          const isPending = bet.status === 'PENDING' || !bet.status;
+                          const stake = (Number(bet.stakeMinor || 0) / 100).toFixed(2);
+                          const payout = bet.payoutMinor ? (Number(bet.payoutMinor) / 100).toFixed(2) : '0.00';
+                          const roundNumber = bet.round?.roundNumber || (bet.roundId ? bet.roundId.slice(0, 8) : '—');
+                          const selectedNums: number[] = Array.isArray(bet.selectedNumbers)
+                            ? bet.selectedNumbers
+                            : typeof bet.selectedNumbers === 'string'
+                              ? bet.selectedNumbers.split(',').map((n: string) => Number(n.trim())).filter((n: number) => !isNaN(n))
+                              : [];
+                          const hitNums: number[] = Array.isArray(bet.hitNumbers)
+                            ? bet.hitNumbers
+                            : typeof bet.hitNumbers === 'string'
+                              ? bet.hitNumbers.split(',').map((n: string) => Number(n.trim())).filter((n: number) => !isNaN(n))
+                              : [];
+                          const hitsCount = typeof bet.hits === 'number' ? bet.hits : hitNums.length;
 
                           return (
                             <div
-                              key={tx.id}
+                              key={bet.id}
                               style={{
                                 background: '#152132',
-                                border: '1px solid #1E293B',
-                                borderRadius: 10,
-                                padding: '10px 14px',
+                                border: isWon
+                                  ? '1px solid rgba(16, 185, 129, 0.45)'
+                                  : isLost
+                                    ? '1px solid rgba(239, 68, 68, 0.25)'
+                                    : '1px solid #1E2D42',
+                                borderRadius: 12,
+                                padding: '12px 14px',
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                flexDirection: 'column',
+                                gap: 8,
+                                boxShadow: isWon ? '0 4px 14px rgba(16, 185, 129, 0.12)' : 'none',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {/* Header row: Round info + status pill */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 900, color: '#F8FAFC' }}>
+                                    Round #{roundNumber}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: '#64748B' }}>
+                                    • {formatTxDate(bet.createdAt)}
+                                  </span>
+                                </div>
                                 <div
                                   style={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: '50%',
-                                    background: isWin ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                                    padding: '3px 9px',
+                                    borderRadius: 12,
+                                    fontSize: 10.5,
+                                    fontWeight: 800,
+                                    letterSpacing: '0.03em',
+                                    background: isWon
+                                      ? 'rgba(16, 185, 129, 0.15)'
+                                      : isLost
+                                        ? 'rgba(239, 68, 68, 0.15)'
+                                        : 'rgba(245, 158, 11, 0.15)',
+                                    color: isWon ? '#10B981' : isLost ? '#EF4444' : '#F59E0B',
+                                    border: `1px solid ${
+                                      isWon
+                                        ? 'rgba(16, 185, 129, 0.35)'
+                                        : isLost
+                                          ? 'rgba(239, 68, 68, 0.35)'
+                                          : 'rgba(245, 158, 11, 0.35)'
+                                    }`,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: isWin ? '#10B981' : '#94A3B8',
-                                    flexShrink: 0,
+                                    gap: 4,
                                   }}
                                 >
-                                  {isWin ? <Sparkles size={16} /> : <ArrowUpRight size={16} />}
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: 12.5, fontWeight: 800, color: '#F8FAFC' }}>
-                                    {isWin ? 'Game Payout (Win)' : 'Keno Bet Stake'}
-                                  </div>
-                                  <div style={{ fontSize: 10.5, color: '#64748B' }}>
-                                    {formatTxDate(tx.createdAt)}
-                                  </div>
+                                  {isWon ? (
+                                    <>
+                                      <Sparkles size={11} />
+                                      <span>WON +{payout} ETB</span>
+                                    </>
+                                  ) : isLost ? (
+                                    <span>LOST</span>
+                                  ) : (
+                                    <>
+                                      <Clock size={11} />
+                                      <span>WAITING</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
 
-                              <div style={{ textAlign: 'right' }}>
-                                <div
-                                  style={{
-                                    fontSize: 13,
-                                    fontWeight: 800,
-                                    color: isWin ? '#10B981' : '#94A3B8',
-                                  }}
-                                >
-                                  {isWin ? `+${amount}` : `-${amount}`} ETB
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    color: isWin ? '#10B981' : '#64748B',
-                                  }}
-                                >
-                                  {isWin ? '✓ Settled' : '✓ Placed'}
+                              {/* Numbers Row */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                                {selectedNums.map((num) => {
+                                  const isHit = hitNums.includes(num);
+                                  return (
+                                    <span
+                                      key={num}
+                                      style={{
+                                        width: 25,
+                                        height: 25,
+                                        borderRadius: '50%',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 11,
+                                        fontWeight: 900,
+                                        background: isHit ? '#10B981' : '#1E2D42',
+                                        color: isHit ? '#FFFFFF' : '#94A3B8',
+                                        border: isHit ? '1px solid #10B981' : '1px solid #2D425E',
+                                        boxShadow: isHit ? '0 0 8px rgba(16, 185, 129, 0.45)' : 'none',
+                                      }}
+                                    >
+                                      {num}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Footer row: Stake + Hits / Multiplier */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  borderTop: '1px solid #1A2738',
+                                  paddingTop: 6,
+                                  fontSize: 11.5,
+                                  color: '#94A3B8',
+                                }}
+                              >
+                                <span>
+                                  Stake: <strong style={{ color: '#F8FAFC' }}>{stake} ETB</strong>
+                                </span>
+                                <span>
+                                  {hitsCount > 0 ? (
+                                    <strong style={{ color: isWon ? '#10B981' : '#94A3B8' }}>
+                                      {hitsCount}/{selectedNums.length} Hits {bet.multiplier ? `(${bet.multiplier}x)` : ''}
+                                    </strong>
+                                  ) : (
+                                    <span>{selectedNums.length} Spots</span>
+                                  )}
                                 </span>
                               </div>
                             </div>
@@ -2439,6 +2534,129 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             );
           })()}
         </div>
+
+        {/* Professional Custom In-App Confirmation Dialog (replaces browser confirm) */}
+        {confirmCancelRequest && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(5, 10, 18, 0.88)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 1100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            <div
+              style={{
+                background: '#131D2D',
+                border: '1.5px solid #28374E',
+                borderRadius: 16,
+                padding: '24px 20px',
+                width: '100%',
+                maxWidth: 360,
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#EF4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
+                }}
+              >
+                <AlertTriangle size={24} />
+              </div>
+
+              <div style={{ fontSize: 16, fontWeight: 900, color: '#F8FAFC', marginBottom: 8 }}>
+                Cancel {confirmCancelRequest.requestType === 'DEPOSIT' ? 'Deposit' : 'Withdrawal'}?
+              </div>
+
+              <div style={{ fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 18 }}>
+                {confirmCancelRequest.requestType === 'WITHDRAWAL' ? (
+                  <>
+                    Are you sure you want to cancel this withdrawal of{' '}
+                    <strong style={{ color: '#F8FAFC' }}>
+                      {(Number(confirmCancelRequest.amountMinor) / 100).toFixed(2)} ETB
+                    </strong>
+                    ? Locked funds will be refunded to your available balance immediately.
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to cancel this pending deposit of{' '}
+                    <strong style={{ color: '#F8FAFC' }}>
+                      {(Number(confirmCancelRequest.amountMinor) / 100).toFixed(2)} ETB
+                    </strong>
+                    ?
+                  </>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmCancelRequest(null)}
+                  disabled={cancelRequestMutation.isPending}
+                  style={{
+                    flex: 1,
+                    padding: '11px 0',
+                    borderRadius: 10,
+                    background: '#1E293B',
+                    border: '1px solid #334155',
+                    color: '#94A3B8',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Keep Request
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await cancelRequestMutation.mutateAsync(confirmCancelRequest.id);
+                    setConfirmCancelRequest(null);
+                  }}
+                  disabled={cancelRequestMutation.isPending}
+                  style={{
+                    flex: 1,
+                    padding: '11px 0',
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: cancelRequestMutation.isPending ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.35)',
+                  }}
+                >
+                  {cancelRequestMutation.isPending ? (
+                    <Loader2 size={16} className="spin-animation" />
+                  ) : (
+                    'Yes, Cancel'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
