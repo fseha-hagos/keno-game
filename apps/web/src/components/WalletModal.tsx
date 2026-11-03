@@ -281,7 +281,6 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       const amountNum = parseFloat(depositAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
       if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
-      if (amountNum < 100) throw new Error('Minimum withdrawal amount is 100 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
