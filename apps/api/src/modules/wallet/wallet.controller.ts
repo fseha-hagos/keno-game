@@ -80,7 +80,12 @@ export class WalletController {
   @Get('payment-requests')
   @ApiOperation({ summary: 'Get own deposit/withdrawal requests' })
   async getMyPaymentRequests(@Request() req: any) {
-    return this.walletService.getUserPaymentRequests(req.user.id);
+    try {
+      const list = await this.walletService.getUserPaymentRequests(req.user.id);
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
   }
 
   /** Player: Cancel own pending deposit or withdrawal request */
