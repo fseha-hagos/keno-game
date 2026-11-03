@@ -54,7 +54,7 @@ export class PaymentRequest {
   proofImageUrl?: string;
 
   @Index()
-  @Column({ type: 'simple-enum', enum: PaymentRequestStatus, default: PaymentRequestStatus.PENDING })
+  @Column({ type: 'varchar', length: 20, default: PaymentRequestStatus.PENDING })
   status!: PaymentRequestStatus;
 
   @Column({ type: 'text', nullable: true })

@@ -127,7 +127,7 @@ const PAYMENT_METHODS = [
 ];
 
 const DEPOSIT_PRESETS = ['50', '100', '200', '500', '1000'];
-const WITHDRAW_PRESETS = ['50', '100', '250', '500', '1000'];
+const WITHDRAW_PRESETS = ['100', '200', '500', '1000', '2000'];
 
 const extractRefPreview = (text: string): string => {
   if (!text) return '';
@@ -158,7 +158,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [selectedMethod, setSelectedMethod] = useState('telebirr');
   const [withdrawMethod, setWithdrawMethod] = useState('telebirr');
   const [depositAmount, setDepositAmount] = useState('100');
-  const [withdrawAmount, setWithdrawAmount] = useState('50');
+  const [withdrawAmount, setWithdrawAmount] = useState('100');
   const [withdrawAccount, setWithdrawAccount] = useState('');
   const [withdrawName, setWithdrawName] = useState('');
   const [isManualAccount, setIsManualAccount] = useState(false);
@@ -280,6 +280,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     mutationFn: async () => {
       const amountNum = parseFloat(depositAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+      if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
+      if (amountNum < 100) throw new Error('Minimum withdrawal amount is 100 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
@@ -347,6 +349,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     mutationFn: async () => {
       const amountNum = parseFloat(withdrawAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+      if (amountNum < 100) throw new Error('Minimum withdrawal amount is 100 ETB');
 
       const avail = wallet?.balanceMinor ? Number(wallet.balanceMinor) / 100 : 0;
       if (amountNum > avail) {
@@ -1418,11 +1421,18 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
                 {/* Amount Input */}
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                    Deposit Amount (ETB)
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                      Deposit Amount (ETB)
+                    </label>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981' }}>
+                      Min: 50 ETB
+                    </span>
+                  </div>
                   <input
                     type="number"
+                    min="50"
+                    placeholder="Min 50 ETB"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
                     style={{
@@ -1430,7 +1440,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       padding: '12px 14px',
                       borderRadius: 10,
                       background: '#152132',
-                      border: '1.5px solid #2D425E',
+                      border: Boolean(depositAmount && parseFloat(depositAmount) < 50) ? '1.5px solid #EF4444' : '1.5px solid #2D425E',
                       color: '#F8FAFC',
                       fontSize: 16,
                       fontWeight: 800,
@@ -1438,6 +1448,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       boxSizing: 'border-box',
                     }}
                   />
+                  {Boolean(depositAmount && parseFloat(depositAmount) < 50) && (
+                    <div style={{ fontSize: 11.5, color: '#EF4444', marginTop: 6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span>⚠️ Minimum deposit amount is 50 ETB</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Presets */}
@@ -1467,21 +1482,34 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 {/* Action Button */}
                 <button
                   type="button"
-                  disabled={initDepositMutation.isPending}
+                  disabled={initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50}
                   onClick={() => initDepositMutation.mutate()}
                   style={{
                     width: '100%',
                     padding: '14px 0',
                     borderRadius: 10,
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    background:
+                      initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50
+                        ? '#28374E'
+                        : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                     border: 'none',
-                    color: '#FFFFFF',
+                    color:
+                      initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50
+                        ? '#64748B'
+                        : '#FFFFFF',
                     fontSize: 14,
                     fontWeight: 800,
-                    cursor: 'pointer',
+                    cursor:
+                      initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50
+                        ? 'not-allowed'
+                        : 'pointer',
                   }}
                 >
-                  {initDepositMutation.isPending ? 'Initiating...' : 'Next: Payment Details'}
+                  {initDepositMutation.isPending
+                    ? 'Initiating...'
+                    : depositAmount && parseFloat(depositAmount) < 50
+                      ? 'Minimum Deposit is 50 ETB'
+                      : 'Next: Payment Details'}
                 </button>
               </div>
             )
@@ -1615,20 +1643,26 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
               {/* Withdraw Amount Input */}
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94A3B8', marginBottom: 6 }}>
-                  Withdraw Amount (ETB)
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8' }}>
+                    Withdraw Amount (ETB)
+                  </label>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981' }}>
+                    Min: 100 ETB
+                  </span>
+                </div>
                 <input
                   type="number"
+                  min="100"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Min 20 ETB"
+                  placeholder="Min 100 ETB"
                   style={{
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
                     background: '#152132',
-                    border: '1.5px solid #2D425E',
+                    border: Boolean(withdrawAmount && parseFloat(withdrawAmount) < 100) ? '1.5px solid #EF4444' : '1.5px solid #2D425E',
                     color: '#F8FAFC',
                     fontSize: 16,
                     fontWeight: 800,
@@ -1636,6 +1670,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     boxSizing: 'border-box',
                   }}
                 />
+                {Boolean(withdrawAmount && parseFloat(withdrawAmount) < 100) && (
+                  <div style={{ fontSize: 11.5, color: '#EF4444', marginTop: 6, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span>⚠️ Minimum withdrawal amount is 100 ETB</span>
+                  </div>
+                )}
               </div>
 
               {/* Presets + MAX */}
@@ -1802,29 +1841,29 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
               <button
                 type="button"
-                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)}
+                disabled={withdrawMutation.isPending || parseFloat(withdrawAmount) < 100 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)}
                 onClick={() => withdrawMutation.mutate()}
                 style={{
                   width: '100%',
                   padding: '14px 0',
                   borderRadius: 10,
                   background:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 100 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? '#28374E'
                       : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   border: 'none',
                   color:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 100 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? '#64748B'
                       : '#FFFFFF',
                   fontSize: 14,
                   fontWeight: 800,
                   cursor:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 100 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? 'not-allowed'
                       : 'pointer',
                   boxShadow:
-                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 50 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
+                    withdrawMutation.isPending || parseFloat(withdrawAmount) < 100 || parseFloat(withdrawAmount) > 10000 || parseFloat(withdrawAmount) > parseFloat(balance)
                       ? 'none'
                       : '0 4px 14px rgba(16, 185, 129, 0.35)',
                   transition: 'all 0.15s ease',
@@ -1832,7 +1871,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               >
                 {withdrawMutation.isPending
                   ? 'Submitting Request...'
-                  : `Request Payout (${withdrawAmount || '0'} ETB)`}
+                  : parseFloat(withdrawAmount) < 100
+                    ? 'Minimum Payout is 100 ETB'
+                    : `Request Payout (${withdrawAmount || '0'} ETB)`}
               </button>
             </div>
           )}
