@@ -313,7 +313,7 @@ export class WalletService implements OnModuleInit {
       // Lock wallet row with pessimistic write lock
       let walletQuery = manager
         .createQueryBuilder(WalletAccount, 'wallet')
-        .where('wallet.userId = :userId AND wallet.currency = :currency', {
+        .where('wallet."userId" = :userId AND wallet.currency = :currency', {
           userId,
           currency,
         });
@@ -703,15 +703,15 @@ export class WalletService implements OnModuleInit {
     );
     return this.paymentRepo
       .createQueryBuilder('pr')
-      .where('pr.userId = :userId', { userId })
+      .where('pr."userId" = :userId', { userId })
       .andWhere(
-        '(pr.status != :cancelled OR pr.requestType != :depositType OR (pr.transactionReference IS NOT NULL AND TRIM(pr.transactionReference) != \'\'))',
+        '(pr.status != :cancelled OR pr."requestType" != :depositType OR (pr."transactionReference" IS NOT NULL AND TRIM(pr."transactionReference") != \'\'))',
         {
           cancelled: PaymentRequestStatus.CANCELLED,
           depositType: PaymentRequestType.DEPOSIT,
         },
       )
-      .orderBy('pr.createdAt', 'DESC')
+      .orderBy('pr."createdAt"', 'DESC')
       .getMany();
   }
 
@@ -947,8 +947,8 @@ export class WalletService implements OnModuleInit {
     const overdue = await this.paymentRepo
       .createQueryBuilder('pr')
       .where('pr.status = :status', { status: PaymentRequestStatus.PENDING })
-      .andWhere('pr.expiresAt IS NOT NULL')
-      .andWhere('pr.expiresAt <= :now', { now })
+      .andWhere('pr."expiresAt" IS NOT NULL')
+      .andWhere('pr."expiresAt" <= :now', { now })
       .getMany();
 
     if (overdue.length === 0) return 0;

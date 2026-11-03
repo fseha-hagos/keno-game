@@ -83,6 +83,18 @@ export class DatabaseModule implements OnModuleInit {
         await this.dataSource.query(
           `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "expiresAt" timestamp with time zone;`
         );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "matchedEvidenceId" uuid;`
+        );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "matchConfidence" integer;`
+        );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "matchReason" character varying(255);`
+        );
+        await this.dataSource.query(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "idempotencyKey" character varying(64);`
+        );
         await this.dataSource.query(`
           DO \$\$
           DECLARE
