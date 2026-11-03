@@ -701,18 +701,21 @@ export class WalletService implements OnModuleInit {
     this.expireOverdueRequests().catch((e) =>
       this.logger.warn('Background expireOverdueRequests error: ' + e.message),
     );
-    return this.paymentRepo
-      .createQueryBuilder('pr')
-      .where('pr."userId" = :userId', { userId })
-      .andWhere(
-        '(pr.status != :cancelled OR pr."requestType" != :depositType OR (pr."transactionReference" IS NOT NULL AND TRIM(pr."transactionReference") != \'\'))',
-        {
-          cancelled: PaymentRequestStatus.CANCELLED,
-          depositType: PaymentRequestType.DEPOSIT,
-        },
-      )
-      .orderBy('pr."createdAt"', 'DESC')
-      .getMany();
+    try {
+      const list = await this.paymentRepo.find({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+      });
+      return (list || []).filter(
+        (pr) =>
+          pr.status !== PaymentRequestStatus.CANCELLED ||
+          pr.requestType !== PaymentRequestType.DEPOSIT ||
+          (!!pr.transactionReference && pr.transactionReference.trim() !== ''),
+      );
+    } catch (err: any) {
+      this.logger.error(`Error in getUserPaymentRequests for user ${userId}: ${err.message}`);
+      return [];
+    }
   }
 
   /**
