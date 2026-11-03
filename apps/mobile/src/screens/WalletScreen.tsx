@@ -26,7 +26,7 @@ const PAYMENT_METHODS = [
 ];
 
 const PRESET_AMOUNTS = ['50', '100', '200', '500', '1000'];
-const WITHDRAW_PRESETS = ['20', '50', '100', '250', '500'];
+const WITHDRAW_PRESETS = ['100', '200', '500', '1000', '2000'];
 
 export const WalletScreen = () => {
   const queryClient = useQueryClient();
@@ -34,7 +34,7 @@ export const WalletScreen = () => {
   const { isAuthenticated } = useAuthStore();
 
   const [depositAmount, setDepositAmount] = useState('100');
-  const [withdrawAmount, setWithdrawAmount] = useState('50');
+  const [withdrawAmount, setWithdrawAmount] = useState('100');
   const [selectedMethod, setSelectedMethod] = useState('telebirr');
   const [txRef, setTxRef] = useState('');
   // 'main' | 'deposit_instruction' | 'withdraw'
@@ -103,6 +103,7 @@ export const WalletScreen = () => {
     mutationFn: async () => {
       const amountNum = parseFloat(depositAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+      if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
@@ -179,6 +180,7 @@ export const WalletScreen = () => {
     mutationFn: async () => {
       const amountNum = parseFloat(withdrawAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+      if (amountNum < 100) throw new Error('Minimum withdrawal amount is 100 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `wdr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -413,13 +415,16 @@ export const WalletScreen = () => {
               value={depositAmount}
               onChangeText={setDepositAmount}
               keyboardType="numeric"
-              placeholder="Amount (ETB)"
+              placeholder="Min 50 ETB"
               placeholderTextColor="#64748B"
             />
             <TouchableOpacity
               onPress={() => initDepositMutation.mutate()}
-              disabled={initDepositMutation.isPending}
-              style={styles.depositBtn}
+              disabled={initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50}
+              style={[
+                styles.depositBtn,
+                (!depositAmount || parseFloat(depositAmount) < 50) && { backgroundColor: '#334155' }
+              ]}
             >
               {initDepositMutation.isPending ? (
                 <ActivityIndicator color="#0F172A" />
@@ -428,6 +433,11 @@ export const WalletScreen = () => {
               )}
             </TouchableOpacity>
           </View>
+          {Boolean(depositAmount && parseFloat(depositAmount) < 50) && (
+            <Text style={{ color: '#EF4444', fontSize: 11, fontWeight: '700', marginTop: 5 }}>
+              ⚠️ Minimum deposit is 50 ETB
+            </Text>
+          )}
         </View>
 
         {/* Withdraw */}
@@ -452,13 +462,16 @@ export const WalletScreen = () => {
               value={withdrawAmount}
               onChangeText={setWithdrawAmount}
               keyboardType="numeric"
-              placeholder="Amount (ETB)"
+              placeholder="Min 100 ETB"
               placeholderTextColor="#64748B"
             />
             <TouchableOpacity
               onPress={() => withdrawMutation.mutate()}
-              disabled={withdrawMutation.isPending}
-              style={styles.withdrawBtn}
+              disabled={withdrawMutation.isPending || !withdrawAmount || parseFloat(withdrawAmount) < 100}
+              style={[
+                styles.withdrawBtn,
+                (!withdrawAmount || parseFloat(withdrawAmount) < 100) && { backgroundColor: '#334155' }
+              ]}
             >
               {withdrawMutation.isPending ? (
                 <ActivityIndicator color="#fff" />
@@ -467,6 +480,11 @@ export const WalletScreen = () => {
               )}
             </TouchableOpacity>
           </View>
+          {Boolean(withdrawAmount && parseFloat(withdrawAmount) < 100) && (
+            <Text style={{ color: '#EF4444', fontSize: 11, fontWeight: '700', marginTop: 5 }}>
+              ⚠️ Minimum withdrawal is 100 ETB
+            </Text>
+          )}
           <Text style={styles.withdrawNote}>⚠️ Withdrawals require admin approval (usually 1-2 hrs)</Text>
         </View>
 

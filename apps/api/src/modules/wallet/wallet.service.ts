@@ -328,7 +328,7 @@ export class WalletService implements OnModuleInit {
       }
 
       const amountToWithdraw = BigInt(input.amountMinor);
-      const minWithdrawMinor = BigInt(GAME_CONFIG.MIN_WITHDRAW_MINOR || '5000');
+      const minWithdrawMinor = BigInt(GAME_CONFIG.MIN_WITHDRAW_MINOR || '10000');
       const maxWithdrawMinor = BigInt(GAME_CONFIG.MAX_WITHDRAW_MINOR || '1000000');
 
       if (amountToWithdraw < minWithdrawMinor || amountToWithdraw > maxWithdrawMinor) {

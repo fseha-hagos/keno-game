@@ -83,9 +83,24 @@ export class DatabaseModule implements OnModuleInit {
         await this.dataSource.query(
           `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "expiresAt" timestamp with time zone;`
         );
-        await this.dataSource.query(
-          `ALTER TABLE "payment_requests" DROP CONSTRAINT IF EXISTS "payment_requests_status_check";`
-        );
+        await this.dataSource.query(`
+          DO \$\$
+          DECLARE
+              r RECORD;
+          BEGIN
+              FOR r IN (
+                  SELECT conname
+                  FROM pg_constraint con
+                  JOIN pg_class rel ON rel.oid = con.conrelid
+                  JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+                  WHERE rel.relname = 'payment_requests'
+                    AND con.contype = 'c'
+                    AND pg_get_constraintdef(con.oid) ILIKE '%status%'
+              ) LOOP
+                  EXECUTE 'ALTER TABLE "payment_requests" DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+              END LOOP;
+          END \$\$;
+        `);
         this.logger.log('Database schema check: "telegramChatId" column verified/added successfully.');
       }
     } catch (err: any) {
