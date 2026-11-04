@@ -41,7 +41,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { calculateOverallRtp, DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
+import { calculateOverallRtp, DEFAULT_96_PAYTABLE_ENTRIES, getPaytableForRtp } from '@keno/game-math';
 
 const API_URL =
   (import.meta as any).env?.VITE_API_URL ||
@@ -571,8 +571,25 @@ export default function App() {
 
   const fetchData = () => {
     if (!adminToken) return;
-    const analysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
-    setMathAnalysis(analysis);
+    // Authoritative platform RTP configuration (Creator authority)
+    if (isCreator) {
+      axios.get(`${API_URL}/api/v1/admin/system/rtp`, { headers: authHeaders })
+        .then((res) => {
+          if (res.data) {
+            setMathAnalysis(res.data);
+            if (!rtpSaving) {
+              setTargetRtpInput(res.data.targetRtp);
+            }
+          }
+        })
+        .catch(() => {
+          if (!mathAnalysis) {
+            setMathAnalysis(calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10));
+          }
+        });
+    } else if (!mathAnalysis) {
+      setMathAnalysis(calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10));
+    }
 
     axios.get(`${API_URL}/api/v1/keno/rounds/recent`)
       .then((res) => setRounds(res.data))
@@ -786,11 +803,15 @@ export default function App() {
     if (!isCreator) return;
     setRtpSaving(true);
     try {
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/api/v1/admin/system/rtp`,
         { targetRtp: targetRtpInput },
         { headers: authHeaders }
       );
+      if (res.data) {
+        setMathAnalysis(res.data);
+        setTargetRtpInput(res.data.targetRtp);
+      }
       alert(`Platform RTP target successfully updated to ${targetRtpInput}%!`);
     } catch (err: any) {
       alert(`Failed to update RTP: ${err.response?.data?.message || err.message}`);
@@ -2793,7 +2814,12 @@ export default function App() {
                   {[92.0, 94.0, 95.82, 96.0, 98.0].map((preset) => (
                     <button
                       key={preset}
-                      onClick={() => setTargetRtpInput(preset)}
+                      onClick={() => {
+                        setTargetRtpInput(preset);
+                        const previewPaytable = getPaytableForRtp(preset);
+                        const previewAnalysis = calculateOverallRtp(previewPaytable, 1, 10);
+                        setMathAnalysis(previewAnalysis);
+                      }}
                       style={{
                         backgroundColor: targetRtpInput === preset ? '#F59E0B' : '#1E293B',
                         color: targetRtpInput === preset ? '#000' : '#F8FAFC',

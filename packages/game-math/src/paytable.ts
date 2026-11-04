@@ -77,6 +77,29 @@ export const DEFAULT_PAYTABLE_VERSION: PaytableVersionDto = {
 };
 
 /**
+ * Calibrated paytable generator for target theoretical RTP percentage (e.g. 92, 94, 95.82, 96, 98).
+ * Scales multipliers cleanly while maintaining certified probability distributions.
+ */
+export function getPaytableForRtp(targetRtp: number): PaytableEntry[] {
+  if (Math.abs(targetRtp - 96.0) < 0.05 || Math.abs(targetRtp - 95.82) < 0.05) {
+    return DEFAULT_96_PAYTABLE_ENTRIES;
+  }
+  const ratio = targetRtp / 96.0;
+  return DEFAULT_96_PAYTABLE_ENTRIES.map((e) => {
+    const scaled = e.multiplier * ratio;
+    let multiplier: number;
+    if (scaled < 5) {
+      multiplier = Math.round(scaled * 100) / 100;
+    } else if (scaled < 50) {
+      multiplier = Math.round(scaled * 10) / 10;
+    } else {
+      multiplier = Math.round(scaled);
+    }
+    return { ...e, multiplier };
+  });
+}
+
+/**
  * Looks up the payout multiplier for given spot count and hit count.
  * Returns 0 if there is no payout for that combination.
  */

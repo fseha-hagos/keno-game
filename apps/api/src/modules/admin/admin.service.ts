@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual } from 'typeorm';
@@ -17,11 +18,11 @@ import { Bet } from '../../database/entities/bet.entity';
 import { Paytable } from '../../database/entities/paytable.entity';
 import { AuditService } from '../audit/audit.service';
 import { UserRole, UserStatus, TransactionType, BetStatus } from '@keno/shared-types';
-import { DEFAULT_96_PAYTABLE_ENTRIES, calculateOverallRtp } from '@keno/game-math';
+import { DEFAULT_96_PAYTABLE_ENTRIES, calculateOverallRtp, getPaytableForRtp } from '@keno/game-math';
 import { GAME_CONFIG } from '@keno/config';
 
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {
   private readonly logger = new Logger(AdminService.name);
 
   // Global platform state
@@ -89,17 +90,78 @@ export class AdminService {
     return this.getSystemStatus();
   }
 
+  async onModuleInit() {
+    try {
+      const activeEntries = await this.paytableRepo.find({
+        where: { status: 'ACTIVE' },
+        order: { createdAt: 'DESC' },
+      });
+      const first = activeEntries[0];
+      if (first && first.theoreticalRtp) {
+        this.configuredRtp = Number(first.theoreticalRtp);
+        this.logger.log(`Initialized platform RTP from database: ${this.configuredRtp}% (${activeEntries.length} entries)`);
+      } else {
+        await this.persistRtpPaytable(96.0);
+        this.logger.log(`Seeded default 96.0% platform RTP paytable to database`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not load RTP config from database: ${err.message}`);
+    }
+  }
+
+  async persistRtpPaytable(targetRtp: number): Promise<void> {
+    const entries = getPaytableForRtp(targetRtp);
+    const gameId = GAME_CONFIG.DEFAULT_GAME_ID;
+
+    await this.paytableRepo.manager.transaction(async (mgr) => {
+      await mgr.update(Paytable, { status: 'ACTIVE' }, { status: 'INACTIVE' });
+      const rows = entries.map((e) =>
+        mgr.create(Paytable, {
+          gameId,
+          version: 1,
+          name: `Platform Target RTP ${targetRtp}%`,
+          spots: e.spots,
+          hits: e.hits,
+          multiplier: e.multiplier,
+          theoreticalRtp: targetRtp,
+          status: 'ACTIVE',
+          isDefault: true,
+        }),
+      );
+      await mgr.save(Paytable, rows);
+    });
+  }
+
   /* ────────────────── 2. RTP CONFIGURATION (CREATOR ONLY) ────────────────── */
 
   async getRtpConfig() {
-    const mathAnalysis = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
-    const dbEntries = await this.paytableRepo.find({ where: { status: 'ACTIVE' } });
+    let activeEntries = await this.paytableRepo.find({
+      where: { status: 'ACTIVE' },
+      order: { spots: 'ASC', hits: 'ASC' },
+    });
+
+    if (activeEntries.length === 0) {
+      await this.persistRtpPaytable(this.configuredRtp);
+      activeEntries = await this.paytableRepo.find({
+        where: { status: 'ACTIVE' },
+        order: { spots: 'ASC', hits: 'ASC' },
+      });
+    }
+
+    const paytableEntries = activeEntries.map((e) => ({
+      spots: e.spots,
+      hits: e.hits,
+      multiplier: Number(e.multiplier),
+    }));
+
+    const mathAnalysis = calculateOverallRtp(paytableEntries, 1, 10);
     return {
       targetRtp: this.configuredRtp,
       theoreticalRtp: mathAnalysis.averageRtp,
-      presets: [92.0, 94.0, 96.0, 98.0],
+      presets: [92.0, 94.0, 95.82, 96.0, 98.0],
       spotAnalyses: mathAnalysis.spotAnalyses,
-      activeEntriesCount: dbEntries.length,
+      activeEntriesCount: activeEntries.length,
+      paytable: paytableEntries,
     };
   }
 
@@ -111,6 +173,7 @@ export class AdminService {
     }
 
     this.configuredRtp = targetRtp;
+    await this.persistRtpPaytable(targetRtp);
 
     await this.auditService.log({
       actorId: actor.id,
@@ -121,6 +184,7 @@ export class AdminService {
       metadata: { targetRtp },
     });
 
+    this.logger.log(`Creator ${actor.username} set platform RTP to ${targetRtp}%`);
     return this.getRtpConfig();
   }
 
