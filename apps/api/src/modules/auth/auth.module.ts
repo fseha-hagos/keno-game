@@ -15,7 +15,7 @@ import { GAME_CONFIG } from '@keno/config';
     TypeOrmModule.forFeature([User]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret: process.env['JWT_ACCESS_SECRET'] || 'super_secret_access_key_keno_2026',
+      secret: process.env['JWT_ACCESS_SECRET']!,
       signOptions: { expiresIn: GAME_CONFIG.JWT_ACCESS_EXPIRES_IN_SECONDS },
     }),
     WalletModule,

@@ -1,0 +1,510 @@
+:root {
+  --bg-primary: #000000;
+  --bg-secondary: #1b1e1fe6;
+  --bg-stage: #1b1e1fe6;
+  --bg-card: #242b31;
+  --bg-card-gradient: linear-gradient(180deg, #333f46, #242b31);
+  --bg-card-hover: linear-gradient(180deg, #435057, #333f46);
+  --border-subtle: rgba(113, 206, 150, 0.2);
+  --border-strong: rgba(31, 85, 54, 0.7);
+
+  --cell-default: linear-gradient(180deg, #333f46, #242b31);
+  --cell-border: #28394C;
+  --cell-hover: linear-gradient(180deg, #435057, #333f46);
+
+  --pick-fill: linear-gradient(180deg, #254632, #4c8b65);
+  --pick-border: #4c8b65;
+
+  --drawn-fill: radial-gradient(circle, #0d3b69, #061c33 36%, #05182b 59%, #0a2435 60%, #4c6e6e 84%);
+  --drawn-border: #287D54;
+  --drawn-text: #ffffff;
+
+  --hit-fill: radial-gradient(circle, #087b67, #03493f 59%, #0d4239 60%, #47736b 77%, #6be2a8 78%);
+  --hit-border: #6be2a8;
+  --hit-glow: rgba(107, 226, 168, 0.75);
+
+  --accent-green: #71ce96;
+  --accent-green-mid: #51b579;
+  --accent-green-bright: #5fdb94;
+  --accent-gold: #e6b529;
+  --accent-cyan: #8bdbff;
+  --accent-red: #ff5c5c;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #d7d9db;
+  --text-muted: #a0a0a0;
+
+  --font-numbers: 'Roboto Condensed', sans-serif;
+  --font-digital: 'DS-Digital', 'JetBrains Mono', monospace;
+  --font-ui: 'SF Pro Display', 'Outfit', 'Inter', -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: #000000;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Wallpaper background matching mock_web */
+.desktop-bg {
+  z-index: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #191b31;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-size: cover;
+  background-image: url(https://cdn-atlas-v.com/games/keno/img/bg.jpg);
+  pointer-events: none;
+}
+
+/* Digital Timer */
+.game_timer {
+  text-align: center;
+  margin: 1px auto 1px;
+  padding: 1px 1px;
+  width: 320px;
+  max-width: 90%;
+  z-index: 3;
+  background-image: url(https://cdn-atlas-v.com/games/keno/img/timer_bg.svg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  color: #fff;
+  font-family: var(--font-digital);
+  font-weight: 500;
+  font-size: 1.2rem;
+  line-height: normal;
+}
+
+@media only screen and (max-width: 810px) {
+  .game_timer {
+    margin-top: 6px;
+    margin-bottom: 0px;
+    font-size: 1.55rem;
+    line-height: 24px;
+    padding: 2px 11px;
+  }
+}
+
+.game_timer_sec {
+  text-align: left;
+  display: inline-block;
+  color: inherit;
+  font-family: var(--font-digital);
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Balls Counter (in draw phase) */
+.balls_counter {
+  font-family: var(--font-digital);
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Scrollbar — Hidden globally for clean casino/app experience */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}
+
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Responsive Utilities */
+.show-on-mobile {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .show-on-mobile {
+    display: block !important;
+  }
+}
+
+@keyframes ballPop {
+  0% {
+    transform: scale(0.6) rotate(-10deg);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.12) rotate(4deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes callBallBounce {
+  0% {
+    transform: scale(0.25);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+
+  82% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+}
+
+@keyframes landPop {
+  0% {
+    transform: scale(0.6);
+  }
+
+  60% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1.0);
+  }
+}
+
+@keyframes glowPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), inset 0 0 8px rgba(16, 185, 129, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.9), inset 0 0 14px rgba(16, 185, 129, 0.6);
+  }
+}
+
+@keyframes radarSpinCw {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes radarSpinCcw {
+  0% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+}
+
+@keyframes timerPulse {
+
+  0%,
+  100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+  }
+
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.9));
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDrawerRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ballSettle {
+  0% {
+    transform: scale(0.88);
+    opacity: 0.8;
+  }
+
+  60% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+}
+
+/* Utility classes */
+.animate-pop {
+  animation: ballSettle 320ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.glow-hit {
+  animation: glowPulse 2s infinite ease-in-out;
+}
+
+.timer-glow {
+  animation: timerPulse 1.8s infinite ease-in-out;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(5, 10, 20, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-card {
+  background: linear-gradient(180deg, #162232 0%, #0F1824 100%);
+  border: 1px solid #243549;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Toast container */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 30px;
+  background-color: #0F172A;
+  border: 1px solid #334155;
+  color: #F8FAFC;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  animation: slideUp 0.2s ease-out;
+}
+
+.toast-success {
+  border-color: #10B981;
+  background: linear-gradient(135deg, #064E3B 0%, #062F24 100%);
+  color: #A7F3D0;
+}
+
+.toast-error {
+  border-color: #EF4444;
+  background: linear-gradient(135deg, #7F1D1D 0%, #450A0A 100%);
+  color: #FECACA;
+}
+
+.toast-warning {
+  border-color: #F59E0B;
+  background: linear-gradient(135deg, #78350F 0%, #451A03 100%);
+  color: #FDE68A;
+}
+
+/* Fast Keno Live Chat Animations & Styling */
+@keyframes kenoLiveDotPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px #71ce96, 0 0 10px rgba(113, 206, 150, 0.4);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+    box-shadow: 0 0 12px #71ce96, 0 0 16px rgba(113, 206, 150, 0.7);
+  }
+}
+
+.fast-keno-live-dot-pulsing {
+  animation: kenoLiveDotPulse 2s infinite ease-in-out;
+}
+
+@keyframes chatMsgSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fast-keno-chat-msg-enter {
+  animation: chatMsgSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes likeBtnPop {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.32);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.fast-keno-like-popping {
+  animation: likeBtnPop 0.25s ease-out;
+}
+
+.fast-keno-chat-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.fast-keno-chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fast-keno-chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+.fast-keno-chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 206, 150, 0.4);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animation {
+  animation: spin 0.9s linear infinite;
+}
+
+
+/* Bright Auth Modal Utilities */
+.auth-modal-input::placeholder {
+  color: #94A3B8;
+  opacity: 1;
+}
+
+.auth-modal-input:-webkit-autofill,
+.auth-modal-input:-webkit-autofill:hover,
+.auth-modal-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #FFFFFF;
+  -webkit-box-shadow: 0 0 0px 1000px #1E293B inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+
+/* Responsive mobile header utilities: omit ETB on mobile to leave space for chat */
+@media (max-width: 640px) {
+  .header-mobile-hide-currency {
+    display: none !important;
+  }
+}

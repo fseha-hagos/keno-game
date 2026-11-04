@@ -4,6 +4,8 @@ import { Repository, EntityManager } from 'typeorm';
 import { Bet } from '../../database/entities/bet.entity';
 import { GameRound } from '../../database/entities/game-round.entity';
 import { BetStatus, TransactionType, LedgerReferenceType } from '@keno/shared-types';
+import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
+import { GAME_CONFIG } from '@keno/config';
 import { LedgerService } from '../ledger/ledger.service';
 import { PaytablesService } from '../paytables/paytables.service';
 import { EventsGateway } from '../websocket/events.gateway';
@@ -29,15 +31,30 @@ export class SettlementService {
     private readonly auditService: AuditService,
   ) {}
 
+  private parseNumberList(val: any): number[] {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      return val.map((n) => Number(n)).filter((n) => !isNaN(n));
+    }
+    if (typeof val === 'string') {
+      return val
+        .split(',')
+        .map((n) => Number(n.trim()))
+        .filter((n) => !isNaN(n));
+    }
+    return [];
+  }
+
   /**
    * Settles all pending bets for a drawn round transactionally.
    */
   async settleRoundBets(round: GameRound): Promise<SettlementSummary> {
-    if (!round.drawResult || round.drawResult.length !== 20) {
+    const cleanDraw = this.parseNumberList(round.drawResult);
+    if (cleanDraw.length !== 20) {
       throw new Error(`Cannot settle round #${round.roundNumber} without valid 20-number draw result`);
     }
 
-    const drawSet = new Set(round.drawResult);
+    const drawSet = new Set(cleanDraw);
     const pendingBets = await this.betRepo.find({
       where: { roundId: round.id, status: BetStatus.PENDING },
       relations: ['user'],
@@ -49,25 +66,33 @@ export class SettlementService {
     for (const bet of pendingBets) {
       totalWagered += BigInt(bet.stakeMinor);
 
-      // 1. Calculate Hits (Intersection of player selections and authoritative draw)
-      const hitNumbers = bet.selectedNumbers.filter((n) => drawSet.has(n));
+      // 1. Calculate Hits (Robust intersection of player selections and authoritative draw)
+      const cleanSelectedNumbers = this.parseNumberList(bet.selectedNumbers);
+      const hitNumbers = cleanSelectedNumbers.filter((n) => drawSet.has(n));
       const hits = hitNumbers.length;
       bet.hits = hits;
       bet.hitNumbers = hitNumbers;
 
-      // 2. Query Certified Paytable for exact multiplier
-      const multiplier = await this.paytablesService.getMultiplier(
+      // 2. Query Certified Paytable for exact multiplier with fallback
+      let multiplier = await this.paytablesService.getMultiplier(
         round.gameId,
         1, // Paytable version 1
         bet.spots,
         hits,
       );
 
+      // Secure backend fallback to certified paytable if DB entry was 0 or unseeded
+      if (!multiplier || multiplier === 0) {
+        multiplier = getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, bet.spots, hits);
+      }
+
       bet.multiplier = multiplier;
 
-      // 3. Compute Payout Minor Units: floor(stakeMinor * multiplier)
+      // 3. Compute Payout Minor Units: floor(stakeMinor * multiplier), capped at MAX_PAYOUT (30,000 ETB)
       const stakeNum = Number(bet.stakeMinor);
-      const payoutNum = Math.floor(stakeNum * multiplier);
+      const rawPayoutNum = Math.floor(stakeNum * multiplier);
+      const maxPayoutNum = Number(GAME_CONFIG.MAX_PAYOUT_MINOR || '3000000');
+      const payoutNum = Math.min(rawPayoutNum, maxPayoutNum);
       const payoutMinor = payoutNum.toString();
       bet.payoutMinor = payoutMinor;
       bet.status = BetStatus.SETTLED;
@@ -94,7 +119,15 @@ export class SettlementService {
             idempotencyKey: `win_${bet.id}`,
           });
 
+          this.logger.log(
+            `Credited WIN payout of ${payoutMinor} minor units to user ${bet.userId} (Wallet: ${wallet.id}, New Balance: ${newBalanceMinor})`,
+          );
+
           this.eventsGateway.sendBalanceUpdate(bet.userId, newBalanceMinor);
+        } else {
+          this.logger.error(
+            `No wallet found for user ${bet.userId} currency ${bet.currency} to credit win ${payoutMinor}`,
+          );
         }
       }
 

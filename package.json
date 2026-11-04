@@ -12,6 +12,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "type-check": "turbo type-check",
     "clean": "rimraf node_modules packages/*/dist packages/*/node_modules apps/*/dist apps/*/node_modules",
+    "build:mobile-web": "turbo build --filter=@keno/mobile",
     "eas-build-post-install": "pnpm --filter @keno/shared-types build && pnpm --filter @keno/game-math build && pnpm --filter @keno/validation build && pnpm --filter @keno/config build"
   },
   "devDependencies": {

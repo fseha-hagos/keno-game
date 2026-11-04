@@ -36,7 +36,7 @@ export class LedgerTransaction {
   @Column({ type: 'simple-enum', enum: LedgerReferenceType, nullable: true })
   referenceType?: LedgerReferenceType;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'varchar', length: 128, nullable: true })
   referenceId?: string;
 
   @Column({ type: 'numeric', precision: 20, scale: 0 })
@@ -45,7 +45,6 @@ export class LedgerTransaction {
   @Column({ type: 'varchar', length: 20, default: 'COMPLETED' })
   status!: string;
 
-  @Index({ unique: true, sparse: true })
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   idempotencyKey?: string;
 

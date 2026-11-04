@@ -14,19 +14,41 @@ export class PaytablesController {
   async getActivePaytable(@Query('gameId') gameId?: string) {
     const targetGameId = gameId || GAME_CONFIG.DEFAULT_GAME_ID;
     const entries = await this.paytablesService.getActivePaytable(targetGameId);
+    const parsedEntries = entries.length > 0
+      ? entries.map((e) => ({
+          spots: Number(e.spots),
+          hits: Number(e.hits),
+          multiplier: Number(e.multiplier),
+          theoreticalRtp: Number(e.theoreticalRtp),
+        }))
+      : DEFAULT_96_PAYTABLE_ENTRIES;
+
+    const first = entries[0];
+    const targetRtp = first && first.theoreticalRtp ? Number(first.theoreticalRtp) : 96.0;
+
     return {
       gameId: targetGameId,
-      entries,
+      targetRtp,
+      entries: parsedEntries,
     };
   }
 
   @Get('analysis')
   @ApiOperation({ summary: 'Get mathematical RTP, volatility, and hit distribution analysis' })
-  getMathematicalAnalysis(@Query('spots') spotsParam?: string) {
+  async getMathematicalAnalysis(@Query('spots') spotsParam?: string) {
+    const entries = await this.paytablesService.getActivePaytable();
+    const paytable = entries.length > 0
+      ? entries.map((e) => ({
+          spots: Number(e.spots),
+          hits: Number(e.hits),
+          multiplier: Number(e.multiplier),
+        }))
+      : DEFAULT_96_PAYTABLE_ENTRIES;
+
     if (spotsParam) {
       const spots = parseInt(spotsParam, 10);
-      return calculateSpotRtp(spots, DEFAULT_96_PAYTABLE_ENTRIES);
+      return calculateSpotRtp(spots, paytable);
     }
-    return calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
+    return calculateOverallRtp(paytable, 1, 10);
   }
 }

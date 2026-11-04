@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Clipboard,
 } from 'react-native';
+import { toastSuccess, toastError } from '../services/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Header } from '../components/Header';
@@ -18,14 +19,14 @@ import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PAYMENT_METHODS = [
-  { id: 'telebirr', name: 'Telebirr', icon: '📱', accountNumber: '0978614151', accountName: 'Amdom desta' },
+  { id: 'telebirr', name: 'Telebirr', icon: '📱', accountNumber: '0948491265', accountName: 'Fseha Hagos' },
   { id: 'cbe_birr', name: 'CBE Birr', icon: '🏦', accountNumber: '1000234567891', accountName: 'Amdom desta' },
   { id: 'mobile_money', name: 'Mobile Money', icon: '💸', accountNumber: '0911000123', accountName: 'Amdom desta' },
   { id: 'card', name: 'Bank Card', icon: '💳', accountNumber: '1000234567890000', accountName: 'Amdom desta' },
 ];
 
 const PRESET_AMOUNTS = ['50', '100', '200', '500', '1000'];
-const WITHDRAW_PRESETS = ['20', '50', '100', '250', '500'];
+const WITHDRAW_PRESETS = ['100', '200', '500', '1000', '2000'];
 
 export const WalletScreen = () => {
   const queryClient = useQueryClient();
@@ -33,7 +34,7 @@ export const WalletScreen = () => {
   const { isAuthenticated } = useAuthStore();
 
   const [depositAmount, setDepositAmount] = useState('100');
-  const [withdrawAmount, setWithdrawAmount] = useState('50');
+  const [withdrawAmount, setWithdrawAmount] = useState('100');
   const [selectedMethod, setSelectedMethod] = useState('telebirr');
   const [txRef, setTxRef] = useState('');
   // 'main' | 'deposit_instruction' | 'withdraw'
@@ -102,6 +103,7 @@ export const WalletScreen = () => {
     mutationFn: async () => {
       const amountNum = parseFloat(depositAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+      if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
@@ -122,7 +124,7 @@ export const WalletScreen = () => {
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || err.message || 'Could not create deposit request');
+      toastError('Deposit Error', err.response?.data?.message || err.message || 'Could not create deposit request');
     },
   });
 
@@ -136,15 +138,41 @@ export const WalletScreen = () => {
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert(
-        '✅ Proof Submitted!',
-        'Your payment reference has been submitted. Our team will verify and approve your deposit shortly.',
-        [{ text: 'OK', onPress: () => { setView('main'); setTxRef(''); setPendingDepositData(null); } }],
+      toastSuccess(
+        'Proof Submitted!',
+        'Your payment reference has been submitted. Verification is in progress.',
       );
+      setView('main');
+      setTxRef('');
+      setPendingDepositData(null);
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || err.message || 'Could not submit proof');
+      toastError('Submission Error', err.response?.data?.message || err.message || 'Could not submit proof');
+    },
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await apiClient.post(`/api/v1/wallet/payment-requests/${requestId}/cancel`);
+      return res.data;
+    },
+    onSuccess: (data: any) => {
+      toastSuccess(
+        'Request Cancelled',
+        data.requestType === 'WITHDRAWAL'
+          ? 'Withdrawal cancelled and locked funds refunded to your balance.'
+          : 'Deposit request has been cancelled.',
+      );
+      setView('main');
+      setTxRef('');
+      setPendingDepositData(null);
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+    },
+    onError: (err: any) => {
+      toastError('Cancellation Error', err.response?.data?.message || err.message || 'Could not cancel request');
     },
   });
 
@@ -152,6 +180,7 @@ export const WalletScreen = () => {
     mutationFn: async () => {
       const amountNum = parseFloat(withdrawAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
+      if (amountNum < 100) throw new Error('Minimum withdrawal amount is 100 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `wdr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -165,15 +194,15 @@ export const WalletScreen = () => {
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert(
-        '⏳ Withdrawal Requested',
-        'Your withdrawal request has been submitted and funds are locked pending admin approval.',
+      toastSuccess(
+        'Withdrawal Requested',
+        'Your withdrawal request has been submitted for approval.',
       );
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['paymentRequests'] });
     },
     onError: (err: any) => {
-      Alert.alert('Withdrawal Failed', err.response?.data?.message || err.message || 'Error processing withdrawal');
+      toastError('Withdrawal Failed', err.response?.data?.message || err.message || 'Error processing withdrawal');
     },
   });
 
@@ -244,7 +273,7 @@ export const WalletScreen = () => {
                 <TouchableOpacity
                   onPress={() => {
                     Clipboard.setString(method.accountNumber);
-                    Alert.alert('Copied!', 'Account number copied to clipboard.');
+                    toastSuccess('Copied!', 'Account number copied to clipboard.');
                   }}
                   style={styles.copyBtn}
                 >
@@ -299,6 +328,25 @@ export const WalletScreen = () => {
               <ActivityIndicator color="#0F172A" />
             ) : (
               <Text style={styles.submitProofBtnText}>SUBMIT TRANSACTION REFERENCE</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.submitProofBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#EF4444', marginTop: 10 }]}
+            onPress={() => {
+              if (pendingDepositData?.id) {
+                cancelRequestMutation.mutate(pendingDepositData.id);
+              } else {
+                setView('main');
+                setPendingDepositData(null);
+              }
+            }}
+            disabled={cancelRequestMutation.isPending}
+          >
+            {cancelRequestMutation.isPending ? (
+              <ActivityIndicator color="#EF4444" />
+            ) : (
+              <Text style={[styles.submitProofBtnText, { color: '#EF4444' }]}>CANCEL DEPOSIT</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -367,13 +415,16 @@ export const WalletScreen = () => {
               value={depositAmount}
               onChangeText={setDepositAmount}
               keyboardType="numeric"
-              placeholder="Amount (ETB)"
+              placeholder="Min 50 ETB"
               placeholderTextColor="#64748B"
             />
             <TouchableOpacity
               onPress={() => initDepositMutation.mutate()}
-              disabled={initDepositMutation.isPending}
-              style={styles.depositBtn}
+              disabled={initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50}
+              style={[
+                styles.depositBtn,
+                (!depositAmount || parseFloat(depositAmount) < 50) && { backgroundColor: '#334155' }
+              ]}
             >
               {initDepositMutation.isPending ? (
                 <ActivityIndicator color="#0F172A" />
@@ -382,6 +433,11 @@ export const WalletScreen = () => {
               )}
             </TouchableOpacity>
           </View>
+          {Boolean(depositAmount && parseFloat(depositAmount) < 50) && (
+            <Text style={{ color: '#EF4444', fontSize: 11, fontWeight: '700', marginTop: 5 }}>
+              ⚠️ Minimum deposit is 50 ETB
+            </Text>
+          )}
         </View>
 
         {/* Withdraw */}
@@ -406,13 +462,16 @@ export const WalletScreen = () => {
               value={withdrawAmount}
               onChangeText={setWithdrawAmount}
               keyboardType="numeric"
-              placeholder="Amount (ETB)"
+              placeholder="Min 100 ETB"
               placeholderTextColor="#64748B"
             />
             <TouchableOpacity
               onPress={() => withdrawMutation.mutate()}
-              disabled={withdrawMutation.isPending}
-              style={styles.withdrawBtn}
+              disabled={withdrawMutation.isPending || !withdrawAmount || parseFloat(withdrawAmount) < 100}
+              style={[
+                styles.withdrawBtn,
+                (!withdrawAmount || parseFloat(withdrawAmount) < 100) && { backgroundColor: '#334155' }
+              ]}
             >
               {withdrawMutation.isPending ? (
                 <ActivityIndicator color="#fff" />
@@ -421,6 +480,11 @@ export const WalletScreen = () => {
               )}
             </TouchableOpacity>
           </View>
+          {Boolean(withdrawAmount && parseFloat(withdrawAmount) < 100) && (
+            <Text style={{ color: '#EF4444', fontSize: 11, fontWeight: '700', marginTop: 5 }}>
+              ⚠️ Minimum withdrawal is 100 ETB
+            </Text>
+          )}
           <Text style={styles.withdrawNote}>⚠️ Withdrawals require admin approval (usually 1-2 hrs)</Text>
         </View>
 
@@ -438,8 +502,17 @@ export const WalletScreen = () => {
                   <Text style={styles.reqAmount}>
                     {(Number(r.amountMinor) / 100).toFixed(2)} ETB
                   </Text>
-                  <View style={styles.pendingBadge}>
-                    <Text style={styles.pendingBadgeText}>PENDING</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>PENDING</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => cancelRequestMutation.mutate(r.id)}
+                      disabled={cancelRequestMutation.isPending}
+                      style={[styles.pendingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: '#EF4444', borderWidth: 1 }]}
+                    >
+                      <Text style={[styles.pendingBadgeText, { color: '#F87171' }]}>Cancel</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -464,8 +537,20 @@ export const WalletScreen = () => {
                     <Text style={styles.reqAmount}>
                       {(Number(r.amountMinor) / 100).toFixed(2)} ETB
                     </Text>
-                    <View style={[styles.pendingBadge, approved ? styles.approvedBadge : styles.rejectedBadge]}>
-                      <Text style={styles.pendingBadgeText}>{r.status}</Text>
+                    <View style={[
+                      styles.pendingBadge,
+                      approved
+                        ? styles.approvedBadge
+                        : r.status === 'CANCELLED'
+                          ? { backgroundColor: 'rgba(148, 163, 184, 0.15)', borderColor: '#64748B' }
+                          : r.status === 'EXPIRED'
+                            ? { backgroundColor: 'rgba(244, 63, 94, 0.15)', borderColor: '#F43F5E' }
+                            : styles.rejectedBadge
+                    ]}>
+                      <Text style={[
+                        styles.pendingBadgeText,
+                        r.status === 'CANCELLED' ? { color: '#94A3B8' } : r.status === 'EXPIRED' ? { color: '#FB7185' } : {}
+                      ]}>{r.status}</Text>
                     </View>
                   </View>
                 </View>

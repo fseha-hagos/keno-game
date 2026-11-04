@@ -17,11 +17,9 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Index({ unique: true })
   @Column({ type: 'varchar', length: 30, unique: true, nullable: true })
   phone?: string;
 
-  @Index({ unique: true })
   @Column({ type: 'varchar', length: 50, unique: true })
   username!: string;
 
@@ -53,7 +51,11 @@ export class User {
   coolingOffUntil?: Date;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  currentRefreshTokenHash?: string;
+  currentRefreshTokenHash?: string | null;
+
+  /** Telegram chat_id for admin OTP delivery — set when admin sends /start to the bot */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  telegramChatId?: string | null;
 
   @OneToMany(() => WalletAccount, (wallet) => wallet.user)
   wallets!: WalletAccount[];

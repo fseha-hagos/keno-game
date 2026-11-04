@@ -65,7 +65,6 @@ export class Bet {
   @Column({ type: 'simple-enum', enum: BetStatus, default: BetStatus.PENDING })
   status!: BetStatus;
 
-  @Index({ unique: true })
   @Column({ type: 'varchar', length: 64, unique: true })
   idempotencyKey!: string;
 

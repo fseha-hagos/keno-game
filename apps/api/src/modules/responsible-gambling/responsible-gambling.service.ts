@@ -147,6 +147,8 @@ export class ResponsibleGamblingService {
         return new Date(now.setDate(diff));
       case LimitDuration.MONTHLY:
         return new Date(now.getFullYear(), now.getMonth(), 1);
+      default:
+        return now;
     }
   }
 }

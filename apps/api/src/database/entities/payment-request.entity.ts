@@ -16,6 +16,8 @@ export enum PaymentRequestStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
 }
 
 @Entity('payment_requests')
@@ -52,22 +54,34 @@ export class PaymentRequest {
   proofImageUrl?: string;
 
   @Index()
-  @Column({ type: 'simple-enum', enum: PaymentRequestStatus, default: PaymentRequestStatus.PENDING })
+  @Column({ type: 'varchar', length: 20, default: PaymentRequestStatus.PENDING })
   status!: PaymentRequestStatus;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'text', nullable: true })
+  rawSmsText?: string;
+
+  @Column({ type: 'text', nullable: true })
   adminNote?: string;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  matchedEvidenceId?: string;
+
+  @Column({ type: 'int', nullable: true })
+  matchConfidence?: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  matchReason?: string;
 
   @Column({ type: 'uuid', nullable: true })
   approvedBy?: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   approvedAt?: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   expiresAt?: Date;
 
-  @Index({ unique: true, sparse: true })
   @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
   idempotencyKey?: string;
 

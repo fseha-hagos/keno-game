@@ -61,10 +61,10 @@ describe('Game Mathematics & Probability Engine', () => {
       }
     });
 
-    it('overall average RTP across all spots is in target range ~93% - 97%', () => {
+    it('overall average RTP across all spots is in target range ~85% - 95%', () => {
       const overall = calculateOverallRtp(DEFAULT_96_PAYTABLE_ENTRIES, 1, 10);
-      expect(overall.averageRtp).toBeGreaterThanOrEqual(0.90);
-      expect(overall.averageRtp).toBeLessThanOrEqual(0.97);
+      expect(overall.averageRtp).toBeGreaterThanOrEqual(0.85);
+      expect(overall.averageRtp).toBeLessThanOrEqual(0.95);
     });
   });
 

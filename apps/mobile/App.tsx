@@ -1,20 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './src/queryClient';
 import { RootNavigator } from './src/navigation/RootNavigator';
-
+import { socketService } from './src/services/socket';
 import { View, StatusBar } from 'react-native';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5000,
-    },
-  },
-});
+import { Toaster } from 'burnt/web';
 
 export default function App() {
+  useEffect(() => {
+    // Establish immediate connection with backend on launch
+    socketService.connect();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: '#0A0F1D' }}>
@@ -22,7 +20,9 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <RootNavigator />
         </QueryClientProvider>
+        <Toaster position="top-center" theme="dark" richColors />
       </View>
     </SafeAreaProvider>
   );
 }
+

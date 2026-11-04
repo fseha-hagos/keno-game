@@ -59,7 +59,7 @@ export const SplashScreen = () => {
 
         {/* Feature pills */}
         <View style={styles.pills}>
-          {['🎯 Pick 1–10', '💰 Instant Wins', '🔒 Secure'].map((label) => (
+          {['🎯 Pick 1–5', '💰 Instant Wins', '🔒 Secure'].map((label) => (
             <View key={label} style={styles.pill}>
               <Text style={styles.pillText}>{label}</Text>
             </View>

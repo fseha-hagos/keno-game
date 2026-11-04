@@ -9,3 +9,6 @@ export * from './audit-log.entity';
 export * from './idempotency-record.entity';
 export * from './fraud-case.entity';
 export * from './payment-request.entity';
+export * from './payment-evidence.entity';
+export * from './chat-message.entity';
+

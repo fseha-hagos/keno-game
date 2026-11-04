@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -6,18 +7,22 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const logger = new Logger('KenoBootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Security Middleware & CORS
   app.use(helmet());
   app.enableCors({ origin: '*', credentials: true });
+
+  // Support plain text & URL-encoded bodies for MacroDroid & SMS webhooks
+  app.useBodyParser('text', { type: ['text/*', 'application/text'] });
+  app.useBodyParser('urlencoded', { extended: true, limit: '10mb' });
 
   // Global DTO Validation Pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
     }),
   );
 

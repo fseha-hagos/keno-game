@@ -1,6 +1,7 @@
 export enum UserStatus {
   PENDING_KYC = 'PENDING_KYC',
   ACTIVE = 'ACTIVE',
+  FROZEN = 'FROZEN',
   SUSPENDED = 'SUSPENDED',
   SELF_EXCLUDED = 'SELF_EXCLUDED',
   CLOSED = 'CLOSED',
@@ -22,6 +23,9 @@ export enum KycTier {
 
 export enum UserRole {
   PLAYER = 'PLAYER',
+  CREATOR = 'CREATOR',
+  BUSINESS_OWNER = 'BUSINESS_OWNER',
+  OPERATOR = 'OPERATOR',
   SUPER_ADMIN = 'SUPER_ADMIN',
   GAME_OPERATOR = 'GAME_OPERATOR',
   FINANCE = 'FINANCE',
@@ -95,9 +99,23 @@ export enum WebSocketEvents {
   ROUND_COMPLETED = 'keno.round.completed',
   BET_SETTLED = 'keno.bet.settled',
   WALLET_BALANCE_UPDATED = 'wallet.balance.updated',
+  CHAT_MESSAGE_CREATED = 'keno.chat.message.created',
+  CHAT_MESSAGE_LIKED = 'keno.chat.message.liked',
 }
 
 // Data Interfaces & DTOs
+
+export interface ChatMessageDto {
+  id: string;
+  userId?: string;
+  username: string;
+  avatarUrl?: string;
+  avatarColor: string;
+  text: string;
+  upvotes: number;
+  createdAt: string;
+}
+
 
 export interface UserDto {
   id: string;
@@ -108,6 +126,8 @@ export interface UserDto {
   kycStatus: KycStatus;
   kycTier: KycTier;
   roles: UserRole[];
+  selfExcludedUntil?: string | null;
+  coolingOffUntil?: string | null;
   createdAt: string;
 }
 

@@ -25,6 +25,9 @@
       "autoIncrement": true,
       "node": "20.11.0",
       "pnpm": "9.0.0",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://keno-game-q8l3.onrender.com"
       }

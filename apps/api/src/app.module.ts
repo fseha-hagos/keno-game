@@ -15,16 +15,29 @@ import { AuditModule } from './modules/audit/audit.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { EventsModule } from './modules/websocket/events.module';
 import { HealthModule } from './modules/health/health.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', 'apps/api/.env', '../../apps/api/.env'],
+      validate: (env) => {
+        for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
+          if (typeof env[key] !== 'string' || env[key].trim().length === 0) {
+            throw new Error(`Required environment variable ${key} is missing or empty.`);
+          }
+        }
+        return env;
+      },
     }),
     DatabaseModule,
     AuditModule,
     EventsModule,
+    ChatModule,
+    PaymentsModule,
     RngModule,
     LedgerModule,
     WalletModule,
@@ -37,6 +50,8 @@ import { HealthModule } from './modules/health/health.module';
     KycModule,
     ReportingModule,
     HealthModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
+

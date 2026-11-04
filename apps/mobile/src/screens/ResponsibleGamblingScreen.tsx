@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { toastSuccess, toastError, alertSuccess } from '../services/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Header } from '../components/Header';
@@ -44,11 +45,11 @@ export const ResponsibleGamblingScreen = () => {
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert('Limit Updated', 'Responsible gambling limit saved successfully.');
+      toastSuccess('Limit Updated', 'Responsible gambling limit saved successfully.');
       queryClient.invalidateQueries({ queryKey: ['rgLimits'] });
     },
     onError: (err: any) => {
-      Alert.alert('Failed', err.response?.data?.message || 'Error updating limit');
+      toastError('Update Failed', err.response?.data?.message || 'Error updating limit');
     },
   });
 
@@ -61,7 +62,7 @@ export const ResponsibleGamblingScreen = () => {
       return res.data;
     },
     onSuccess: () => {
-      Alert.alert(
+      alertSuccess(
         'Self-Exclusion Active',
         'Your account has been temporarily self-excluded. You will not be able to place bets.',
       );
