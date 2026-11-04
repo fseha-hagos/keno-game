@@ -550,6 +550,7 @@ export default function App() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   // RTP CONFIG STATE
+  const [currentPlatformRtp, setCurrentPlatformRtp] = useState<number>(96.0);
   const [targetRtpInput, setTargetRtpInput] = useState<number>(96.0);
   const [rtpSaving, setRtpSaving] = useState(false);
 
@@ -576,9 +577,11 @@ export default function App() {
       axios.get(`${API_URL}/api/v1/admin/system/rtp`, { headers: authHeaders })
         .then((res) => {
           if (res.data) {
-            setMathAnalysis(res.data);
-            if (!rtpSaving) {
-              setTargetRtpInput(res.data.targetRtp);
+            const serverRtp = Number(res.data.targetRtp) || 96.0;
+            setCurrentPlatformRtp(serverRtp);
+            if (activeTab !== 'rtp' && !rtpSaving) {
+              setTargetRtpInput(serverRtp);
+              setMathAnalysis(res.data);
             }
           }
         })
@@ -633,6 +636,22 @@ export default function App() {
     const interval = setInterval(fetchData, 4000);
     return () => clearInterval(interval);
   }, [adminToken]);
+
+  // Sync platform RTP when switching to 'rtp' tab
+  useEffect(() => {
+    if (activeTab === 'rtp' && adminToken && isCreator) {
+      axios.get(`${API_URL}/api/v1/admin/system/rtp`, { headers: authHeaders })
+        .then((res) => {
+          if (res.data) {
+            const serverRtp = Number(res.data.targetRtp) || 96.0;
+            setCurrentPlatformRtp(serverRtp);
+            setTargetRtpInput(serverRtp);
+            setMathAnalysis(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeTab]);
 
   // Load audit data when activeTab === 'audits' or auditPeriod changes
   useEffect(() => {
@@ -805,12 +824,14 @@ export default function App() {
     try {
       const res = await axios.post(
         `${API_URL}/api/v1/admin/system/rtp`,
-        { targetRtp: targetRtpInput },
+        { targetRtp: Number(targetRtpInput) },
         { headers: authHeaders }
       );
       if (res.data) {
+        const savedRtp = Number(res.data.targetRtp) || Number(targetRtpInput);
+        setCurrentPlatformRtp(savedRtp);
+        setTargetRtpInput(savedRtp);
         setMathAnalysis(res.data);
-        setTargetRtpInput(res.data.targetRtp);
       }
       alert(`Platform RTP target successfully updated to ${targetRtpInput}%!`);
     } catch (err: any) {
@@ -2809,35 +2830,57 @@ export default function App() {
               </p>
 
               <div style={{ backgroundColor: '#0F172A', padding: '24px', borderRadius: '12px', border: '1px solid #1E293B', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '14px' }}>Configured Platform RTP</h3>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  {[92.0, 94.0, 95.82, 96.0, 98.0].map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => {
-                        setTargetRtpInput(preset);
-                        const previewPaytable = getPaytableForRtp(preset);
-                        const previewAnalysis = calculateOverallRtp(previewPaytable, 1, 10);
-                        setMathAnalysis(previewAnalysis);
-                      }}
-                      style={{
-                        backgroundColor: targetRtpInput === preset ? '#F59E0B' : '#1E293B',
-                        color: targetRtpInput === preset ? '#000' : '#F8FAFC',
-                        border: 'none', padding: '10px 18px', borderRadius: '8px',
-                        fontWeight: 900, cursor: 'pointer', fontSize: '14px',
-                      }}
-                    >
-                      {preset}%
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Configured Platform RTP</h3>
+                  <span style={{ fontSize: '12px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    Active in Engine: {currentPlatformRtp}%
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {[92.0, 94.0, 95.82, 96.0, 98.0].map((preset) => {
+                    const isSelected = Math.abs(Number(targetRtpInput) - preset) < 0.05;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          setTargetRtpInput(preset);
+                          const previewPaytable = getPaytableForRtp(preset);
+                          const previewAnalysis = calculateOverallRtp(previewPaytable, 1, 10);
+                          setMathAnalysis(previewAnalysis);
+                        }}
+                        style={{
+                          backgroundColor: isSelected ? '#F59E0B' : '#1E293B',
+                          color: isSelected ? '#000' : '#F8FAFC',
+                          border: isSelected ? '2px solid #F59E0B' : '1px solid #334155',
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {preset}%
+                      </button>
+                    );
+                  })}
 
                   <button
+                    type="button"
                     onClick={handleSaveRtp}
                     disabled={rtpSaving}
                     style={{
-                      marginLeft: 'auto', backgroundColor: '#10B981', color: '#000',
-                      border: 'none', padding: '10px 24px', borderRadius: '8px',
-                      fontWeight: 900, cursor: 'pointer', fontSize: '13px',
+                      marginLeft: 'auto',
+                      backgroundColor: '#10B981',
+                      color: '#000',
+                      border: 'none',
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      fontWeight: 900,
+                      cursor: rtpSaving ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      opacity: rtpSaving ? 0.7 : 1,
                     }}
                   >
                     {rtpSaving ? 'SAVING...' : 'APPLY RTP CONFIGURATION'}

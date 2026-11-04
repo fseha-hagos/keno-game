@@ -154,9 +154,12 @@ export class AdminService implements OnModuleInit {
       multiplier: Number(e.multiplier),
     }));
 
+    const first = activeEntries[0];
+    const resolvedRtp = first && first.theoreticalRtp ? Number(first.theoreticalRtp) : Number(this.configuredRtp);
+
     const mathAnalysis = calculateOverallRtp(paytableEntries, 1, 10);
     return {
-      targetRtp: this.configuredRtp,
+      targetRtp: resolvedRtp,
       theoreticalRtp: mathAnalysis.averageRtp,
       presets: [92.0, 94.0, 95.82, 96.0, 98.0],
       spotAnalyses: mathAnalysis.spotAnalyses,
