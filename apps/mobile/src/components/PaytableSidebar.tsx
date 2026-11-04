@@ -22,7 +22,7 @@ export const PaytableSidebar = () => {
 
   const rows: { hits: number; mult: number; payout: string }[] = [];
   for (let hits = spots; hits >= 0; hits--) {
-    const mult = getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hits);
+    const mult = getMultiplier(useGameStore.getState().activePaytable, spots, hits);
     if (mult > 0) {
       rows.push({ hits, mult, payout: (stake * mult).toFixed(2) });
     }

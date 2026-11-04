@@ -32,6 +32,7 @@ export const KenoGameScreen = () => {
 
   useEffect(() => {
     socketService.connect();
+    useGameStore.getState().fetchActivePaytable();
     return () => socketService.disconnect();
   }, []);
 

@@ -1,4 +1,5 @@
-import { DEFAULT_96_PAYTABLE_ENTRIES, getMultiplier } from '@keno/game-math';
+import { getMultiplier } from '@keno/game-math';
+import { useGameStore } from '../store/useGameStore';
 
 export interface SimulatedBet {
   id: string;
@@ -157,7 +158,8 @@ export function evaluateSimulatedBet(
 ): SimulatedBet {
   const spots = bet.numbers.length;
   const hits = bet.numbers.filter((n) => drawnSet.has(n)).length;
-  const multiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hits) : 0;
+  const activePaytable = useGameStore.getState().activePaytable;
+  const multiplier = spots > 0 ? getMultiplier(activePaytable, spots, hits) : 0;
   const payout = bet.stake * multiplier;
   const isWon = payout > 0;
 

@@ -1,5 +1,7 @@
 import { PaytableEntry, PaytableVersionDto } from '@keno/shared-types';
 
+export type { PaytableEntry, PaytableVersionDto };
+
 /**
  * Standard Certified Keno Paytable (Target RTP: ~95.2% - 96.5% across all spots)
  * Calibrated Multipliers for Spots 1 to 10.

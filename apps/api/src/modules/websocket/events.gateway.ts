@@ -98,5 +98,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.emit(WebSocketEvents.CHAT_MESSAGE_LIKED, { messageId, upvotes });
     }
   }
-}
 
+  broadcastPaytableUpdated(payload: { targetRtp: number; entries: any[] }) {
+    if (this.server) {
+      this.server.emit('keno.paytable.updated', payload);
+    }
+  }
+}

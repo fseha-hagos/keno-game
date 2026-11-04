@@ -40,6 +40,10 @@ export const App: React.FC = () => {
   const [showReconnectingPill, setShowReconnectingPill] = useState(false);
 
   useEffect(() => {
+    useGameStore.getState().fetchActivePaytable();
+  }, []);
+
+  useEffect(() => {
     let timer: any;
     if (!isOnline) {
       // Small 1.5s debounce so normal quick initial handshake is completely silent

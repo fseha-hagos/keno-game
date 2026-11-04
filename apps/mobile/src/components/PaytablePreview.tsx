@@ -19,7 +19,7 @@ export const PaytablePreview: React.FC = () => {
 
   const rows = [];
   for (let hits = spots; hits >= 0; hits--) {
-    const mult = getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hits);
+    const mult = getMultiplier(useGameStore.getState().activePaytable, spots, hits);
     if (mult > 0 || hits === spots) {
       const payout = (stake * mult).toFixed(2);
       rows.push({ hits, mult, payout });

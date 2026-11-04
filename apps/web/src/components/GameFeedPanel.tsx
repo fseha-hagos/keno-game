@@ -602,7 +602,7 @@ export const GameFeedPanel: React.FC = () => {
               const spots = cleanNumbers.length;
               const hitCount = cleanNumbers.filter((n: number) => liveDrawnSet.has(n)).length;
               const multiplier =
-                spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
+                spots > 0 ? getMultiplier(useGameStore.getState().activePaytable, spots, hitCount) : 0;
               const liveWin =
                 item.payout !== undefined && item.payout > 0
                   ? item.payout

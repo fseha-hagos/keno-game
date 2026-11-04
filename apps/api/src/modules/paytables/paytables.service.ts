@@ -8,7 +8,7 @@ export class PaytablesService {
   constructor(
     @InjectRepository(Paytable)
     private readonly paytableRepo: Repository<Paytable>,
-  ) {}
+  ) { }
 
   async getActivePaytable(gameId?: string): Promise<Paytable[]> {
     return this.paytableRepo.find({

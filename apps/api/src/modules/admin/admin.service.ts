@@ -5,7 +5,9 @@ import {
   ForbiddenException,
   Logger,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
+import { EventsGateway } from '../websocket/events.gateway';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -50,6 +52,8 @@ export class AdminService implements OnModuleInit {
     @InjectRepository(Paytable)
     private readonly paytableRepo: Repository<Paytable>,
     private readonly auditService: AuditService,
+    @Optional()
+    private readonly eventsGateway?: EventsGateway,
   ) {}
 
   /* ────────────────── 1. SYSTEM ACTIVATION CONTROL (CREATOR ONLY) ────────────────── */
@@ -177,6 +181,23 @@ export class AdminService implements OnModuleInit {
 
     this.configuredRtp = targetRtp;
     await this.persistRtpPaytable(targetRtp);
+
+    if (this.eventsGateway) {
+      try {
+        const activeRows = await this.paytableRepo.find({
+          where: { status: 'ACTIVE' },
+          order: { spots: 'ASC', hits: 'ASC' },
+        });
+        const entries = activeRows.map((e) => ({
+          spots: Number(e.spots),
+          hits: Number(e.hits),
+          multiplier: Number(e.multiplier),
+        }));
+        this.eventsGateway.broadcastPaytableUpdated({ targetRtp, entries });
+      } catch (err: any) {
+        this.logger.warn(`Could not broadcast paytable update: ${err.message}`);
+      }
+    }
 
     await this.auditService.log({
       actorId: actor.id,

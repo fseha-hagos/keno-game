@@ -1,3 +1,5 @@
+import { DEFAULT_96_PAYTABLE_ENTRIES, PaytableEntry } from '@keno/game-math';
+import { apiClient } from '../api/client';
 import { create } from 'zustand';
 
 export interface BetSlip {
@@ -103,6 +105,10 @@ interface GameState {
 
   // Derived helpers (not stored — computed on access)
   getActiveSlip: () => BetSlip;
+  activePaytable: PaytableEntry[];
+  activeRtp: number;
+  setPaytable: (entries: PaytableEntry[], rtp?: number) => void;
+  fetchActivePaytable: () => Promise<void>;
 }
 
 export interface ConfirmedTicket {
@@ -119,6 +125,29 @@ export interface ConfirmedTicket {
 const INITIAL_SLIP_ID = 'slip-1';
 
 export const useGameStore = create<GameState>((set, get) => ({
+  activePaytable: DEFAULT_96_PAYTABLE_ENTRIES,
+  activeRtp: 96.0,
+  setPaytable: (entries, rtp) =>
+    set((state) => ({
+      activePaytable: entries,
+      activeRtp: rtp !== undefined ? rtp : state.activeRtp,
+    })),
+  fetchActivePaytable: async () => {
+    try {
+      const res = await apiClient.get('/api/v1/paytables/active');
+      if (res.data?.entries && Array.isArray(res.data.entries) && res.data.entries.length > 0) {
+        const parsed: PaytableEntry[] = res.data.entries.map((e: any) => ({
+          spots: Number(e.spots),
+          hits: Number(e.hits),
+          multiplier: Number(e.multiplier),
+        }));
+        set({
+          activePaytable: parsed,
+          activeRtp: Number(res.data.targetRtp) || 96.0,
+        });
+      }
+    } catch {}
+  },
   isOnline: false,
   setIsOnline: (isOnline: boolean) => set({ isOnline }),
   betSlips: [makeSlip(INITIAL_SLIP_ID)],

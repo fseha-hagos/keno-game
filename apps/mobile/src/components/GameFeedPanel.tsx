@@ -447,7 +447,7 @@ export const GameFeedPanel = () => {
             const cleanNumbers = item.numbers.map(Number).filter((n) => !isNaN(n));
             const spots = cleanNumbers.length;
             const hitCount = cleanNumbers.filter((n) => liveDrawnSet.has(n)).length;
-            const multiplier = spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
+            const multiplier = spots > 0 ? getMultiplier(useGameStore.getState().activePaytable, spots, hitCount) : 0;
             const liveWin =
               item.payout !== undefined && item.payout > 0
                 ? item.payout

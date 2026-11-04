@@ -97,13 +97,13 @@ export const BetSlipsPanel: React.FC = () => {
           const spots = slip.selectedNumbers.length;
           const stake = Number(slip.stakeMinor) / 100;
           const maxMult =
-            spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, spots) : 0;
+            spots > 0 ? getMultiplier(useGameStore.getState().activePaytable, spots, spots) : 0;
           const maxWin = Math.min(30000, stake * maxMult);
 
           const cleanSlipNums = slip.selectedNumbers.map(Number).filter((n) => !isNaN(n));
           const hitCount = cleanSlipNums.filter((n) => liveDrawnSet.has(n)).length;
           const currentMult =
-            spots > 0 ? getMultiplier(DEFAULT_96_PAYTABLE_ENTRIES, spots, hitCount) : 0;
+            spots > 0 ? getMultiplier(useGameStore.getState().activePaytable, spots, hitCount) : 0;
           const currentWin = Math.min(30000, stake * currentMult);
 
           // 10 slots representation

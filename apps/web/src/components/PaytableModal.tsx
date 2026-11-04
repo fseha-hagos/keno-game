@@ -1,3 +1,4 @@
+import { useGameStore } from '../store/useGameStore';
 import React, { useState } from 'react';
 import { DEFAULT_96_PAYTABLE_ENTRIES } from '@keno/game-math';
 import { X, Info, ShieldCheck, Gift, Copy, Check } from 'lucide-react';
@@ -249,7 +250,7 @@ export const PaytableModal: React.FC<PaytableModalProps> = ({
           {activeTab === 'rules' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF' }}>
-                RTP: 97%
+                RTP: {useGameStore.getState().activeRtp}%
               </div>
 
               <div style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF' }}>
@@ -320,7 +321,8 @@ export const PaytableModal: React.FC<PaytableModalProps> = ({
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((spot) => {
-                    const entries = DEFAULT_96_PAYTABLE_ENTRIES.filter((e) => e.spots === spot);
+                    const activePaytable = useGameStore.getState().activePaytable;
+                    const entries = activePaytable.filter((e) => e.spots === spot);
                     if (entries.length === 0) return null;
                     return (
                       <div

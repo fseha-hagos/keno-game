@@ -25,6 +25,7 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
+      useGameStore.getState().fetchActivePaytable();
       console.log('[WS] Connected to Keno Gateway:', API_BASE_URL);
       useGameStore.getState().setIsOnline(true);
       const currentUser = useAuthStore.getState().user;
@@ -44,11 +45,25 @@ class SocketService {
     });
 
     this.socket.on(WebSocketEvents.ROUND_OPENED, (data) => {
+      useGameStore.getState().fetchActivePaytable();
       // Clear game ticket caches and slips for the newly opened round to start over fresh
       useGameStore.getState().clearConfirmedTickets();
       useGameStore.getState().resetRoundDraw();
       queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
       queryClient.invalidateQueries({ queryKey: ['betHistory'] });
+    });
+
+    this.socket.on('keno.paytable.updated', (data: any) => {
+      if (data?.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+        const parsed = data.entries.map((e: any) => ({
+          spots: Number(e.spots),
+          hits: Number(e.hits),
+          multiplier: Number(e.multiplier),
+        }));
+        useGameStore.getState().setPaytable(parsed, Number(data.targetRtp) || undefined);
+      } else {
+        useGameStore.getState().fetchActivePaytable();
+      }
     });
 
     this.socket.on(WebSocketEvents.DRAW_STARTED, () => {
