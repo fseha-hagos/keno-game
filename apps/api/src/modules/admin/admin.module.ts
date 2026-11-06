@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
@@ -10,7 +10,10 @@ import { GameRound } from '../../database/entities/game-round.entity';
 import { Bet } from '../../database/entities/bet.entity';
 import { Paytable } from '../../database/entities/paytable.entity';
 import { AuditLog } from '../../database/entities/audit-log.entity';
+import { AgentProfile } from '../../database/entities/agent-profile.entity';
 import { AuditModule } from '../audit/audit.module';
+import { LedgerModule } from '../ledger/ledger.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -23,8 +26,11 @@ import { AuditModule } from '../audit/audit.module';
       Bet,
       Paytable,
       AuditLog,
+      AgentProfile,
     ]),
     AuditModule,
+    LedgerModule,
+    forwardRef(() => WalletModule),
   ],
   controllers: [AdminController],
   providers: [AdminService],

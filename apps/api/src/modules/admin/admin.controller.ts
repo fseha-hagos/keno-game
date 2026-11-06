@@ -141,4 +141,63 @@ export class AdminController {
   ) {
     return this.adminService.getProfitAudit(req.user, period);
   }
+
+  /* ────────────────── AGENT CASHIER MANAGEMENT (CREATOR & OWNER) ────────────────── */
+
+  @Get('agents')
+  @ApiOperation({ summary: 'List all agents with float balances and accounts' })
+  async listAgents(@Request() req: any) {
+    return this.adminService.listAgents(req.user);
+  }
+
+  @Post('agents')
+  @ApiOperation({ summary: 'Register a new agent with float wallet and accounts' })
+  async createAgent(
+    @Request() req: any,
+    @Body() body: {
+      phone: string;
+      username: string;
+      password: string;
+      initialFloatETB?: number;
+      telebirrNumber?: string;
+      telebirrName?: string;
+      cbeNumber?: string;
+      cbeName?: string;
+    },
+  ) {
+    return this.adminService.createAgent(req.user, body);
+  }
+
+  @Post('agents/:id/topup')
+  @ApiOperation({ summary: 'Top up agent float wallet' })
+  async topUpAgentFloat(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: { amountETB: number; note?: string },
+  ) {
+    return this.adminService.topUpAgentFloat(req.user, id, body.amountETB, body.note);
+  }
+
+  @Put('agents/:id')
+  @ApiOperation({ summary: 'Update agent profile and payment accounts' })
+  async updateAgent(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: {
+      telebirrNumber?: string;
+      telebirrName?: string;
+      cbeNumber?: string;
+      cbeName?: string;
+      isActive?: boolean;
+    },
+  ) {
+    return this.adminService.updateAgent(req.user, id, body);
+  }
+
+  @Get('agents/me/float')
+  @ApiOperation({ summary: 'Get current agent float balance and accounts' })
+  async getMyAgentFloat(@Request() req: any) {
+    return this.adminService.getAgentFloatBalance(req.user.id);
+  }
+
 }

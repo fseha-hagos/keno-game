@@ -59,6 +59,7 @@ export class WalletController {
       proofImageUrl: body.proofImageUrl,
       rawSmsText: body.rawSmsText,
       idempotencyKey: body.idempotencyKey,
+      agentId: body.agentId,
     });
   }
 
@@ -77,6 +78,14 @@ export class WalletController {
   }
 
   /** Player: List own payment requests */
+
+  /** Public / Player: List active agents with payment accounts */
+  @Get('active-agents')
+  @ApiOperation({ summary: 'List active agents available for deposit' })
+  async getActiveAgents() {
+    return this.walletService.getActiveAgents();
+  }
+
   @Get('payment-requests')
   @ApiOperation({ summary: 'Get own deposit/withdrawal requests' })
   async getMyPaymentRequests(@Request() req: any) {
@@ -133,7 +142,7 @@ export class WalletController {
   @ApiOperation({ summary: '[Admin Only] List all payment requests across all players' })
   async adminListRequests(@Request() req: any) {
     if (!this.hasAdminAccess(req.user)) throw new ForbiddenException('Admin only');
-    return this.walletService.getAllPendingRequests();
+    return this.walletService.getAllPendingRequests(req.user);
   }
 
   /** ADMIN: Approve a deposit request */

@@ -111,6 +111,29 @@ export class DatabaseModule implements OnModuleInit {
           `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "idempotencyKey" character varying(64);`,
           'payment_requests.idempotencyKey'
         );
+        await safeQuery(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "assignedAgentId" uuid;`,
+          'payment_requests.assignedAgentId'
+        );
+        await safeQuery(
+          `CREATE TABLE IF NOT EXISTS "agent_profiles" (
+            "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+            "userId" uuid NOT NULL,
+            "telebirrNumber" character varying(50),
+            "telebirrName" character varying(100),
+            "cbeNumber" character varying(50),
+            "cbeName" character varying(100),
+            "isActive" boolean NOT NULL DEFAULT true,
+            "totalFloatCreditedMinor" numeric(20,0) NOT NULL DEFAULT 0,
+            "totalDepositsApprovedMinor" numeric(20,0) NOT NULL DEFAULT 0,
+            "totalWithdrawalsApprovedMinor" numeric(20,0) NOT NULL DEFAULT 0,
+            "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+            "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+            CONSTRAINT "PK_agent_profiles_id" PRIMARY KEY ("id"),
+            CONSTRAINT "UQ_agent_profiles_userId" UNIQUE ("userId")
+          );`,
+          'create_agent_profiles_table'
+        );
 
         // Ensure CANCELLED and EXPIRED are accepted by the enum if the type exists in PostgreSQL
         await safeQuery(`

@@ -528,6 +528,7 @@ export default function App() {
   // STAFF MANAGEMENT STATE
   const [staffList, setStaffList] = useState<any[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [staffViewMode, setStaffViewMode] = useState<'agents' | 'management'>('agents');
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newStaffPhone, setNewStaffPhone] = useState('');
   const [newStaffUsername, setNewStaffUsername] = useState('');
@@ -554,6 +555,37 @@ export default function App() {
   const [targetRtpInput, setTargetRtpInput] = useState<number>(96.0);
   const [rtpSaving, setRtpSaving] = useState(false);
 
+  // AGENT CASHIER & OPERATOR FLOAT STATE
+  const [agentFloatData, setAgentFloatData] = useState<{
+    floatBalanceETB: number;
+    floatBalanceMinor: string;
+    telebirrNumber: string;
+    telebirrName: string;
+    cbeNumber: string;
+    cbeName: string;
+  } | null>(null);
+  const [agentsList, setAgentsList] = useState<any[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [staffSubTab, setStaffSubTab] = useState<'agents' | 'staff'>('agents');
+  const [showAddAgentModal, setShowAddAgentModal] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState<any | null>(null);
+  const [topUpAmount, setTopUpAmount] = useState('20000');
+  const [topUpNote, setTopUpNote] = useState('');
+  const [topUpSaving, setTopUpSaving] = useState(false);
+
+  // New Agent Form
+  const [agentForm, setAgentForm] = useState({
+    phone: '',
+    username: '',
+    password: '',
+    initialFloatETB: '20000',
+    telebirrNumber: '',
+    telebirrName: '',
+    cbeNumber: '',
+    cbeName: '',
+  });
+  const [agentSaving, setAgentSaving] = useState(false);
+
   const handleLogin = (token: string, user: any) => {
     setAdminToken(token);
     setAdminUser(user);
@@ -570,8 +602,31 @@ export default function App() {
 
   const authHeaders = { Authorization: `Bearer ${adminToken}` };
 
+  const fetchAgentFloat = () => {
+    if (!adminToken || !isOperator) return;
+    axios.get(`${API_URL}/api/v1/admin/agents/me/float`, { headers: authHeaders })
+      .then((res) => {
+        if (res.data) setAgentFloatData(res.data);
+      })
+      .catch(() => {});
+  };
+
+  const fetchAgentsList = () => {
+    if (!adminToken || (!isCreator && !isOwner)) return;
+    setAgentsLoading(true);
+    axios.get(`${API_URL}/api/v1/admin/agents`, { headers: authHeaders })
+      .then((res) => {
+        if (Array.isArray(res.data)) setAgentsList(res.data);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setAgentsLoading(false));
+  };
+
   const fetchData = () => {
     if (!adminToken) return;
+    if (isOperator) {
+      fetchAgentFloat();
+    }
     // Authoritative platform RTP configuration (Creator authority)
     if (isCreator) {
       axios.get(`${API_URL}/api/v1/admin/system/rtp`, { headers: authHeaders })
@@ -637,6 +692,23 @@ export default function App() {
     return () => clearInterval(interval);
   }, [adminToken]);
 
+  // Operator restriction: ONLY allowed to view payments tab
+  useEffect(() => {
+    if (isOperator && activeTab !== 'payments') {
+      setActiveTab('payments');
+    }
+    if (isOperator && adminToken) {
+      fetchAgentFloat();
+    }
+  }, [isOperator, activeTab, adminToken]);
+
+  // Load agents when activeTab === 'staff'
+  useEffect(() => {
+    if (activeTab === 'staff' && (isCreator || isOwner) && adminToken) {
+      fetchAgentsList();
+    }
+  }, [activeTab, adminToken]);
+
   // Sync platform RTP when switching to 'rtp' tab
   useEffect(() => {
     if (activeTab === 'rtp' && adminToken && isCreator) {
@@ -693,6 +765,77 @@ export default function App() {
         .finally(() => setPlayersLoading(false));
     }
   }, [adminToken, activeTab, playerSearch, playerStatusFilter]);
+
+  /* ────────────────── AGENT CASHIER HANDLERS ────────────────── */
+
+  const handleRegisterAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agentForm.username || !agentForm.phone || !agentForm.password) {
+      alert('Please provide username, phone number, and password');
+      return;
+    }
+    setAgentSaving(true);
+    try {
+      await axios.post(
+        `${API_URL}/api/v1/admin/agents`,
+        {
+          username: agentForm.username.trim(),
+          phone: agentForm.phone.trim(),
+          password: agentForm.password,
+          initialFloatETB: Number(agentForm.initialFloatETB) || 0,
+          telebirrNumber: agentForm.telebirrNumber.trim() || agentForm.phone.trim(),
+          telebirrName: agentForm.telebirrName.trim() || agentForm.username.trim(),
+          cbeNumber: agentForm.cbeNumber.trim() || undefined,
+          cbeName: agentForm.cbeName.trim() || undefined,
+        },
+        { headers: authHeaders }
+      );
+      alert(`Agent ${agentForm.username} successfully registered with initial float of ${agentForm.initialFloatETB} ETB!`);
+      setShowAddAgentModal(false);
+      setAgentForm({
+        phone: '',
+        username: '',
+        password: '',
+        initialFloatETB: '20000',
+        telebirrNumber: '',
+        telebirrName: '',
+        cbeNumber: '',
+        cbeName: '',
+      });
+      fetchAgentsList();
+    } catch (err: any) {
+      alert(`Failed to register agent: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setAgentSaving(false);
+    }
+  };
+
+  const handleTopUpFloat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showTopUpModal) return;
+    const amountNum = parseFloat(topUpAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      alert('Please enter a valid positive ETB amount');
+      return;
+    }
+    setTopUpSaving(true);
+    try {
+      await axios.post(
+        `${API_URL}/api/v1/admin/agents/${showTopUpModal.userId}/topup`,
+        { amountETB: amountNum, note: topUpNote.trim() || undefined },
+        { headers: authHeaders }
+      );
+      alert(`Successfully topped up ${amountNum.toLocaleString()} ETB float for ${showTopUpModal.username}!`);
+      setShowTopUpModal(null);
+      setTopUpAmount('20000');
+      setTopUpNote('');
+      fetchAgentsList();
+    } catch (err: any) {
+      alert(`Top up failed: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setTopUpSaving(false);
+    }
+  };
 
   /* ────────────────── ACTIONS & HANDLERS ────────────────── */
 
@@ -1112,6 +1255,18 @@ export default function App() {
 
           {/* Quick Actions & Logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isOperator && agentFloatData && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981',
+                padding: '4px 10px', borderRadius: '8px'
+              }}>
+                <span style={{ fontSize: '10px', color: '#A7F3D0', fontWeight: 800 }}>FLOAT:</span>
+                <span style={{ fontSize: '12px', color: '#34D399', fontWeight: 900 }}>
+                  {agentFloatData.floatBalanceETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB
+                </span>
+              </div>
+            )}
             {pendingCount > 0 && (
               <button
                 type="button"
@@ -1181,21 +1336,26 @@ export default function App() {
             zIndex: 85,
           }}
         >
-          {[
-            { id: 'overview' as const, label: 'Overview', icon: <TrendingUp size={13} /> },
-            { id: 'payments' as const, label: `Approve / Reject${pendingCount > 0 ? ` (${pendingCount})` : ''}`, icon: <DollarSign size={13} /> },
-            { id: 'audits' as const, label: 'Audits', icon: <BarChart3 size={13} /> },
-            ...((isCreator || isOwner) ? [{ id: 'staff' as const, label: 'Staff', icon: <Users size={13} /> }] : []),
-            { id: 'players' as const, label: 'Players', icon: <UserCheck size={13} /> },
-            ...(isCreator
-              ? [
-                { id: 'rtp' as const, label: 'RTP', icon: <Award size={13} /> },
-                { id: 'system' as const, label: 'System', icon: <Power size={13} /> },
-                { id: 'rounds' as const, label: 'Rounds', icon: <Activity size={13} /> },
-                { id: 'paytable' as const, label: 'Paytable', icon: <Layers size={13} /> },
+          {(isOperator
+            ? [
+                { id: 'payments' as const, label: `Approve / Reject${pendingCount > 0 ? ` (${pendingCount})` : ''}`, icon: <DollarSign size={13} /> }
               ]
-              : []),
-          ].map((item) => (
+            : [
+                { id: 'overview' as const, label: 'Overview', icon: <TrendingUp size={13} /> },
+                { id: 'payments' as const, label: `Approve / Reject${pendingCount > 0 ? ` (${pendingCount})` : ''}`, icon: <DollarSign size={13} /> },
+                { id: 'audits' as const, label: 'Audits', icon: <BarChart3 size={13} /> },
+                ...((isCreator || isOwner) ? [{ id: 'staff' as const, label: 'Staff & Agents', icon: <Users size={13} /> }] : []),
+                { id: 'players' as const, label: 'Players', icon: <UserCheck size={13} /> },
+                ...(isCreator
+                  ? [
+                    { id: 'rtp' as const, label: 'RTP', icon: <Award size={13} /> },
+                    { id: 'system' as const, label: 'System', icon: <Power size={13} /> },
+                    { id: 'rounds' as const, label: 'Rounds', icon: <Activity size={13} /> },
+                    { id: 'paytable' as const, label: 'Paytable', icon: <Layers size={13} /> },
+                  ]
+                  : []),
+              ]
+          ).map((item) => (
             <button
               key={item.id}
               type="button"
@@ -1325,30 +1485,52 @@ export default function App() {
           )
         }
 
+        {/* Operator Agent Float Card */}
+        {isOperator && (
+          <div style={{
+            padding: '14px',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            border: '1.5px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '10px',
+            marginBottom: '16px'
+          }}>
+            <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              AGENT FLOAT BALANCE
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 900, color: '#34D399', marginTop: '4px' }}>
+              {agentFloatData ? `${agentFloatData.floatBalanceETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB` : '...'}
+            </div>
+            {agentFloatData?.telebirrNumber && (
+              <div style={{ fontSize: '11px', color: '#CBD5E1', marginTop: '6px' }}>
+                📱 Telebirr: <strong style={{ color: '#F8FAFC' }}>{agentFloatData.telebirrNumber}</strong>
+              </div>
+            )}
+            {agentFloatData?.cbeNumber && (
+              <div style={{ fontSize: '11px', color: '#CBD5E1', marginTop: '2px' }}>
+                🏦 CBE: <strong style={{ color: '#F8FAFC' }}>{agentFloatData.cbeNumber}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Navigation Items based on authorization */}
-        {sideNavBtn('overview', <TrendingUp size={18} />, 'Dashboard Overview')}
+        {!isOperator && sideNavBtn('overview', <TrendingUp size={18} />, 'Dashboard Overview')}
 
-        {/* Approve / Reject (Deposits & Withdrawals) — available to all admin roles */}
-        {sideNavBtn('payments', <DollarSign size={18} />, 'Approve / Reject Requests')}
+        {/* Approve / Reject (Deposits & Withdrawals) */}
+        {sideNavBtn('payments', <DollarSign size={18} />, isOperator ? 'Cashier Queue' : 'Approve / Reject Requests')}
 
-        {/* Profit Audits: Creator, Business Owner, and Operator (Daily only) */}
-        {
-          sideNavBtn(
-            'audits',
-            <BarChart3 size={18} />,
-            isOperator ? 'Daily Audit' : 'Profit Audits'
-          )
-        }
+        {/* Profit Audits: Creator & Business Owner only */}
+        {!isOperator && sideNavBtn('audits', <BarChart3 size={18} />, 'Profit Audits')}
 
-        {/* Staff Management: Creator & Business Owner */}
+        {/* Staff & Agents Management: Creator & Business Owner */}
         {
           (isCreator || isOwner) && (
-            sideNavBtn('staff', <Users size={18} />, isCreator ? 'Staff Management' : 'Operator Staff')
+            sideNavBtn('staff', <Users size={18} />, isCreator ? 'Agents & Staff' : 'Cashier Agents')
           )
         }
 
-        {/* Player Accounts: All 3 tiers */}
-        {sideNavBtn('players', <UserCheck size={18} />, 'Player Accounts')}
+        {/* Player Accounts: Creator & Business Owner */}
+        {!isOperator && sideNavBtn('players', <UserCheck size={18} />, 'Player Accounts')}
 
         {/* RTP Engine & System Kill Switch: Creator only */}
         {
@@ -1691,6 +1873,63 @@ export default function App() {
                   <RefreshCw size={14} /> Refresh Stream
                 </button>
               </div>
+
+              {/* Authorized Cashier Float Banner */}
+              {isOperator && (
+                <div style={{
+                  backgroundColor: '#0B1320',
+                  border: '1.5px solid #10B981',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.1)',
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ backgroundColor: '#10B981', color: '#000', fontSize: '10px', fontWeight: 900, padding: '2px 7px', borderRadius: '4px' }}>
+                        AUTHORIZED CASHIER TERMINAL
+                      </span>
+                      <span style={{ color: '#94A3B8', fontSize: '12px' }}>
+                        Logged in as: <strong style={{ color: '#F8FAFC' }}>{adminUser?.username}</strong>
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '6px' }}>
+                      <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 700 }}>AVAILABLE FLOAT BALANCE:</span>
+                      <span style={{ fontSize: '24px', fontWeight: 900, color: '#34D399' }}>
+                        {agentFloatData ? `${agentFloatData.floatBalanceETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB` : '...'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      {agentFloatData?.telebirrNumber && (
+                        <span>📱 Telebirr: <strong style={{ color: '#F8FAFC' }}>{agentFloatData.telebirrNumber}</strong> ({agentFloatData.telebirrName})</span>
+                      )}
+                      {agentFloatData?.cbeNumber && (
+                        <span>🏦 CBE: <strong style={{ color: '#F8FAFC' }}>{agentFloatData.cbeNumber}</strong> ({agentFloatData.cbeName})</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={fetchAgentFloat}
+                    style={{
+                      backgroundColor: '#1E293B',
+                      border: '1px solid #334155',
+                      color: '#10B981',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ↻ Refresh Float
+                  </button>
+                </div>
+              )}
 
               {/* Quick Metrics Bar */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
@@ -2607,80 +2846,324 @@ export default function App() {
         {
           activeTab === 'staff' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              {/* Header & Sub-Tab Switcher */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 900 }}>Staff Authorization Management</h2>
-                  <p style={{ color: '#94A3B8', fontSize: '13px' }}>
-                    {isCreator
-                      ? 'Creator authority: Full CRUD control over Business Owners, Operators, and Staff.'
-                      : 'Business Owner authority: Create, edit, and delete Operator accounts only.'}
+                  <h2 style={{ fontSize: '24px', fontWeight: 900, margin: 0 }}>Staff & Cashier Agent Management</h2>
+                  <p style={{ color: '#94A3B8', fontSize: '13px', margin: '4px 0 0 0' }}>
+                    Manage retail cashier agents, float balances, payment accounts, and management roles.
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setShowAddStaffModal(true)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    backgroundColor: '#10B981', color: '#000', border: 'none',
-                    padding: '10px 18px', borderRadius: '8px', fontWeight: 900, cursor: 'pointer', fontSize: '13px',
-                  }}
-                >
-                  <Users size={16} /> + ADD NEW STAFF
-                </button>
+                {/* Sub-Tab Switcher */}
+                <div style={{ display: 'flex', gap: '8px', backgroundColor: '#0B1320', padding: '4px', borderRadius: '10px', border: '1px solid #1E293B' }}>
+                  <button
+                    type="button"
+                    onClick={() => setStaffViewMode('agents')}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: staffViewMode === 'agents' ? '#10B981' : 'transparent',
+                      color: staffViewMode === 'agents' ? '#0F172A' : '#94A3B8',
+                      fontWeight: 800,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>💼 Cashier Agents (Float Model)</span>
+                    <span style={{
+                      backgroundColor: staffViewMode === 'agents' ? 'rgba(0,0,0,0.2)' : '#1E293B',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      fontSize: '10px',
+                    }}>
+                      {agentsList.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStaffViewMode('management')}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: staffViewMode === 'management' ? '#3B82F6' : 'transparent',
+                      color: staffViewMode === 'management' ? '#FFFFFF' : '#94A3B8',
+                      fontWeight: 800,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>👥 Management Staff</span>
+                    <span style={{
+                      backgroundColor: staffViewMode === 'management' ? 'rgba(255,255,255,0.2)' : '#1E293B',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      fontSize: '10px',
+                    }}>
+                      {staffList.length}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              <div style={{ backgroundColor: '#0F172A', borderRadius: '12px', border: '1px solid #1E293B', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #334155', color: '#94A3B8', backgroundColor: '#0B1320' }}>
-                      <th style={{ padding: '14px 16px' }}>STAFF USERNAME</th>
-                      <th style={{ padding: '14px 16px' }}>PHONE</th>
-                      <th style={{ padding: '14px 16px' }}>ASSIGNED ROLE</th>
-                      <th style={{ padding: '14px 16px' }}>STATUS</th>
-                      <th style={{ padding: '14px 16px' }}>CREATED</th>
-                      <th style={{ padding: '14px 16px', textAlign: 'right' }}>ACTIONS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffList.map((st) => (
-                      <tr key={st.id} style={{ borderBottom: '1px solid #1E293B' }}>
-                        <td style={{ padding: '14px 16px', fontWeight: 800, color: '#F8FAFC' }}>
-                          {st.username}
-                        </td>
-                        <td style={{ padding: '14px 16px', color: '#94A3B8' }}>{st.phone}</td>
-                        <td style={{ padding: '14px 16px' }}>
-                          <span style={{
-                            backgroundColor: st.roles.includes('CREATOR') ? '#78350F' : st.roles.includes('BUSINESS_OWNER') ? '#1E3A8A' : '#064E3B',
-                            color: st.roles.includes('CREATOR') ? '#FDE68A' : st.roles.includes('BUSINESS_OWNER') ? '#93C5FD' : '#A7F3D0',
-                            padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800,
-                          }}>
-                            {st.roles.join(', ')}
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 16px' }}>
-                          <StatusBadge status={st.status} />
-                        </td>
-                        <td style={{ padding: '14px 16px', color: '#64748B', fontSize: '12px' }}>
-                          {formatDate(st.createdAt)}
-                        </td>
-                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                          {adminUser?.id !== st.id && (
-                            <button
-                              onClick={() => handleDeleteStaff(st.id, st.username)}
-                              style={{
-                                backgroundColor: 'transparent', border: '1px solid #EF4444', color: '#EF4444',
-                                padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
-                              }}
-                            >
-                              DELETE
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {/* VIEW 1: CASHIER AGENTS */}
+              {staffViewMode === 'agents' && (
+                <div>
+                  {/* Info Box */}
+                  <div style={{
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}>
+                    <div style={{ maxWidth: '800px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#34D399', marginBottom: '4px' }}>
+                        ⚡ Retail Cashier Float Operating Model
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#94A3B8', lineHeight: 1.5 }}>
+                        Agents receive real cash/transfers directly to their Telebirr or CBE account. When an agent approves a player deposit, the system <strong style={{ color: '#F8FAFC' }}>automatically deducts</strong> that amount from their Float Balance. When approving withdrawals, their float balance is <strong style={{ color: '#F8FAFC' }}>reimbursed</strong>.
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={fetchAgentsList}
+                        disabled={agentsLoading}
+                        style={{
+                          backgroundColor: '#1E293B',
+                          border: '1px solid #334155',
+                          color: '#94A3B8',
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                        }}
+                      >
+                        ↻ Refresh
+                      </button>
+
+                      <button
+                        onClick={() => setShowAddAgentModal(true)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: '#10B981',
+                          color: '#000',
+                          border: 'none',
+                          padding: '10px 20px',
+                          borderRadius: '8px',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                        }}
+                      >
+                        + REGISTER CASHIER AGENT
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Agents Table */}
+                  <div style={{ backgroundColor: '#0F172A', borderRadius: '12px', border: '1px solid #1E293B', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #334155', color: '#94A3B8', backgroundColor: '#0B1320' }}>
+                          <th style={{ padding: '14px 16px' }}>AGENT / USERNAME</th>
+                          <th style={{ padding: '14px 16px' }}>PHONE</th>
+                          <th style={{ padding: '14px 16px' }}>FLOAT WALLET BALANCE</th>
+                          <th style={{ padding: '14px 16px' }}>PAYMENT ACCOUNTS</th>
+                          <th style={{ padding: '14px 16px' }}>HISTORICAL ACTIVITY</th>
+                          <th style={{ padding: '14px 16px' }}>STATUS</th>
+                          <th style={{ padding: '14px 16px', textAlign: 'right' }}>ACTIONS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agentsList.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#64748B' }}>
+                              {agentsLoading ? 'Loading cashier agents...' : 'No cashier agents registered yet. Click "+ REGISTER CASHIER AGENT" to add one.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          agentsList.map((ag) => (
+                            <tr key={ag.id} style={{ borderBottom: '1px solid #1E293B' }}>
+                              <td style={{ padding: '14px 16px', fontWeight: 800, color: '#F8FAFC' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{
+                                    width: '32px', height: '32px', borderRadius: '50%',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34D399',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontWeight: 900, fontSize: '13px',
+                                  }}>
+                                    {ag.username.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div>{ag.username}</div>
+                                    <div style={{ fontSize: '10px', color: '#64748B' }}>Role: OPERATOR</div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px', color: '#94A3B8' }}>{ag.phone}</td>
+
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontSize: '15px', fontWeight: 900, color: ag.floatBalanceETB > 1000 ? '#34D399' : '#F59E0B' }}>
+                                  {ag.floatBalanceETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB
+                                </div>
+                                <div style={{ fontSize: '10px', color: '#64748B' }}>
+                                  Total Top-Ups: {ag.totalFloatCreditedETB.toLocaleString('en-US', { minimumFractionDigits: 0 })} ETB
+                                </div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px' }}>
+                                {ag.telebirrNumber && (
+                                  <div style={{ fontSize: '12px', color: '#E2E8F0', marginBottom: '2px' }}>
+                                    📱 <strong style={{ color: '#F8FAFC' }}>{ag.telebirrNumber}</strong>
+                                    {ag.telebirrName && <span style={{ color: '#94A3B8' }}> ({ag.telebirrName})</span>}
+                                  </div>
+                                )}
+                                {ag.cbeNumber && (
+                                  <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                                    🏦 CBE: <strong style={{ color: '#CBD5E1' }}>{ag.cbeNumber}</strong>
+                                    {ag.cbeName && <span> ({ag.cbeName})</span>}
+                                  </div>
+                                )}
+                              </td>
+
+                              <td style={{ padding: '14px 16px', fontSize: '11px', color: '#94A3B8' }}>
+                                <div>Approved Dep: <strong style={{ color: '#10B981' }}>{ag.totalDepositsApprovedETB.toLocaleString('en-US', { minimumFractionDigits: 0 })} ETB</strong></div>
+                                <div>Approved W/D: <strong style={{ color: '#3B82F6' }}>{ag.totalWithdrawalsApprovedETB.toLocaleString('en-US', { minimumFractionDigits: 0 })} ETB</strong></div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px' }}>
+                                <span style={{
+                                  backgroundColor: ag.isActive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                  color: ag.isActive ? '#34D399' : '#F87171',
+                                  padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800,
+                                }}>
+                                  {ag.isActive ? 'ACTIVE' : 'INACTIVE'}
+                                </span>
+                              </td>
+
+                              <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => {
+                                      setShowTopUpModal(ag);
+                                      setTopUpAmount('20000');
+                                      setTopUpNote('');
+                                    }}
+                                    style={{
+                                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                      border: '1px solid #10B981',
+                                      color: '#34D399',
+                                      padding: '6px 12px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    + Top Up Float
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 2: MANAGEMENT STAFF */}
+              {staffViewMode === 'management' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
+                    <button
+                      onClick={() => setShowAddStaffModal(true)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        backgroundColor: '#3B82F6', color: '#fff', border: 'none',
+                        padding: '10px 18px', borderRadius: '8px', fontWeight: 900, cursor: 'pointer', fontSize: '13px',
+                      }}
+                    >
+                      <Users size={16} /> + ADD NEW STAFF
+                    </button>
+                  </div>
+
+                  <div style={{ backgroundColor: '#0F172A', borderRadius: '12px', border: '1px solid #1E293B', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #334155', color: '#94A3B8', backgroundColor: '#0B1320' }}>
+                          <th style={{ padding: '14px 16px' }}>STAFF USERNAME</th>
+                          <th style={{ padding: '14px 16px' }}>PHONE</th>
+                          <th style={{ padding: '14px 16px' }}>ASSIGNED ROLE</th>
+                          <th style={{ padding: '14px 16px' }}>STATUS</th>
+                          <th style={{ padding: '14px 16px' }}>CREATED</th>
+                          <th style={{ padding: '14px 16px', textAlign: 'right' }}>ACTIONS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {staffList.map((st) => (
+                          <tr key={st.id} style={{ borderBottom: '1px solid #1E293B' }}>
+                            <td style={{ padding: '14px 16px', fontWeight: 800, color: '#F8FAFC' }}>
+                              {st.username}
+                            </td>
+                            <td style={{ padding: '14px 16px', color: '#94A3B8' }}>{st.phone}</td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span style={{
+                                backgroundColor: st.roles.includes('CREATOR') ? '#78350F' : st.roles.includes('BUSINESS_OWNER') ? '#1E3A8A' : '#064E3B',
+                                color: st.roles.includes('CREATOR') ? '#FDE68A' : st.roles.includes('BUSINESS_OWNER') ? '#93C5FD' : '#A7F3D0',
+                                padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800,
+                              }}>
+                                {st.roles.join(', ')}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <StatusBadge status={st.status} />
+                            </td>
+                            <td style={{ padding: '14px 16px', color: '#64748B', fontSize: '12px' }}>
+                              {formatDate(st.createdAt)}
+                            </td>
+                            <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                              {adminUser?.id !== st.id && (
+                                <button
+                                  onClick={() => handleDeleteStaff(st.id, st.username)}
+                                  style={{
+                                    backgroundColor: 'transparent', border: '1px solid #EF4444', color: '#EF4444',
+                                    padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                                  }}
+                                >
+                                  DELETE
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )
         }
@@ -3248,6 +3731,336 @@ export default function App() {
       }
 
       {/* ───────────────────────────────────────────────────────────── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MODAL: REGISTER CASHIER AGENT (FLOAT MODEL)                   */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {
+        showAddAgentModal && (
+          <div style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+          }}>
+            <form onSubmit={handleRegisterAgent} style={{
+              backgroundColor: '#0F172A', border: '1.5px solid #10B981', borderRadius: '16px',
+              padding: '28px', width: '480px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: '#F8FAFC' }}>
+                  Register New Cashier Agent
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAddAgentModal(false)}
+                  style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '18px', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '20px' }}>
+                Creates an Operator account with dedicated float balance and Telebirr/CBE payment accounts.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                <div>
+                  <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                    PHONE NUMBER *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={agentForm.phone}
+                    onChange={(e) => setAgentForm({ ...agentForm, phone: e.target.value })}
+                    placeholder="e.g. 0912345678"
+                    style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                      LOGIN USERNAME *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={agentForm.username}
+                      onChange={(e) => setAgentForm({ ...agentForm, username: e.target.value })}
+                      placeholder="e.g. agent_kassahun"
+                      style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                      PASSWORD *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={agentForm.password}
+                      onChange={(e) => setAgentForm({ ...agentForm, password: e.target.value })}
+                      placeholder="Min 6 characters"
+                      style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10B981', padding: '12px', borderRadius: '8px' }}>
+                  <label style={{ color: '#34D399', fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '4px' }}>
+                    INITIAL FLOAT BALANCE (ETB)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={agentForm.initialFloatETB}
+                    onChange={(e) => setAgentForm({ ...agentForm, initialFloatETB: e.target.value })}
+                    placeholder="e.g. 20000"
+                    style={{ width: '100%', backgroundColor: '#0F172A', border: '1px solid #10B981', color: '#34D399', padding: '10px', borderRadius: '8px', fontWeight: 900, fontSize: '16px', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px' }}>
+                    Cash received in advance: credited directly into agent's float wallet.
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid #1E293B', paddingTop: '10px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#CBD5E1', marginBottom: '8px' }}>
+                    Agent Payment Accounts (Shown to Players)
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' }}>
+                    <div>
+                      <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                        TELEBIRR NUMBER
+                      </label>
+                      <input
+                        type="text"
+                        value={agentForm.telebirrNumber}
+                        onChange={(e) => setAgentForm({ ...agentForm, telebirrNumber: e.target.value })}
+                        placeholder="e.g. 0912345678"
+                        style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                        TELEBIRR ACCOUNT NAME
+                      </label>
+                      <input
+                        type="text"
+                        value={agentForm.telebirrName}
+                        onChange={(e) => setAgentForm({ ...agentForm, telebirrName: e.target.value })}
+                        placeholder="e.g. Kassahun T."
+                        style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                        CBE ACCOUNT NUMBER (OPTIONAL)
+                      </label>
+                      <input
+                        type="text"
+                        value={agentForm.cbeNumber}
+                        onChange={(e) => setAgentForm({ ...agentForm, cbeNumber: e.target.value })}
+                        placeholder="e.g. 100012345678"
+                        style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                        CBE ACCOUNT NAME (OPTIONAL)
+                      </label>
+                      <input
+                        type="text"
+                        value={agentForm.cbeName}
+                        onChange={(e) => setAgentForm({ ...agentForm, cbeName: e.target.value })}
+                        placeholder="e.g. Kassahun T."
+                        style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddAgentModal(false)}
+                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#94A3B8', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={agentSaving}
+                  style={{
+                    backgroundColor: '#10B981', color: '#000', border: 'none',
+                    padding: '10px 22px', borderRadius: '8px', fontWeight: 900, cursor: 'pointer',
+                    opacity: agentSaving ? 0.6 : 1,
+                  }}
+                >
+                  {agentSaving ? 'Registering...' : 'Register Cashier Agent'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )
+      }
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MODAL: TOP UP AGENT FLOAT BALANCE                             */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {
+        showTopUpModal && (
+          <div style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+          }}>
+            <form onSubmit={handleTopUpFloat} style={{
+              backgroundColor: '#0F172A', border: '1.5px solid #10B981', borderRadius: '16px',
+              padding: '28px', width: '440px', maxWidth: '95vw',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: '#F8FAFC' }}>
+                  Top Up Agent Float Balance
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowTopUpModal(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '18px', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Agent Details Card */}
+              <div style={{
+                backgroundColor: '#1E293B',
+                border: '1px solid #334155',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '18px',
+              }}>
+                <div style={{ fontSize: '11px', color: '#94A3B8' }}>Cashier Agent:</div>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: '#F8FAFC' }}>
+                  {showTopUpModal.username} ({showTopUpModal.phone})
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '12px' }}>
+                  <span style={{ color: '#94A3B8' }}>Current Float:</span>
+                  <span style={{ fontWeight: 900, color: '#34D399' }}>
+                    {showTopUpModal.floatBalanceETB?.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                  QUICK PRESETS (ETB)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                  {['5000', '10000', '20000', '50000'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setTopUpAmount(preset)}
+                      style={{
+                        backgroundColor: topUpAmount === preset ? '#10B981' : '#1E293B',
+                        color: topUpAmount === preset ? '#000' : '#F8FAFC',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        padding: '6px 0',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      +{Number(preset).toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                  TOP UP AMOUNT (ETB) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="100"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                  placeholder="e.g. 20000"
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#1E293B',
+                    border: '1.5px solid #10B981',
+                    color: '#34D399',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    fontSize: '18px',
+                    fontWeight: 900,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {/* Note / Memo */}
+              <div style={{ marginBottom: '22px' }}>
+                <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                  REFERENCE NOTE / MEMO (OPTIONAL)
+                </label>
+                <input
+                  type="text"
+                  value={topUpNote}
+                  onChange={(e) => setTopUpNote(e.target.value)}
+                  placeholder="e.g. Cash received via CBE transfer ref #12345"
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#1E293B',
+                    border: '1px solid #334155',
+                    color: '#fff',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTopUpModal(null)}
+                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#94A3B8', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={topUpSaving}
+                  style={{
+                    backgroundColor: '#10B981', color: '#000', border: 'none',
+                    padding: '10px 22px', borderRadius: '8px', fontWeight: 900, cursor: 'pointer',
+                    opacity: topUpSaving ? 0.6 : 1,
+                  }}
+                >
+                  {topUpSaving ? 'Crediting Float...' : 'Confirm Top Up'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )
+      }
+
       {/* MODAL: ADD NEW STAFF                                          */}
       {/* ───────────────────────────────────────────────────────────── */}
       {

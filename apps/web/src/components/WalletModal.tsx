@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { toastSuccess, toastError, toastInfo } from '../services/toast';
@@ -335,6 +335,53 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     staleTime: 10000,
   });
 
+  // Fetch active cashier agents for dynamic retail float routing
+  const { data: activeAgents = [] } = useQuery<any[]>({
+    queryKey: ['activeCashierAgents'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/wallet/active-agents');
+        return Array.isArray(res.data) ? res.data : [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 30000,
+  });
+
+  const selectedAgent = activeAgents.length > 0 ? activeAgents[0] : null;
+
+  const dynamicPaymentMethods: Array<(typeof PAYMENT_METHODS)[number]> = useMemo(() => {
+    if (!selectedAgent) return PAYMENT_METHODS;
+    return PAYMENT_METHODS.map((m) => {
+      if (m.id === 'telebirr' && selectedAgent.telebirrNumber) {
+        return {
+          ...m,
+          accountNumber: selectedAgent.telebirrNumber,
+          accountName: selectedAgent.telebirrName || selectedAgent.username,
+          instructions: [
+            'Open your Telebirr app or dial *127#',
+            `Select "Send Money" to ${selectedAgent.telebirrNumber} (${selectedAgent.telebirrName || selectedAgent.username})`,
+            'Enter the EXACT deposit amount',
+          ],
+        };
+      }
+      if (m.id === 'cbe_bank' && selectedAgent.cbeNumber) {
+        return {
+          ...m,
+          accountNumber: selectedAgent.cbeNumber,
+          accountName: selectedAgent.cbeName || selectedAgent.username,
+          instructions: [
+            `Transfer via CBE Mobile Banking to Account: ${selectedAgent.cbeNumber}`,
+            `Recipient Account Name: ${selectedAgent.cbeName || selectedAgent.username}`,
+            'Enter the FT transaction reference code for verification',
+          ],
+        };
+      }
+      return m;
+    });
+  }, [selectedAgent]);
+
   // Payment requests query (Deposits & Withdrawals) — No periodic polling, refreshes on demand
   const {
     data: paymentRequests,
@@ -360,7 +407,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
+      const method = (dynamicPaymentMethods.find((m) => m.id === selectedMethod) || PAYMENT_METHODS[0])!;
 
       const res = await apiClient.post('/api/v1/wallet/deposit', {
         amountMinor,
@@ -369,6 +416,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         accountNumber: method.accountNumber,
         accountName: method.accountName,
         idempotencyKey,
+        agentId: selectedAgent?.id,
       });
       return { ...res.data, methodInfo: method, displayAmount: amountNum };
     },
@@ -495,7 +543,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentMethod = (PAYMENT_METHODS.find((m) => m.id === (pendingDeposit?.paymentMethod || selectedMethod)) || PAYMENT_METHODS[0])!;
+  const currentMethod = (dynamicPaymentMethods.find((m) => m.id === (pendingDeposit?.paymentMethod || selectedMethod)) || PAYMENT_METHODS[0])!;
+  const displayAccountName = pendingDeposit?.accountName || currentMethod.accountName;
+  const displayAccountNumber = pendingDeposit?.accountNumber || currentMethod.accountNumber;
   const balance = wallet?.balanceMinor ? (Number(wallet.balanceMinor) / 100).toFixed(2) : '0.00';
 
   const copyToClipboard = (text: string) => {
@@ -941,11 +991,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ color: '#94A3B8' }}>Account Name</span>
-                      <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{currentMethod.accountName}</span>
+                      <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{displayAccountName}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: '#94A3B8' }}>Account Number</span>
-                      <span style={{ color: '#10B981', fontWeight: 800 }}>{currentMethod.accountNumber}</span>
+                      <span style={{ color: '#10B981', fontWeight: 800 }}>{displayAccountNumber}</span>
                     </div>
                   </div>
 
@@ -1158,7 +1208,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Name:</span>
                       <span style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>
-                        {currentMethod.accountName}
+                        {displayAccountName}
                       </span>
                     </div>
 
@@ -1170,7 +1220,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                         </span>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(currentMethod.accountNumber)}
+                          onClick={() => copyToClipboard(displayAccountNumber)}
                           style={{
                             background: '#28374E',
                             border: '1.5px solid #2D425E',
@@ -1373,7 +1423,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               <div>
                 {/* Payment Methods - Vertical List layout matching reference */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-                  {PAYMENT_METHODS.map((method) => {
+                  {dynamicPaymentMethods.map((method) => {
                     const isSelected = selectedMethod === method.id;
                     return (
                       <button
@@ -1633,7 +1683,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                   Payout Method
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-                  {PAYMENT_METHODS.filter((m) => m.id !== 'other_bank').map((method) => {
+                  {dynamicPaymentMethods.filter((m) => m.id !== 'other_bank').map((method) => {
                     const isSelected = withdrawMethod === method.id;
                     return (
                       <button

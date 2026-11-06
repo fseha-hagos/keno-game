@@ -74,6 +74,10 @@ export class PaymentRequest {
   matchReason?: string;
 
   @Column({ type: 'uuid', nullable: true })
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  assignedAgentId?: string;
+
   approvedBy?: string;
 
   @Column({ nullable: true })

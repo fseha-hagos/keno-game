@@ -8,6 +8,7 @@ import {
   Inject,
   forwardRef,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
@@ -24,7 +25,10 @@ import {
   PaymentEvidenceStatus,
 } from '../../database/entities/payment-evidence.entity';
 import { TelegramNotificationService } from './telegram-notification.service';
-import { TransactionType, LedgerReferenceType } from '@keno/shared-types';
+import { TransactionType, LedgerReferenceType, UserRole } from '@keno/shared-types';
+import { AgentProfile } from '../../database/entities/agent-profile.entity';
+import { User } from '../../database/entities/user.entity';
+import { EventsGateway } from '../websocket/events.gateway';
 import { GAME_CONFIG } from '@keno/config';
 import { AuditService } from '../audit/audit.service';
 import { DepositMatchingService } from '../payments/deposit-matching.service';
@@ -40,6 +44,7 @@ export interface CreateDepositRequestInput {
   proofImageUrl?: string;
   rawSmsText?: string;
   idempotencyKey?: string;
+  agentId?: string;
 }
 
 export interface CreateWithdrawalRequestInput {
@@ -75,6 +80,12 @@ export class WalletService implements OnModuleInit {
     private readonly matchingService: DepositMatchingService,
     private readonly parserRegistry: PaymentParserRegistry,
     private readonly telegramNotification: TelegramNotificationService,
+    @InjectRepository(AgentProfile)
+    private readonly agentProfileRepo: Repository<AgentProfile>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @Optional()
+    private readonly eventsGateway?: EventsGateway,
   ) {}
 
   /**
@@ -204,6 +215,35 @@ export class WalletService implements OnModuleInit {
    * Submits a Deposit Request with PENDING status.
    * Money is NOT added to wallet balance until an Admin approves it.
    */
+
+  /**
+   * Returns list of currently active agents available for player deposits.
+   */
+  async getActiveAgents(): Promise<any[]> {
+    const profiles = await this.agentProfileRepo.find({
+      where: { isActive: true },
+      order: { createdAt: 'DESC' },
+    });
+    if (!profiles || profiles.length === 0) {
+      return [
+        {
+          agentId: 'default-agent',
+          telebirrNumber: '0930547684',
+          telebirrName: 'Abel Alemseged',
+          cbeNumber: '1000282131138',
+          cbeName: 'Abel Alemseged',
+        },
+      ];
+    }
+    return profiles.map((p) => ({
+      agentId: p.userId,
+      telebirrNumber: p.telebirrNumber || '0930547684',
+      telebirrName: p.telebirrName || 'Abel Alemseged',
+      cbeNumber: p.cbeNumber || '1000282131138',
+      cbeName: p.cbeName || 'Abel Alemseged',
+    }));
+  }
+
   async createDepositRequest(
     userId: string,
     input: CreateDepositRequestInput,
@@ -240,14 +280,44 @@ export class WalletService implements OnModuleInit {
       initialSnippet = extracted.rawSnippet;
     }
 
+    let assignedAgentId: string | undefined = input.agentId && input.agentId !== 'default-agent' ? input.agentId : undefined;
+    let targetAccountNumber = input.accountNumber || '0930547684';
+    let targetAccountName = input.accountName || 'Abel Alemseged';
+
+    if (assignedAgentId) {
+      const agentProf = await this.agentProfileRepo.findOne({ where: { userId: assignedAgentId } });
+      if (agentProf) {
+        if ((input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_birr') && agentProf.cbeNumber) {
+          targetAccountNumber = agentProf.cbeNumber;
+          targetAccountName = agentProf.cbeName || targetAccountName;
+        } else if (agentProf.telebirrNumber) {
+          targetAccountNumber = agentProf.telebirrNumber;
+          targetAccountName = agentProf.telebirrName || targetAccountName;
+        }
+      }
+    } else {
+      const activeProf = await this.agentProfileRepo.findOne({ where: { isActive: true }, order: { createdAt: 'DESC' } });
+      if (activeProf) {
+        assignedAgentId = activeProf.userId;
+        if ((input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_birr') && activeProf.cbeNumber) {
+          targetAccountNumber = activeProf.cbeNumber;
+          targetAccountName = activeProf.cbeName || targetAccountName;
+        } else if (activeProf.telebirrNumber) {
+          targetAccountNumber = activeProf.telebirrNumber;
+          targetAccountName = activeProf.telebirrName || targetAccountName;
+        }
+      }
+    }
+
     const request = this.paymentRepo.create({
       userId,
       requestType: PaymentRequestType.DEPOSIT,
       amountMinor: input.amountMinor,
       currency,
       paymentMethod: input.paymentMethod || 'telebirr',
-      accountNumber: input.accountNumber || '0948491265',
-      accountName: input.accountName || 'Fseha Hagos',
+      accountNumber: targetAccountNumber,
+      accountName: targetAccountName,
+      assignedAgentId,
       transactionReference: initialRef,
       rawSmsText: (input as any).rawSmsText || initialSnippet,
       adminNote: initialSnippet ? `SMS: ${initialSnippet.substring(0, 500)}` : undefined,
@@ -418,7 +488,59 @@ export class WalletService implements OnModuleInit {
         throw new NotFoundException(`User wallet not found for currency ${request.currency}`);
       }
 
-      // 3. Atomically credit wallet & post ledger transaction via ledgerService
+      // 2.5 Agent Float Balance Check & Deduction
+      const approver = await manager.findOne(User, { where: { id: adminUserId } });
+      const isOperator = approver?.roles?.includes(UserRole.OPERATOR) &&
+        !approver?.roles?.includes(UserRole.CREATOR) &&
+        !approver?.roles?.includes(UserRole.SUPER_ADMIN);
+
+      if (isOperator) {
+        const agentWallet = await manager.findOne(WalletAccount, {
+          where: { userId: adminUserId, currency: request.currency },
+        });
+        if (!agentWallet) {
+          throw new BadRequestException('Agent float wallet not found. Contact Admin to initialize your float account.');
+        }
+        const depositAmount = BigInt(request.amountMinor);
+        const currentFloat = BigInt(agentWallet.balanceMinor || '0');
+        if (currentFloat < depositAmount) {
+          const floatETB = (Number(currentFloat) / 100).toFixed(2);
+          const reqETB = (Number(depositAmount) / 100).toFixed(2);
+          throw new BadRequestException(
+            `Insufficient agent float balance! Current float: ${floatETB} ETB, Deposit: ${reqETB} ETB. Please contact Admin to top up your float.`
+          );
+        }
+
+        // Atomically deduct from Agent float balance
+        await this.ledgerService.recordTransaction(
+          {
+            walletId: agentWallet.id,
+            transactionType: TransactionType.ADJUSTMENT,
+            amountMinor: `-${request.amountMinor}`,
+            currency: request.currency,
+            referenceType: LedgerReferenceType.MANUAL_ADJUSTMENT,
+            referenceId: request.id,
+            idempotencyKey: `agent_float_deduct_${request.id}`,
+          },
+          manager,
+        );
+
+        // Update Agent Profile Statistics
+        const profile = await manager.findOne(AgentProfile, { where: { userId: adminUserId } });
+        if (profile) {
+          const prev = BigInt(profile.totalDepositsApprovedMinor || '0');
+          profile.totalDepositsApprovedMinor = (prev + depositAmount).toString();
+          await manager.save(profile);
+        }
+
+        // Real-time WS balance update to Agent
+        if (this.eventsGateway) {
+          const newFloat = (currentFloat - depositAmount).toString();
+          this.eventsGateway.sendBalanceUpdate(adminUserId, newFloat);
+        }
+      }
+
+      // 3. Atomically credit player wallet & post ledger transaction via ledgerService
       await this.ledgerService.recordTransaction(
         {
           walletId: wallet.id,
@@ -623,6 +745,44 @@ export class WalletService implements OnModuleInit {
       });
       await manager.save(ledgerEntry);
 
+      // Agent Float Reimbursement: Agent paid cash/transfer to player out-of-pocket
+      const approverWithdraw = await manager.findOne(User, { where: { id: adminUserId } });
+      const isOperatorWithdraw = approverWithdraw?.roles?.includes(UserRole.OPERATOR) &&
+        !approverWithdraw?.roles?.includes(UserRole.CREATOR) &&
+        !approverWithdraw?.roles?.includes(UserRole.SUPER_ADMIN);
+
+      if (isOperatorWithdraw) {
+        const agentWallet = await manager.findOne(WalletAccount, {
+          where: { userId: adminUserId, currency: request.currency },
+        });
+        if (agentWallet) {
+          await this.ledgerService.recordTransaction(
+            {
+              walletId: agentWallet.id,
+              transactionType: TransactionType.DEPOSIT,
+              amountMinor: request.amountMinor,
+              currency: request.currency,
+              referenceType: LedgerReferenceType.WITHDRAWAL,
+              referenceId: request.id,
+              idempotencyKey: `agent_float_reimburse_${request.id}`,
+            },
+            manager,
+          );
+
+          const profile = await manager.findOne(AgentProfile, { where: { userId: adminUserId } });
+          if (profile) {
+            const prev = BigInt(profile.totalWithdrawalsApprovedMinor || '0');
+            profile.totalWithdrawalsApprovedMinor = (prev + BigInt(request.amountMinor)).toString();
+            await manager.save(profile);
+          }
+
+          if (this.eventsGateway) {
+            const newFloat = (BigInt(agentWallet.balanceMinor || '0') + BigInt(request.amountMinor)).toString();
+            this.eventsGateway.sendBalanceUpdate(adminUserId, newFloat);
+          }
+        }
+      }
+
       request.status = PaymentRequestStatus.APPROVED;
       request.approvedBy = adminUserId;
       request.approvedAt = new Date();
@@ -794,11 +954,25 @@ export class WalletService implements OnModuleInit {
     return matched;
   }
 
-  async getAllPendingRequests(): Promise<any[]> {
+  async getAllPendingRequests(actorUser?: any): Promise<any[]> {
     await this.expireOverdueRequests();
-    const requests = await this.paymentRepo.find({
+    const isOperator = actorUser?.roles?.includes(UserRole.OPERATOR) &&
+      !actorUser?.roles?.includes(UserRole.CREATOR) &&
+      !actorUser?.roles?.includes(UserRole.SUPER_ADMIN);
+
+    let requests = await this.paymentRepo.find({
       order: { createdAt: 'DESC' },
+      take: 200,
     });
+
+    if (isOperator && actorUser?.id) {
+      requests = requests.filter(
+        (r) =>
+          r.assignedAgentId === actorUser.id ||
+          !r.assignedAgentId ||
+          r.approvedBy === actorUser.id,
+      );
+    }
 
     // Enrich requests with user details & approver details
     const userIds = requests.map((r) => r.userId).filter(Boolean);

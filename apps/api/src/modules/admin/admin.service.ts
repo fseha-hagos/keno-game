@@ -6,6 +6,8 @@ import {
   Logger,
   OnModuleInit,
   Optional,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { EventsGateway } from '../websocket/events.gateway';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -18,6 +20,10 @@ import { WalletAccount } from '../../database/entities/wallet-account.entity';
 import { GameRound } from '../../database/entities/game-round.entity';
 import { Bet } from '../../database/entities/bet.entity';
 import { Paytable } from '../../database/entities/paytable.entity';
+import { AgentProfile } from '../../database/entities/agent-profile.entity';
+import { LedgerService } from '../ledger/ledger.service';
+import { WalletService } from '../wallet/wallet.service';
+import { LedgerReferenceType } from '@keno/shared-types';
 import { AuditService } from '../audit/audit.service';
 import { UserRole, UserStatus, TransactionType, BetStatus } from '@keno/shared-types';
 import { DEFAULT_96_PAYTABLE_ENTRIES, calculateOverallRtp, getPaytableForRtp } from '@keno/game-math';
@@ -51,7 +57,12 @@ export class AdminService implements OnModuleInit {
     private readonly betRepo: Repository<Bet>,
     @InjectRepository(Paytable)
     private readonly paytableRepo: Repository<Paytable>,
+    @InjectRepository(AgentProfile)
+    private readonly agentProfileRepo: Repository<AgentProfile>,
     private readonly auditService: AuditService,
+    private readonly ledgerService: LedgerService,
+    @Inject(forwardRef(() => WalletService))
+    private readonly walletService: WalletService,
     @Optional()
     private readonly eventsGateway?: EventsGateway,
   ) {}
@@ -823,4 +834,276 @@ export class AdminService implements OnModuleInit {
       throw new ForbiddenException(`Only the Creator (Super Admin) is authorized to ${actionName}.`);
     }
   }
+
+  /* ────────────────── 2.5 AGENT CASHIER MANAGEMENT (CREATOR & OWNER) ────────────────── */
+
+  async listAgents(actor: User) {
+    this.assertIsStaff(actor);
+    const isCreator = this.hasRole(actor, [UserRole.CREATOR, UserRole.SUPER_ADMIN]);
+    const isOwner = this.hasRole(actor, [UserRole.BUSINESS_OWNER]);
+    if (!isCreator && !isOwner) {
+      throw new ForbiddenException('Only Creator and Business Owner can view agent list');
+    }
+
+    const allUsers = await this.userRepo.find({
+      order: { createdAt: 'DESC' },
+    });
+    const agentUsers = allUsers.filter((u) => u.roles?.includes(UserRole.OPERATOR));
+
+    const profiles = await this.agentProfileRepo.find();
+    const profileMap = new Map<string, AgentProfile>();
+    profiles.forEach((p) => profileMap.set(p.userId, p));
+
+    const wallets = await this.walletRepo.find({ where: { currency: 'ETB' } });
+    const walletMap = new Map<string, WalletAccount>();
+    wallets.forEach((w) => walletMap.set(w.userId, w));
+
+    return agentUsers.map((u) => {
+      const prof = profileMap.get(u.id);
+      const wal = walletMap.get(u.id);
+      const floatMinor = wal ? BigInt(wal.balanceMinor || '0') : 0n;
+      return {
+        id: u.id,
+        userId: u.id,
+        username: u.username,
+        phone: u.phone,
+        status: u.status,
+        roles: u.roles,
+        floatBalanceETB: Number(floatMinor) / 100,
+        floatBalanceMinor: floatMinor.toString(),
+        telebirrNumber: prof?.telebirrNumber || '',
+        telebirrName: prof?.telebirrName || '',
+        cbeNumber: prof?.cbeNumber || '',
+        cbeName: prof?.cbeName || '',
+        isActive: prof ? prof.isActive : true,
+        totalFloatCreditedETB: Number(prof?.totalFloatCreditedMinor || '0') / 100,
+        totalDepositsApprovedETB: Number(prof?.totalDepositsApprovedMinor || '0') / 100,
+        totalWithdrawalsApprovedETB: Number(prof?.totalWithdrawalsApprovedMinor || '0') / 100,
+        createdAt: u.createdAt,
+      };
+    });
+  }
+
+  async createAgent(
+    actor: User,
+    input: {
+      phone: string;
+      username: string;
+      password: string;
+      initialFloatETB?: number;
+      telebirrNumber?: string;
+      telebirrName?: string;
+      cbeNumber?: string;
+      cbeName?: string;
+    },
+  ) {
+    this.assertIsStaff(actor);
+    const isCreator = this.hasRole(actor, [UserRole.CREATOR, UserRole.SUPER_ADMIN]);
+    const isOwner = this.hasRole(actor, [UserRole.BUSINESS_OWNER]);
+    if (!isCreator && !isOwner) {
+      throw new ForbiddenException('Only Creator and Business Owner can register agents');
+    }
+
+    const cleanPhone = input.phone.trim();
+    const cleanUsername = input.username.trim();
+
+    const existingPhone = await this.userRepo.findOne({ where: { phone: cleanPhone } });
+    if (existingPhone) {
+      throw new BadRequestException('Phone number is already registered.');
+    }
+
+    const existingUser = await this.userRepo.findOne({ where: { username: cleanUsername } });
+    if (existingUser) {
+      throw new BadRequestException('Username is already in use.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(input.password, salt);
+
+    const agentUser = this.userRepo.create({
+      phone: cleanPhone,
+      username: cleanUsername,
+      passwordHash,
+      status: UserStatus.ACTIVE,
+      roles: [UserRole.OPERATOR, UserRole.GAME_OPERATOR],
+    });
+    const savedUser = await this.userRepo.save(agentUser);
+
+    const initialFloatETB = Number(input.initialFloatETB) || 0;
+    const initialFloatMinor = (Math.round(initialFloatETB * 100)).toString();
+
+    const profile = this.agentProfileRepo.create({
+      userId: savedUser.id,
+      telebirrNumber: input.telebirrNumber ? input.telebirrNumber.trim() : cleanPhone,
+      telebirrName: input.telebirrName ? input.telebirrName.trim() : cleanUsername,
+      cbeNumber: input.cbeNumber ? input.cbeNumber.trim() : undefined,
+      cbeName: input.cbeName ? input.cbeName.trim() : undefined,
+      isActive: true,
+      totalFloatCreditedMinor: initialFloatMinor,
+      totalDepositsApprovedMinor: '0',
+      totalWithdrawalsApprovedMinor: '0',
+    });
+    await this.agentProfileRepo.save(profile);
+
+    const wallet = await this.walletService.getOrCreateWallet(savedUser.id, 'ETB');
+    if (initialFloatETB > 0) {
+      await this.ledgerService.recordTransaction({
+        walletId: wallet.id,
+        transactionType: TransactionType.DEPOSIT,
+        amountMinor: initialFloatMinor,
+        currency: 'ETB',
+        referenceType: LedgerReferenceType.MANUAL_ADJUSTMENT,
+        referenceId: `initial_float_${savedUser.id}`,
+        idempotencyKey: `init_float_${savedUser.id}_${Date.now()}`,
+      });
+    }
+
+    await this.auditService.log({
+      actorId: actor.id,
+      actorRole: actor.roles[0] || 'CREATOR',
+      action: 'AGENT_CREATED',
+      entity: 'USER',
+      entityId: savedUser.id,
+      metadata: {
+        username: savedUser.username,
+        initialFloatETB,
+        telebirrNumber: profile.telebirrNumber,
+        cbeNumber: profile.cbeNumber,
+        createdBy: actor.username,
+      },
+    });
+
+    return {
+      id: savedUser.id,
+      userId: savedUser.id,
+      username: savedUser.username,
+      phone: savedUser.phone,
+      floatBalanceETB: initialFloatETB,
+      telebirrNumber: profile.telebirrNumber,
+      telebirrName: profile.telebirrName,
+      cbeNumber: profile.cbeNumber,
+      cbeName: profile.cbeName,
+      isActive: profile.isActive,
+    };
+  }
+
+  async topUpAgentFloat(
+    actor: User,
+    agentUserId: string,
+    amountETB: number,
+    adminNote?: string,
+  ) {
+    this.assertIsStaff(actor);
+    const isCreator = this.hasRole(actor, [UserRole.CREATOR, UserRole.SUPER_ADMIN]);
+    const isOwner = this.hasRole(actor, [UserRole.BUSINESS_OWNER]);
+    if (!isCreator && !isOwner) {
+      throw new ForbiddenException('Only Creator and Business Owner can top up float');
+    }
+
+    if (!amountETB || amountETB <= 0) {
+      throw new BadRequestException('Top up amount must be positive');
+    }
+
+    const agent = await this.userRepo.findOne({ where: { id: agentUserId } });
+    if (!agent) throw new NotFoundException('Agent user not found');
+
+    const amountMinor = (Math.round(amountETB * 100)).toString();
+    const wallet = await this.walletService.getOrCreateWallet(agentUserId, 'ETB');
+
+    await this.ledgerService.recordTransaction({
+      walletId: wallet.id,
+      transactionType: TransactionType.DEPOSIT,
+      amountMinor,
+      currency: 'ETB',
+      referenceType: LedgerReferenceType.MANUAL_ADJUSTMENT,
+      referenceId: `float_topup_${agentUserId}_${Date.now()}`,
+      idempotencyKey: `topup_${agentUserId}_${Date.now()}`,
+    });
+
+    let profile = await this.agentProfileRepo.findOne({ where: { userId: agentUserId } });
+    if (profile) {
+      const prev = BigInt(profile.totalFloatCreditedMinor || '0');
+      profile.totalFloatCreditedMinor = (prev + BigInt(amountMinor)).toString();
+      await this.agentProfileRepo.save(profile);
+    } else {
+      profile = this.agentProfileRepo.create({
+        userId: agentUserId,
+        telebirrNumber: agent.phone || '',
+        telebirrName: agent.username,
+        isActive: true,
+        totalFloatCreditedMinor: amountMinor,
+        totalDepositsApprovedMinor: '0',
+        totalWithdrawalsApprovedMinor: '0',
+      });
+      await this.agentProfileRepo.save(profile);
+    }
+
+    const updatedWallet = await this.walletRepo.findOne({ where: { id: wallet.id } });
+    const newBalanceETB = updatedWallet ? Number(updatedWallet.balanceMinor) / 100 : 0;
+
+    await this.auditService.log({
+      actorId: actor.id,
+      actorRole: actor.roles[0] || 'CREATOR',
+      action: 'AGENT_FLOAT_TOPUP',
+      entity: 'WALLET',
+      entityId: wallet.id,
+      metadata: {
+        agentId: agent.id,
+        agentUsername: agent.username,
+        amountETB,
+        adminNote,
+        toppedUpBy: actor.username,
+      },
+    });
+
+    return {
+      success: true,
+      agentId: agentUserId,
+      amountToppedUpETB: amountETB,
+      newFloatBalanceETB: newBalanceETB,
+    };
+  }
+
+  async updateAgent(
+    actor: User,
+    agentUserId: string,
+    input: {
+      telebirrNumber?: string;
+      telebirrName?: string;
+      cbeNumber?: string;
+      cbeName?: string;
+      isActive?: boolean;
+    },
+  ) {
+    this.assertIsStaff(actor);
+    let profile = await this.agentProfileRepo.findOne({ where: { userId: agentUserId } });
+    if (!profile) {
+      profile = this.agentProfileRepo.create({ userId: agentUserId });
+    }
+    if (input.telebirrNumber !== undefined) profile.telebirrNumber = input.telebirrNumber.trim();
+    if (input.telebirrName !== undefined) profile.telebirrName = input.telebirrName.trim();
+    if (input.cbeNumber !== undefined) profile.cbeNumber = input.cbeNumber.trim();
+    if (input.cbeName !== undefined) profile.cbeName = input.cbeName.trim();
+    if (input.isActive !== undefined) profile.isActive = input.isActive;
+
+    const saved = await this.agentProfileRepo.save(profile);
+    return saved;
+  }
+
+  async getAgentFloatBalance(userId: string) {
+    const wallet = await this.walletRepo.findOne({ where: { userId, currency: 'ETB' } });
+    const profile = await this.agentProfileRepo.findOne({ where: { userId } });
+    const floatMinor = wallet ? BigInt(wallet.balanceMinor || '0') : 0n;
+    return {
+      userId,
+      floatBalanceETB: Number(floatMinor) / 100,
+      floatBalanceMinor: floatMinor.toString(),
+      telebirrNumber: profile?.telebirrNumber || '',
+      telebirrName: profile?.telebirrName || '',
+      cbeNumber: profile?.cbeNumber || '',
+      cbeName: profile?.cbeName || '',
+      isActive: profile ? profile.isActive : true,
+    };
+  }
+
 }

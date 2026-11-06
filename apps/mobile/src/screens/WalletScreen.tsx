@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -88,6 +88,42 @@ export const WalletScreen = () => {
     refetchInterval: 5000,
   });
 
+  const { data: activeAgents = [] } = useQuery<any[]>({
+    queryKey: ['activeCashierAgents'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/wallet/active-agents');
+        return Array.isArray(res.data) ? res.data : [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 30000,
+  });
+
+  const selectedAgent = activeAgents.length > 0 ? activeAgents[0] : null;
+
+  const dynamicPaymentMethods: Array<(typeof PAYMENT_METHODS)[number]> = useMemo(() => {
+    if (!selectedAgent) return PAYMENT_METHODS;
+    return PAYMENT_METHODS.map((m) => {
+      if (m.id === 'telebirr' && selectedAgent.telebirrNumber) {
+        return {
+          ...m,
+          accountNumber: selectedAgent.telebirrNumber,
+          accountName: selectedAgent.telebirrName || selectedAgent.username,
+        };
+      }
+      if (m.id === 'cbe_birr' && selectedAgent.cbeNumber) {
+        return {
+          ...m,
+          accountNumber: selectedAgent.cbeNumber,
+          accountName: selectedAgent.cbeName || selectedAgent.username,
+        };
+      }
+      return m;
+    });
+  }, [selectedAgent]);
+
   const { data: paymentRequests, isLoading: reqLoading } = useQuery({
     queryKey: ['paymentRequests'],
     queryFn: async () => {
@@ -106,7 +142,7 @@ export const WalletScreen = () => {
       if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
+      const method = (dynamicPaymentMethods.find((m) => m.id === selectedMethod) || PAYMENT_METHODS[0])!;
 
       const res = await apiClient.post('/api/v1/wallet/deposit', {
         amountMinor,
@@ -115,6 +151,7 @@ export const WalletScreen = () => {
         accountNumber: method.accountNumber,
         accountName: method.accountName,
         idempotencyKey,
+        agentId: selectedAgent?.id,
       });
       return { ...res.data, methodInfo: method, displayAmount: amountNum };
     },
@@ -234,7 +271,9 @@ export const WalletScreen = () => {
 
   // DEPOSIT INSTRUCTION VIEW (like the screenshot)
   if (view === 'deposit_instruction') {
-    const method = PAYMENT_METHODS.find((m) => m.id === selectedMethod) || PAYMENT_METHODS[0]!;
+    const method = (dynamicPaymentMethods.find((m) => m.id === (pendingDepositData?.paymentMethod || selectedMethod)) || PAYMENT_METHODS[0])!;
+    const displayAccountName = pendingDepositData?.accountName || method.accountName;
+    const displayAccountNumber = pendingDepositData?.accountNumber || method.accountNumber;
     const displayAmount = parseFloat(depositAmount);
 
     return (
@@ -268,11 +307,11 @@ export const WalletScreen = () => {
               <Text style={styles.instructionLabel}>Account Number</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={[styles.instructionValue, { fontWeight: '900', fontSize: 16 }]}>
-                  {method.accountNumber}
+                  {displayAccountNumber}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    Clipboard.setString(method.accountNumber);
+                    Clipboard.setString(displayAccountNumber);
                     toastSuccess('Copied!', 'Account number copied to clipboard.');
                   }}
                   style={styles.copyBtn}
@@ -286,7 +325,7 @@ export const WalletScreen = () => {
 
             <View style={styles.instructionRow}>
               <Text style={styles.instructionLabel}>Account Name</Text>
-              <Text style={[styles.instructionValue, { fontWeight: '800' }]}>{method.accountName}</Text>
+              <Text style={[styles.instructionValue, { fontWeight: '800' }]}>{displayAccountName}</Text>
             </View>
 
             <View style={styles.divider} />
@@ -375,7 +414,7 @@ export const WalletScreen = () => {
         <View style={styles.actionCard}>
           <Text style={styles.actionTitle}>SELECT PAYMENT METHOD</Text>
           <View style={styles.methodsRow}>
-            {PAYMENT_METHODS.map((method) => {
+            {dynamicPaymentMethods.map((method) => {
               const active = selectedMethod === method.id;
               return (
                 <TouchableOpacity
