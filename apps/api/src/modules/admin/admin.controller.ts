@@ -194,6 +194,18 @@ export class AdminController {
     return this.adminService.updateAgent(req.user, id, body);
   }
 
+  @Get('overview/capital')
+  @ApiOperation({ summary: 'Get total users balance, agent float, and system capital' })
+  async getCapitalOverview(@Request() req: any) {
+    return this.adminService.getPlatformCapitalOverview(req.user);
+  }
+
+  @Delete('agents/:id')
+  @ApiOperation({ summary: 'Deactivate / Delete a cashier agent' })
+  async deleteAgent(@Request() req: any, @Param('id') id: string) {
+    return this.adminService.deleteAgent(req.user, id);
+  }
+
   @Get('agents/me/float')
   @ApiOperation({ summary: 'Get current agent float balance and accounts' })
   async getMyAgentFloat(@Request() req: any) {

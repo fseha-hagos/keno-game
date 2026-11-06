@@ -116,6 +116,10 @@ export class DatabaseModule implements OnModuleInit {
           'payment_requests.assignedAgentId'
         );
         await safeQuery(
+          `ALTER TABLE "payment_requests" ADD COLUMN IF NOT EXISTS "approvedBy" uuid;`,
+          'payment_requests.approvedBy'
+        );
+        await safeQuery(
           `CREATE TABLE IF NOT EXISTS "agent_profiles" (
             "id" uuid NOT NULL DEFAULT gen_random_uuid(),
             "userId" uuid NOT NULL,

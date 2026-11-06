@@ -254,7 +254,7 @@ export class WalletService implements OnModuleInit {
 
     const depositAmountMinor = BigInt(input.amountMinor || '0');
     const minDepositMinor = BigInt(GAME_CONFIG.MIN_DEPOSIT_MINOR || '5000');
-    const maxDepositMinor = BigInt(GAME_CONFIG.MAX_DEPOSIT_MINOR || '10000000');
+    const maxDepositMinor = BigInt(process.env['MAX_DEPOSIT_MINOR'] || '1000000'); // 10,000 ETB max
 
     if (depositAmountMinor < minDepositMinor || depositAmountMinor > maxDepositMinor) {
       const minETB = Number(minDepositMinor) / 100;
@@ -990,7 +990,10 @@ export class WalletService implements OnModuleInit {
     const approverIds = requests
       .map((r) => r.approvedBy)
       .filter((id): id is string => Boolean(id) && id !== '00000000-0000-0000-0000-000000000000');
-    const allUserIds = [...new Set([...userIds, ...approverIds])];
+    const assignedAgentIds = requests
+      .map((r) => r.assignedAgentId)
+      .filter((id): id is string => Boolean(id));
+    const allUserIds = [...new Set([...userIds, ...approverIds, ...assignedAgentIds])];
 
     let userMap = new Map<string, any>();
     if (allUserIds.length > 0) {
@@ -1043,7 +1046,10 @@ export class WalletService implements OnModuleInit {
     return requests.map((req) => ({
       ...req,
       user: userMap.get(req.userId) || null,
-      approver: req.approvedBy ? approverMap.get(req.approvedBy) || null : null,
+      approver: req.approvedBy 
+        ? approverMap.get(req.approvedBy) || null 
+        : (req.assignedAgentId ? approverMap.get(req.assignedAgentId) || null : null),
+      agent: req.assignedAgentId ? approverMap.get(req.assignedAgentId) || null : null,
       matchedEvidence: req.matchedEvidenceId ? evidenceMap.get(req.matchedEvidenceId) || null : null,
     }));
   }

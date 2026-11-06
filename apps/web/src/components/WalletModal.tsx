@@ -349,7 +349,16 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     staleTime: 30000,
   });
 
-  const selectedAgent = activeAgents.length > 0 ? activeAgents[0] : null;
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+
+  const selectedAgent = useMemo(() => {
+    if (activeAgents.length === 0) return null;
+    if (selectedAgentId) {
+      const found = activeAgents.find((a) => (a.agentId || a.id) === selectedAgentId);
+      if (found) return found;
+    }
+    return activeAgents[0];
+  }, [activeAgents, selectedAgentId]);
 
   const dynamicPaymentMethods: Array<(typeof PAYMENT_METHODS)[number]> = useMemo(() => {
     if (!selectedAgent) return PAYMENT_METHODS;
@@ -405,6 +414,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       const amountNum = parseFloat(depositAmount);
       if (isNaN(amountNum) || amountNum <= 0) throw new Error('Please enter a valid amount');
       if (amountNum < 50) throw new Error('Minimum deposit amount is 50 ETB');
+      if (amountNum > 10000) throw new Error('Maximum deposit amount is 10,000 ETB');
       const amountMinor = Math.round(amountNum * 100).toString();
       const idempotencyKey = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const method = (dynamicPaymentMethods.find((m) => m.id === selectedMethod) || PAYMENT_METHODS[0])!;
@@ -1421,6 +1431,51 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             ) : (
               /* Step 1: Deposit Method & Amount Selection */
               <div>
+                {/* Multi-Agent Cashier Selection */}
+                {activeAgents.length > 1 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Select Cashier / Agent ({activeAgents.length} Active)
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: activeAgents.length === 2 ? '1fr 1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+                      {activeAgents.map((ag) => {
+                        const agId = ag.agentId || ag.id;
+                        const isCurSelected = (selectedAgent?.agentId || selectedAgent?.id) === agId;
+                        return (
+                          <button
+                            key={agId}
+                            type="button"
+                            onClick={() => setSelectedAgentId(agId)}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              background: isCurSelected ? 'rgba(16, 185, 129, 0.15)' : '#152132',
+                              border: isCurSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 12, fontWeight: 900, color: isCurSelected ? '#34D399' : '#F8FAFC' }}>
+                                {ag.telebirrName || ag.username || 'Cashier'}
+                              </span>
+                              {isCurSelected && <span style={{ color: '#10B981', fontSize: 12, fontWeight: 900 }}>✓</span>}
+                            </div>
+                            <span style={{ fontSize: 10.5, color: '#94A3B8' }}>
+                              📱 {ag.telebirrNumber}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Payment Methods - Vertical List layout matching reference */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
                   {dynamicPaymentMethods.map((method) => {
@@ -1606,7 +1661,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 {/* Action Button */}
                 <button
                   type="button"
-                  disabled={initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50}
+                  disabled={initDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) < 50 || parseFloat(depositAmount) > 10000}
                   onClick={() => initDepositMutation.mutate()}
                   style={{
                     width: '100%',

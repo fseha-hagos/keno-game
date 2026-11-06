@@ -1090,6 +1090,90 @@ export class AdminService implements OnModuleInit {
     return saved;
   }
 
+  async getPlatformCapitalOverview(actor: User) {
+    this.assertIsStaff(actor);
+
+    // 1. Total players wallet balance (liability)
+    const playerBalances = await this.walletRepo.manager.query(`
+      SELECT 
+        COALESCE(SUM(w."balanceMinor"::numeric), 0) as total_player_balance_minor,
+        COALESCE(SUM(w."lockedMinor"::numeric), 0) as total_player_locked_minor,
+        COUNT(DISTINCT u.id) as total_players_count
+      FROM users u
+      LEFT JOIN wallet_accounts w ON w."userId" = u.id AND w.currency = 'ETB'
+      WHERE NOT (u.roles::text ILIKE '%CREATOR%' OR u.roles::text ILIKE '%OPERATOR%' OR u.roles::text ILIKE '%SUPER_ADMIN%')
+    `);
+
+    // 2. Total agent float balance
+    const agentBalances = await this.walletRepo.manager.query(`
+      SELECT 
+        COALESCE(SUM(w."balanceMinor"::numeric), 0) as total_agent_float_minor,
+        COUNT(DISTINCT ap."userId") as total_agents_count
+      FROM agent_profiles ap
+      LEFT JOIN wallet_accounts w ON w."userId" = ap."userId" AND w.currency = 'ETB'
+      WHERE ap."isActive" = true
+    `);
+
+    // 3. Total deposits and withdrawals approved across all time
+    const totals = await this.paymentRepo.manager.query(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN "requestType" = 'DEPOSIT' AND status = 'APPROVED' THEN "amountMinor"::numeric ELSE 0 END), 0) as total_deposits_approved_minor,
+        COALESCE(SUM(CASE WHEN "requestType" = 'WITHDRAWAL' AND status = 'APPROVED' THEN "amountMinor"::numeric ELSE 0 END), 0) as total_withdrawals_approved_minor
+      FROM payment_requests
+    `);
+
+    const playerMinor = BigInt(playerBalances[0]?.total_player_balance_minor || '0');
+    const playerLockedMinor = BigInt(playerBalances[0]?.total_player_locked_minor || '0');
+    const agentMinor = BigInt(agentBalances[0]?.total_agent_float_minor || '0');
+    const depApprovedMinor = BigInt(totals[0]?.total_deposits_approved_minor || '0');
+    const wdApprovedMinor = BigInt(totals[0]?.total_withdrawals_approved_minor || '0');
+
+    const totalPlayerBalanceETB = Number(playerMinor) / 100;
+    const totalPlayerLockedETB = Number(playerLockedMinor) / 100;
+    const totalAgentFloatETB = Number(agentMinor) / 100;
+    const totalDepositsApprovedETB = Number(depApprovedMinor) / 100;
+    const totalWithdrawalsApprovedETB = Number(wdApprovedMinor) / 100;
+
+    const totalSystemCapitalETB = totalPlayerBalanceETB + totalAgentFloatETB;
+    const netPlatformInflowETB = totalDepositsApprovedETB - totalWithdrawalsApprovedETB;
+
+    return {
+      totalPlayerBalanceETB,
+      totalPlayerLockedETB,
+      totalPlayersCount: Number(playerBalances[0]?.total_players_count || 0),
+      totalAgentFloatETB,
+      totalAgentsCount: Number(agentBalances[0]?.total_agents_count || 0),
+      totalDepositsApprovedETB,
+      totalWithdrawalsApprovedETB,
+      totalSystemCapitalETB,
+      netPlatformInflowETB,
+    };
+  }
+
+  async deleteAgent(actor: User, agentUserId: string) {
+    this.assertIsStaff(actor);
+    const profile = await this.agentProfileRepo.findOne({ where: { userId: agentUserId } });
+    if (profile) {
+      profile.isActive = false;
+      await this.agentProfileRepo.save(profile);
+    }
+    const user = await this.userRepo.findOne({ where: { id: agentUserId } });
+    if (user) {
+      user.roles = user.roles.filter((r) => r !== UserRole.OPERATOR);
+      user.status = UserStatus.SUSPENDED;
+      await this.userRepo.save(user);
+    }
+    await this.auditService.log({
+      actorId: actor.id,
+      actorRole: actor.roles[0] || 'CREATOR',
+      action: 'AGENT_DELETED',
+      entity: 'USER',
+      entityId: agentUserId,
+      metadata: { deletedAgentId: agentUserId },
+    });
+    return { success: true, message: 'Agent deactivated and removed from cashier staff' };
+  }
+
   async getAgentFloatBalance(userId: string) {
     const wallet = await this.walletRepo.findOne({ where: { userId, currency: 'ETB' } });
     const profile = await this.agentProfileRepo.findOne({ where: { userId } });

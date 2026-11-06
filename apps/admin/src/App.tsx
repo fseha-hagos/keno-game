@@ -570,6 +570,19 @@ export default function App() {
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [staffSubTab, setStaffSubTab] = useState<'agents' | 'staff'>('agents');
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
+  const [editAgentModal, setEditAgentModal] = useState<any | null>(null);
+  const [editAgentSaving, setEditAgentSaving] = useState(false);
+  const [capitalOverview, setCapitalOverview] = useState<{
+    totalPlayerBalanceETB: number;
+    totalPlayerLockedETB: number;
+    totalPlayersCount: number;
+    totalAgentFloatETB: number;
+    totalAgentsCount: number;
+    totalDepositsApprovedETB: number;
+    totalWithdrawalsApprovedETB: number;
+    totalSystemCapitalETB: number;
+    netPlatformInflowETB: number;
+  } | null>(null);
   const [showTopUpModal, setShowTopUpModal] = useState<any | null>(null);
   const [topUpAmount, setTopUpAmount] = useState('20000');
   const [topUpNote, setTopUpNote] = useState('');
@@ -825,6 +838,58 @@ export default function App() {
       alert(`Failed to register agent: ${err.response?.data?.message || err.message}`);
     } finally {
       setAgentSaving(false);
+    }
+  };
+
+  const handleToggleFreezeAgent = async (agentId: string, currentStatus: boolean) => {
+    const actionLabel = currentStatus ? 'Freeze / Deactivate' : 'Unfreeze / Activate';
+    if (!window.confirm(`Are you sure you want to ${actionLabel} this cashier agent?`)) return;
+    try {
+      await axios.put(
+        `${API_URL}/api/v1/admin/agents/${agentId}`,
+        { isActive: !currentStatus },
+        { headers: authHeaders }
+      );
+      fetchAgentsList();
+    } catch (err: any) {
+      alert(`Failed to update agent status: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const handleDeleteAgent = async (agentId: string, username: string) => {
+    if (!window.confirm(`Are you sure you want to REMOVE agent "${username}"? Their profile will be deactivated.`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/v1/admin/agents/${agentId}`, { headers: authHeaders });
+      alert(`Agent "${username}" successfully removed.`);
+      fetchAgentsList();
+    } catch (err: any) {
+      alert(`Failed to delete agent: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const handleSaveEditAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editAgentModal) return;
+    setEditAgentSaving(true);
+    try {
+      await axios.put(
+        `${API_URL}/api/v1/admin/agents/${editAgentModal.id}`,
+        {
+          telebirrNumber: editAgentModal.telebirrNumber,
+          telebirrName: editAgentModal.telebirrName,
+          cbeNumber: editAgentModal.cbeNumber,
+          cbeName: editAgentModal.cbeName,
+          isActive: editAgentModal.isActive,
+        },
+        { headers: authHeaders }
+      );
+      alert('Cashier agent details updated successfully!');
+      setEditAgentModal(null);
+      fetchAgentsList();
+    } catch (err: any) {
+      alert(`Failed to update agent: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setEditAgentSaving(false);
     }
   };
 
@@ -1789,21 +1854,33 @@ export default function App() {
                 </div>
 
                 <div style={{ backgroundColor: '#0F172A', padding: '20px', borderRadius: '12px', border: '1px solid #1E293B' }}>
-                  <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>THEORETICAL RTP</p>
-                  <h3 style={{ color: '#10B981', fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>95.82%</h3>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Certified paytable math</p>
+                  <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>TOTAL USERS BALANCE</p>
+                  <h3 style={{ color: '#10B981', fontSize: '24px', fontWeight: 900, marginTop: '4px' }}>
+                    {capitalOverview ? `${capitalOverview.totalPlayerBalanceETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB` : '...'}
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>
+                    {capitalOverview?.totalPlayersCount || 0} registered players
+                  </p>
                 </div>
 
                 <div style={{ backgroundColor: '#0F172A', padding: '20px', borderRadius: '12px', border: '1px solid #1E293B' }}>
-                  <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>HOUSE EDGE</p>
-                  <h3 style={{ color: '#F59E0B', fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>4.18%</h3>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Expected operator margin</p>
+                  <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>TOTAL AGENT FLOAT</p>
+                  <h3 style={{ color: '#34D399', fontSize: '24px', fontWeight: 900, marginTop: '4px' }}>
+                    {capitalOverview ? `${capitalOverview.totalAgentFloatETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB` : '...'}
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>
+                    {capitalOverview?.totalAgentsCount || 0} active cashiers
+                  </p>
                 </div>
 
                 <div style={{ backgroundColor: '#0F172A', padding: '20px', borderRadius: '12px', border: '1px solid #1E293B' }}>
-                  <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>RNG ENGINE</p>
-                  <h3 style={{ color: '#A855F7', fontSize: '26px', fontWeight: 900, marginTop: '4px' }}>CSPRNG</h3>
-                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>Cryptographically secure</p>
+                  <p style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>TOTAL SYSTEM CAPITAL</p>
+                  <h3 style={{ color: '#60A5FA', fontSize: '24px', fontWeight: 900, marginTop: '4px' }}>
+                    {capitalOverview ? `${capitalOverview.totalSystemCapitalETB.toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB` : '...'}
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: '11px', marginTop: '4px' }}>
+                    Net in-system liquidity
+                  </p>
                 </div>
               </div>
 
@@ -3136,7 +3213,7 @@ export default function App() {
                               </td>
 
                               <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                   <button
                                     onClick={() => {
                                       setShowTopUpModal(ag);
@@ -3147,14 +3224,62 @@ export default function App() {
                                       backgroundColor: 'rgba(16, 185, 129, 0.15)',
                                       border: '1px solid #10B981',
                                       color: '#34D399',
-                                      padding: '6px 12px',
+                                      padding: '6px 10px',
                                       borderRadius: '6px',
                                       fontSize: '11px',
                                       fontWeight: 800,
                                       cursor: 'pointer',
                                     }}
                                   >
-                                    + Top Up Float
+                                    + Top Up
+                                  </button>
+
+                                  <button
+                                    onClick={() => setEditAgentModal({ ...ag })}
+                                    style={{
+                                      backgroundColor: '#1E293B',
+                                      border: '1px solid #334155',
+                                      color: '#CBD5E1',
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    ✏️ Edit
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleToggleFreezeAgent(ag.id, ag.isActive)}
+                                    style={{
+                                      backgroundColor: ag.isActive ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                      border: ag.isActive ? '1px solid #F59E0B' : '1px solid #10B981',
+                                      color: ag.isActive ? '#FBBF24' : '#34D399',
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {ag.isActive ? '❄️ Freeze' : '🔥 Unfreeze'}
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteAgent(ag.id, ag.username)}
+                                    style={{
+                                      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                      border: '1px solid #EF4444',
+                                      color: '#F87171',
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    🗑️
                                   </button>
                                 </div>
                               </td>
@@ -3805,6 +3930,132 @@ export default function App() {
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* ───────────────────────────────────────────────────────────── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MODAL: EDIT CASHIER AGENT                                     */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {
+        editAgentModal && (
+          <div style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+          }}>
+            <form onSubmit={handleSaveEditAgent} style={{
+              backgroundColor: '#0F172A', border: '1.5px solid #3B82F6', borderRadius: '16px',
+              padding: '28px', width: '480px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: '#F8FAFC' }}>
+                  Edit Cashier Agent: {editAgentModal.username}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setEditAgentModal(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '18px', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '20px' }}>
+                Update payment accounts, phone number, and cashier active status.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                      TELEBIRR NUMBER
+                    </label>
+                    <input
+                      type="text"
+                      value={editAgentModal.telebirrNumber || ''}
+                      onChange={(e) => setEditAgentModal({ ...editAgentModal, telebirrNumber: e.target.value })}
+                      placeholder="e.g. 0912345678"
+                      style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                      TELEBIRR NAME
+                    </label>
+                    <input
+                      type="text"
+                      value={editAgentModal.telebirrName || ''}
+                      onChange={(e) => setEditAgentModal({ ...editAgentModal, telebirrName: e.target.value })}
+                      placeholder="e.g. Kassahun T."
+                      style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                      CBE NUMBER
+                    </label>
+                    <input
+                      type="text"
+                      value={editAgentModal.cbeNumber || ''}
+                      onChange={(e) => setEditAgentModal({ ...editAgentModal, cbeNumber: e.target.value })}
+                      placeholder="e.g. 100012345678"
+                      style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                      CBE NAME
+                    </label>
+                    <input
+                      type="text"
+                      value={editAgentModal.cbeName || ''}
+                      onChange={(e) => setEditAgentModal({ ...editAgentModal, cbeName: e.target.value })}
+                      placeholder="e.g. Kassahun T."
+                      style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                    CASHIER ACTIVE STATUS
+                  </label>
+                  <select
+                    value={editAgentModal.isActive ? 'true' : 'false'}
+                    onChange={(e) => setEditAgentModal({ ...editAgentModal, isActive: e.target.value === 'true' })}
+                    style={{ width: '100%', backgroundColor: '#1E293B', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '8px', boxSizing: 'border-box' }}
+                  >
+                    <option value="true">Active (Can receive deposits & approve requests)</option>
+                    <option value="false">Frozen / Inactive (Hidden from players, approvals paused)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditAgentModal(null)}
+                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#94A3B8', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editAgentSaving}
+                  style={{
+                    backgroundColor: '#3B82F6', color: '#fff', border: 'none',
+                    padding: '10px 22px', borderRadius: '8px', fontWeight: 900, cursor: 'pointer',
+                    opacity: editAgentSaving ? 0.6 : 1,
+                  }}
+                >
+                  {editAgentSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )
+      }
+
       {/* MODAL: REGISTER CASHIER AGENT (FLOAT MODEL)                   */}
       {/* ───────────────────────────────────────────────────────────── */}
       {
