@@ -29,7 +29,7 @@ export class PaymentRequest {
   @Column({ type: 'uuid' })
   userId!: string;
 
-  @Column({ type: 'simple-enum', enum: PaymentRequestType })
+  @Column({ type: 'varchar', length: 20, default: PaymentRequestType.DEPOSIT })
   requestType!: PaymentRequestType;
 
   @Column({ type: 'numeric', precision: 20, scale: 0 })
