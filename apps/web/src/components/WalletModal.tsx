@@ -1431,51 +1431,6 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             ) : (
               /* Step 1: Deposit Method & Amount Selection */
               <div>
-                {/* Multi-Agent Cashier Selection */}
-                {activeAgents.length > 1 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Select Cashier / Agent ({activeAgents.length} Active)
-                      </span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: activeAgents.length === 2 ? '1fr 1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
-                      {activeAgents.map((ag) => {
-                        const agId = ag.agentId || ag.id;
-                        const isCurSelected = (selectedAgent?.agentId || selectedAgent?.id) === agId;
-                        return (
-                          <button
-                            key={agId}
-                            type="button"
-                            onClick={() => setSelectedAgentId(agId)}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 10,
-                              background: isCurSelected ? 'rgba(16, 185, 129, 0.15)' : '#152132',
-                              border: isCurSelected ? '1.5px solid #10B981' : '1px solid #1E293B',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: 2,
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: 12, fontWeight: 900, color: isCurSelected ? '#34D399' : '#F8FAFC' }}>
-                                {ag.telebirrName || ag.username || 'Cashier'}
-                              </span>
-                              {isCurSelected && <span style={{ color: '#10B981', fontSize: 12, fontWeight: 900 }}>✓</span>}
-                            </div>
-                            <span style={{ fontSize: 10.5, color: '#94A3B8' }}>
-                              📱 {ag.telebirrNumber}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 {/* Payment Methods - Vertical List layout matching reference */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
                   {dynamicPaymentMethods.map((method) => {

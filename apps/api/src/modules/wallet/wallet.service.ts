@@ -281,33 +281,64 @@ export class WalletService implements OnModuleInit {
       initialSnippet = extracted.rawSnippet;
     }
 
-    let assignedAgentId: string | undefined = input.agentId && input.agentId !== 'default-agent' ? input.agentId : undefined;
+    const isCbe = input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_bank' || input.paymentMethod === 'cbe_birr';
+
+    // ⚡ Automatic Smart Agent Selection:
+    // Randomly select among active cashier agents who have sufficient float balance!
+    const activeProfiles = await this.agentProfileRepo.find({
+      where: { isActive: true },
+    });
+
+    let assignedAgentProfile: AgentProfile | null = null;
+
+    if (activeProfiles.length > 0) {
+      const qualifiedAgents: { profile: AgentProfile; floatBalance: bigint }[] = [];
+      const allActiveWithFloat: { profile: AgentProfile; floatBalance: bigint }[] = [];
+
+      for (const prof of activeProfiles) {
+        // Ensure agent supports the payment method
+        if (isCbe && !prof.cbeNumber) continue;
+        if (!isCbe && !prof.telebirrNumber) continue;
+
+        const w = await this.walletRepo.findOne({
+          where: { userId: prof.userId, currency },
+        });
+        const floatBal = BigInt(w?.balanceMinor || '0');
+        allActiveWithFloat.push({ profile: prof, floatBalance: floatBal });
+
+        // Check if agent has enough float to cover this deposit
+        if (floatBal >= depositAmountMinor) {
+          qualifiedAgents.push({ profile: prof, floatBalance: floatBal });
+        }
+      }
+
+      if (qualifiedAgents.length > 0) {
+        // Random selection among all agents with sufficient float!
+        const randomIndex = Math.floor(Math.random() * qualifiedAgents.length);
+        assignedAgentProfile = qualifiedAgents[randomIndex]?.profile || null;
+        this.logger.log(`Smart Agent Routing: Selected agent "${assignedAgentProfile?.telebirrName || assignedAgentProfile?.userId || "Unknown"}" randomly from ${qualifiedAgents.length} qualified agents with sufficient float.`);
+      } else if (allActiveWithFloat.length > 0) {
+        // Fallback: pick the active agent with highest float available
+        allActiveWithFloat.sort((a, b) => (b.floatBalance > a.floatBalance ? 1 : -1));
+        assignedAgentProfile = allActiveWithFloat[0]?.profile || null;
+        this.logger.warn(`Smart Agent Routing: No agent had >= ${depositAmountMinor} float. Selected highest float agent (${allActiveWithFloat[0]?.floatBalance || 0n} minor).`);
+      } else {
+        assignedAgentProfile = activeProfiles[Math.floor(Math.random() * activeProfiles.length)] || null;
+      }
+    }
+
+    let assignedAgentId: string | undefined = undefined;
     let targetAccountNumber = input.accountNumber || '0930547684';
     let targetAccountName = input.accountName || 'Abel Alemseged';
 
-    const isCbe = input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_bank' || input.paymentMethod === 'cbe_birr';
-    if (assignedAgentId) {
-      const agentProf = await this.agentProfileRepo.findOne({ where: { userId: assignedAgentId } });
-      if (agentProf) {
-        if (isCbe && agentProf.cbeNumber) {
-          targetAccountNumber = agentProf.cbeNumber;
-          targetAccountName = agentProf.cbeName || targetAccountName;
-        } else if (agentProf.telebirrNumber) {
-          targetAccountNumber = agentProf.telebirrNumber;
-          targetAccountName = agentProf.telebirrName || targetAccountName;
-        }
-      }
-    } else {
-      const activeProf = await this.agentProfileRepo.findOne({ where: { isActive: true }, order: { createdAt: 'DESC' } });
-      if (activeProf) {
-        assignedAgentId = activeProf.userId;
-        if (isCbe && activeProf.cbeNumber) {
-          targetAccountNumber = activeProf.cbeNumber;
-          targetAccountName = activeProf.cbeName || targetAccountName;
-        } else if (activeProf.telebirrNumber) {
-          targetAccountNumber = activeProf.telebirrNumber;
-          targetAccountName = activeProf.telebirrName || targetAccountName;
-        }
+    if (assignedAgentProfile) {
+      assignedAgentId = assignedAgentProfile.userId;
+      if (isCbe && assignedAgentProfile.cbeNumber) {
+        targetAccountNumber = assignedAgentProfile.cbeNumber;
+        targetAccountName = assignedAgentProfile.cbeName || assignedAgentProfile.telebirrName || targetAccountName;
+      } else if (assignedAgentProfile.telebirrNumber) {
+        targetAccountNumber = assignedAgentProfile.telebirrNumber;
+        targetAccountName = assignedAgentProfile.telebirrName || targetAccountName;
       }
     }
 
