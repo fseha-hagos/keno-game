@@ -25,7 +25,7 @@ const entityClasses = (Object.values(entities) as any[]).filter(
             database: configService.get<string>('DB_DATABASE', 'keno.sqlite'),
             entities: entityClasses,
             synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
-            logging: configService.get<string>('NODE_ENV') === 'development',
+            logging: configService.get<string>('DB_LOGGING') === 'true' ? true : ['error'],
           };
         }
 
@@ -39,7 +39,7 @@ const entityClasses = (Object.values(entities) as any[]).filter(
             url: databaseUrl,
             entities: entityClasses,
             synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
-            logging: configService.get<string>('NODE_ENV') === 'development',
+            logging: configService.get<string>('DB_LOGGING') === 'true' ? true : ['error'],
             ssl: useSsl ? { rejectUnauthorized: false } : false,
           };
         }
@@ -53,7 +53,7 @@ const entityClasses = (Object.values(entities) as any[]).filter(
           database: configService.get<string>('DB_NAME', 'keno_db'),
           entities: entityClasses,
           synchronize: configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
-          logging: configService.get<string>('NODE_ENV') === 'development',
+          logging: configService.get<string>('DB_LOGGING') === 'true' ? true : ['error'],
           ssl: dbSsl === 'true' ? { rejectUnauthorized: false } : false,
         };
       },
