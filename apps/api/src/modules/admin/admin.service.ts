@@ -1094,6 +1094,8 @@ export class AdminService implements OnModuleInit {
     const wallet = await this.walletRepo.findOne({ where: { userId, currency: 'ETB' } });
     const profile = await this.agentProfileRepo.findOne({ where: { userId } });
     const floatMinor = wallet ? BigInt(wallet.balanceMinor || '0') : 0n;
+    const totalDepositsApprovedETB = profile ? Number(BigInt(profile.totalDepositsApprovedMinor || '0')) / 100 : 0;
+    const totalWithdrawalsApprovedETB = profile ? Number(BigInt(profile.totalWithdrawalsApprovedMinor || '0')) / 100 : 0;
     return {
       userId,
       floatBalanceETB: Number(floatMinor) / 100,
@@ -1103,6 +1105,8 @@ export class AdminService implements OnModuleInit {
       cbeNumber: profile?.cbeNumber || '',
       cbeName: profile?.cbeName || '',
       isActive: profile ? profile.isActive : true,
+      totalDepositsApprovedETB,
+      totalWithdrawalsApprovedETB,
     };
   }
 

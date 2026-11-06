@@ -1216,7 +1216,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                       <span style={{ fontSize: 12, color: '#94A3B8' }}>Account Number:</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 15, fontWeight: 900, color: '#10B981', letterSpacing: '0.04em' }}>
-                          {currentMethod.accountNumber}
+                          {displayAccountNumber}
                         </span>
                         <button
                           type="button"

@@ -563,6 +563,8 @@ export default function App() {
     telebirrName: string;
     cbeNumber: string;
     cbeName: string;
+    totalDepositsApprovedETB?: number;
+    totalWithdrawalsApprovedETB?: number;
   } | null>(null);
   const [agentsList, setAgentsList] = useState<any[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -626,6 +628,22 @@ export default function App() {
     if (!adminToken) return;
     if (isOperator) {
       fetchAgentFloat();
+      // Operators strictly load their own assigned payment requests only
+      axios.get(`${API_URL}/api/v1/wallet/admin/payment-requests`, { headers: authHeaders })
+        .then((res) => {
+          setPaymentRequests(res.data);
+          setFetchError(null);
+        })
+        .catch((err) => {
+          if (err.response?.status === 401) {
+            handleLogout();
+          } else if (err.response?.status === 403) {
+            setFetchError('Access denied.');
+          } else {
+            setFetchError(`Failed to load requests: ${err.message}`);
+          }
+        });
+      return; // Stop here: do NOT fetch system audits, rounds, MacroDroid evidence, or server status
     }
     // Authoritative platform RTP configuration (Creator authority)
     if (isCreator) {
@@ -1954,20 +1972,34 @@ export default function App() {
                 </div>
 
                 <div style={{ backgroundColor: '#0F172A', padding: '16px 18px', borderRadius: '12px', border: '1px solid #1E293B' }}>
-                  <span style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>AUTO-MATCHED SMS</span>
+                  <span style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>
+                    {isOperator ? 'LIFETIME APPROVED DEPOSITS' : 'AUTO-MATCHED SMS'}
+                  </span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
                     <span style={{ color: '#34D399', fontSize: '22px', fontWeight: 900 }}>
-                      {paymentRequests.filter((r) => r.requestType === 'DEPOSIT' && r.status === 'PENDING' && r.matchedEvidenceId).length}
+                      {isOperator
+                        ? `${(agentFloatData?.totalDepositsApprovedETB || 0).toLocaleString()} ETB`
+                        : paymentRequests.filter((r) => r.requestType === 'DEPOSIT' && r.status === 'PENDING' && r.matchedEvidenceId).length}
                     </span>
-                    <span style={{ color: '#64748B', fontSize: '11px' }}>evidence verified</span>
+                    <span style={{ color: '#64748B', fontSize: '11px' }}>
+                      {isOperator ? 'by you' : 'evidence verified'}
+                    </span>
                   </div>
                 </div>
 
                 <div style={{ backgroundColor: '#0F172A', padding: '16px 18px', borderRadius: '12px', border: '1px solid #1E293B' }}>
-                  <span style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>SMS COLLECTED</span>
+                  <span style={{ color: '#94A3B8', fontSize: '11px', fontWeight: 700 }}>
+                    {isOperator ? 'LIFETIME APPROVED WITHDRAWALS' : 'SMS COLLECTED'}
+                  </span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-                    <span style={{ color: '#60A5FA', fontSize: '22px', fontWeight: 900 }}>{evidenceList.length}</span>
-                    <span style={{ color: '#64748B', fontSize: '11px' }}>Telebirr / CBE / M-Pesa</span>
+                    <span style={{ color: '#60A5FA', fontSize: '22px', fontWeight: 900 }}>
+                      {isOperator
+                        ? `${(agentFloatData?.totalWithdrawalsApprovedETB || 0).toLocaleString()} ETB`
+                        : evidenceList.length}
+                    </span>
+                    <span style={{ color: '#64748B', fontSize: '11px' }}>
+                      {isOperator ? 'by you' : 'Telebirr / CBE / M-Pesa'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1977,13 +2009,16 @@ export default function App() {
                 display: 'flex', gap: '8px', borderBottom: '1px solid #1E293B',
                 paddingBottom: '12px', marginBottom: '20px'
               }}>
-                {[
+                {(isOperator ? [
+                  { id: 'queue', label: 'Review & Approval Queue', icon: <CheckCircle size={15} /> },
+                  { id: 'audit', label: 'My Approved History', icon: <History size={15} /> },
+                ] : [
                   { id: 'queue', label: 'Review & Approval Queue', icon: <CheckCircle size={15} /> },
                   { id: 'evidence', label: 'MacroDroid Live Stream', icon: <Smartphone size={15} /> },
                   { id: 'simulator', label: 'SMS Simulator', icon: <Sparkles size={15} /> },
                   { id: 'guide', label: 'MacroDroid Config', icon: <HelpCircle size={15} /> },
                   { id: 'audit', label: 'Decision Audit Trail', icon: <History size={15} /> },
-                ].map((sub) => (
+                ]).map((sub) => (
                   <button
                     key={sub.id}
                     onClick={() => setPaymentsSubTab(sub.id as any)}
@@ -2704,15 +2739,53 @@ export default function App() {
 
               {paymentsSubTab === 'audit' && (
                 <div style={{ backgroundColor: '#0F172A', padding: '24px', borderRadius: '12px', border: '1px solid #1E293B' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '16px' }}>Deposit & Withdrawal Decision Audit Trail</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {auditLogs.map((log) => (
-                      <div key={log.id} style={{ backgroundColor: '#1E293B', padding: '12px', borderRadius: '6px', fontSize: '12px' }}>
-                        <span style={{ color: '#94A3B8' }}>{formatDate(log.timestamp)}</span> —{' '}
-                        <strong style={{ color: '#FBBF24' }}>{log.action}</strong> by <span>{log.actorId.slice(0, 8)}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '16px' }}>
+                    {isOperator ? 'My Decision History (Approved / Rejected)' : 'Deposit & Withdrawal Decision Audit Trail'}
+                  </h3>
+                  {isOperator ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {paymentRequests
+                        .filter((r) => r.status === 'APPROVED' || r.status === 'REJECTED')
+                        .map((req) => (
+                          <div key={req.id} style={{
+                            backgroundColor: '#1E293B', padding: '14px', borderRadius: '8px', fontSize: '13px',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
+                          }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{
+                                  backgroundColor: req.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                  color: req.status === 'APPROVED' ? '#34D399' : '#F87171',
+                                  padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 900
+                                }}>
+                                  {req.status}
+                                </span>
+                                <span style={{ fontWeight: 800, color: '#F8FAFC' }}>
+                                  {req.requestType} — {(Number(req.amountMinor) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>
+                                Player: <strong style={{ color: '#E2E8F0' }}>{req.user?.username || req.user?.phone || 'Player'}</strong> ({req.user?.phone || ''}) • {formatDate(req.updatedAt || req.createdAt)}
+                              </div>
+                            </div>
+                            {req.adminNote && (
+                              <div style={{ fontSize: '11px', color: '#94A3B8', maxWidth: '300px' }}>
+                                Note: {req.adminNote}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {auditLogs.map((log) => (
+                        <div key={log.id} style={{ backgroundColor: '#1E293B', padding: '12px', borderRadius: '6px', fontSize: '12px' }}>
+                          <span style={{ color: '#94A3B8' }}>{formatDate(log.timestamp)}</span> —{' '}
+                          <strong style={{ color: '#FBBF24' }}>{log.action}</strong> by <span>{log.actorId.slice(0, 8)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

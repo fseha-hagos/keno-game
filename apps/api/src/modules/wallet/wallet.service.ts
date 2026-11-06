@@ -236,6 +236,7 @@ export class WalletService implements OnModuleInit {
       ];
     }
     return profiles.map((p) => ({
+      id: p.userId,
       agentId: p.userId,
       telebirrNumber: p.telebirrNumber || '0930547684',
       telebirrName: p.telebirrName || 'Abel Alemseged',
@@ -284,10 +285,11 @@ export class WalletService implements OnModuleInit {
     let targetAccountNumber = input.accountNumber || '0930547684';
     let targetAccountName = input.accountName || 'Abel Alemseged';
 
+    const isCbe = input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_bank' || input.paymentMethod === 'cbe_birr';
     if (assignedAgentId) {
       const agentProf = await this.agentProfileRepo.findOne({ where: { userId: assignedAgentId } });
       if (agentProf) {
-        if ((input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_birr') && agentProf.cbeNumber) {
+        if (isCbe && agentProf.cbeNumber) {
           targetAccountNumber = agentProf.cbeNumber;
           targetAccountName = agentProf.cbeName || targetAccountName;
         } else if (agentProf.telebirrNumber) {
@@ -299,7 +301,7 @@ export class WalletService implements OnModuleInit {
       const activeProf = await this.agentProfileRepo.findOne({ where: { isActive: true }, order: { createdAt: 'DESC' } });
       if (activeProf) {
         assignedAgentId = activeProf.userId;
-        if ((input.paymentMethod === 'cbe' || input.paymentMethod === 'cbe_birr') && activeProf.cbeNumber) {
+        if (isCbe && activeProf.cbeNumber) {
           targetAccountNumber = activeProf.cbeNumber;
           targetAccountName = activeProf.cbeName || targetAccountName;
         } else if (activeProf.telebirrNumber) {
@@ -423,6 +425,17 @@ export class WalletService implements OnModuleInit {
       const withdrawExpireHours = Number(process.env.WITHDRAWAL_EXPIRE_HOURS || '2');
       const expiresAt = new Date(Date.now() + withdrawExpireHours * 60 * 60 * 1000);
 
+      let assignedAgentId = (input as any).agentId;
+      if (!assignedAgentId) {
+        const activeProf = await manager.findOne(AgentProfile, {
+          where: { isActive: true },
+          order: { createdAt: 'DESC' },
+        });
+        if (activeProf) {
+          assignedAgentId = activeProf.userId;
+        }
+      }
+
       const request = manager.create(PaymentRequest, {
         userId,
         requestType: PaymentRequestType.WITHDRAWAL,
@@ -434,6 +447,7 @@ export class WalletService implements OnModuleInit {
         status: PaymentRequestStatus.PENDING,
         expiresAt,
         idempotencyKey: input.idempotencyKey,
+        assignedAgentId,
       });
 
       const saved = await manager.save(request);
@@ -967,10 +981,7 @@ export class WalletService implements OnModuleInit {
 
     if (isOperator && actorUser?.id) {
       requests = requests.filter(
-        (r) =>
-          r.assignedAgentId === actorUser.id ||
-          !r.assignedAgentId ||
-          r.approvedBy === actorUser.id,
+        (r) => r.assignedAgentId === actorUser.id || r.approvedBy === actorUser.id,
       );
     }
 
